@@ -934,7 +934,7 @@ class LiveDataService {
                 velocity: (volume24h / Math.max(liquidity, 1) * 2).toFixed(1),
                 heatScore,
                 createdAt: pair.pairCreatedAt,
-                isPumpFun: true, // Mark as pump.fun style
+                isPumpFun: (pair.dexId || '').toLowerCase().includes('pump') || (pair.url || '').includes('pump.fun'),
                 ageHours,
                 url: pair.url,
                 info: pair.info || {}
@@ -1175,21 +1175,23 @@ class LiveDataService {
 
         tokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
-            const isPumpFun = t.isPumpFun || dex.includes('pump');
+            const url = (t.url || '').toLowerCase();
             // Use appropriate volume based on timeframe
             const vol = timeframe === '5m' ? (t.volume5m || t.volume24h * 0.003) :
                        timeframe === '1h' ? (t.volume1h || t.volume24h * 0.04) :
                        t.volume24h || 0;
 
-            if (isPumpFun) {
+            // Detect platform based on dexId and URL
+            if (dex.includes('pump') || url.includes('pump.fun')) {
                 platformVolumes.pumpfun += vol;
-            } else if (dex.includes('raydium')) {
-                platformVolumes.raydium += vol;
-            } else if (dex.includes('jupiter')) {
+            } else if (dex.includes('jupiter') || url.includes('jup.ag')) {
                 platformVolumes.jupiter += vol;
-            } else if (dex.includes('orca')) {
+            } else if (dex.includes('orca') || url.includes('orca.so')) {
                 platformVolumes.orca += vol;
+            } else if (dex.includes('raydium') || url.includes('raydium')) {
+                platformVolumes.raydium += vol;
             } else {
+                // Default unrecognized DEXs to "other"
                 platformVolumes.other += vol;
             }
         });
@@ -1756,7 +1758,8 @@ class LiveDataService {
                 dexId: pair.dexId,
                 ageHours: pair.pairCreatedAt ? Math.floor((Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60)) : null,
                 description: pumpFunData?.description || pair.info?.description || '',
-                socials: pumpFunData?.socials || pair.info?.socials || null,
+                socials: pumpFunData?.socials || pair.info?.socials || [],
+                websites: pair.info?.websites || [],
                 replyCount: pumpFunData?.replyCount || null,
                 boostInfo: boostInfo || null
             };

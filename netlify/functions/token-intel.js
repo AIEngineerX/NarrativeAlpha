@@ -75,15 +75,53 @@ Response format:
 }`;
 
         // Format social links for better context
+        // DEX Screener provides socials as array: [{type: "twitter", url: "..."}, ...]
+        // Some sources provide as object: {twitter: "url", telegram: "url"}
         let socialsInfo = 'No social links found';
         if (tokenData.socials) {
             const socialList = [];
-            if (tokenData.socials.twitter) socialList.push(`Twitter: ${typeof tokenData.socials.twitter === 'string' ? tokenData.socials.twitter : 'Yes'}`);
-            if (tokenData.socials.telegram) socialList.push(`Telegram: ${typeof tokenData.socials.telegram === 'string' ? tokenData.socials.telegram : 'Yes'}`);
-            if (tokenData.socials.website) socialList.push(`Website: ${typeof tokenData.socials.website === 'string' ? tokenData.socials.website : 'Yes'}`);
-            if (tokenData.socials.discord) socialList.push(`Discord: Yes`);
+
+            // Handle array format (DEX Screener style)
+            if (Array.isArray(tokenData.socials)) {
+                tokenData.socials.forEach(social => {
+                    const type = (social.type || social.label || '').toLowerCase();
+                    const url = social.url || '';
+                    if (type.includes('twitter') || type.includes('x.com') || url.includes('twitter.com') || url.includes('x.com')) {
+                        socialList.push(`Twitter/X: ${url || 'Yes'}`);
+                    } else if (type.includes('telegram') || url.includes('t.me')) {
+                        socialList.push(`Telegram: ${url || 'Yes'}`);
+                    } else if (type.includes('discord') || url.includes('discord')) {
+                        socialList.push(`Discord: ${url || 'Yes'}`);
+                    } else if (type.includes('tiktok') || url.includes('tiktok')) {
+                        socialList.push(`TikTok: ${url || 'Yes'}`);
+                    } else if (type.includes('website') || type.includes('web')) {
+                        socialList.push(`Website: ${url || 'Yes'}`);
+                    } else if (url) {
+                        socialList.push(`${type || 'Link'}: ${url}`);
+                    }
+                });
+            }
+            // Handle object format
+            else if (typeof tokenData.socials === 'object') {
+                if (tokenData.socials.twitter) socialList.push(`Twitter/X: ${typeof tokenData.socials.twitter === 'string' ? tokenData.socials.twitter : 'Yes'}`);
+                if (tokenData.socials.telegram) socialList.push(`Telegram: ${typeof tokenData.socials.telegram === 'string' ? tokenData.socials.telegram : 'Yes'}`);
+                if (tokenData.socials.website) socialList.push(`Website: ${typeof tokenData.socials.website === 'string' ? tokenData.socials.website : 'Yes'}`);
+                if (tokenData.socials.discord) socialList.push(`Discord: ${typeof tokenData.socials.discord === 'string' ? tokenData.socials.discord : 'Yes'}`);
+                if (tokenData.socials.tiktok) socialList.push(`TikTok: ${typeof tokenData.socials.tiktok === 'string' ? tokenData.socials.tiktok : 'Yes'}`);
+            }
+
             if (socialList.length > 0) {
                 socialsInfo = socialList.join(', ');
+            }
+        }
+
+        // Also check for websites array from DEX Screener
+        if (tokenData.websites && Array.isArray(tokenData.websites) && tokenData.websites.length > 0) {
+            const websiteUrls = tokenData.websites.map(w => w.url || w).filter(Boolean);
+            if (websiteUrls.length > 0 && socialsInfo === 'No social links found') {
+                socialsInfo = `Website: ${websiteUrls[0]}`;
+            } else if (websiteUrls.length > 0 && !socialsInfo.includes('Website')) {
+                socialsInfo += `, Website: ${websiteUrls[0]}`;
             }
         }
 
