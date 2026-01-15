@@ -107,8 +107,8 @@ const CONFIG = {
             query: 'Analyze AI x Crypto convergence plays and emerging tokens'
         },
         {
-            label: 'Velocity Spikes',
-            query: 'What memecoin narratives are showing velocity spikes right now?'
+            label: 'Hot Movers',
+            query: 'What memecoins are showing strong momentum right now?'
         },
     ],
 
