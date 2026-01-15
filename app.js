@@ -221,6 +221,18 @@ class NarrativeAlpha {
                 this.elements.queryInput.focus();
             });
         });
+
+        // Top Gainer click - opens DEX Screener for the token
+        const topGainerEl = document.getElementById('statsTopGainer');
+        if (topGainerEl) {
+            topGainerEl.style.cursor = 'pointer';
+            topGainerEl.addEventListener('click', () => {
+                const address = topGainerEl.dataset.address;
+                if (address) {
+                    window.open(`https://dexscreener.com/solana/${address}`, '_blank');
+                }
+            });
+        }
     }
 
     animateMetrics() {
@@ -1178,10 +1190,21 @@ class LiveDataService {
         // 3. Count urgent signals
         const urgentCount = tokens.filter(t => t.isUrgent === true).length;
 
-        // 4. Find top gainer (best 1h performance)
+        // 4. Find top gainer (best 1h performance with fallback to 24h)
         const topGainer = [...tokens]
-            .filter(t => t.priceChange1h !== undefined && t.volume1h > 500)
-            .sort((a, b) => b.priceChange1h - a.priceChange1h)[0];
+            .filter(t => {
+                // Must have some price change data
+                const hasPriceData = t.priceChange1h !== undefined || t.priceChange24h !== undefined;
+                // Must have some volume (use 1h if available, else 24h/24)
+                const volume = t.volume1h || (t.volume24h ? t.volume24h / 24 : 0);
+                return hasPriceData && volume > 100;
+            })
+            .sort((a, b) => {
+                // Sort by 1h change if available, else use 24h change
+                const changeA = a.priceChange1h ?? (a.priceChange24h || 0);
+                const changeB = b.priceChange1h ?? (b.priceChange24h || 0);
+                return changeB - changeA;
+            })[0];
 
         // Update DOM elements
         const volumeEl = document.getElementById('statsTotalVolume');
@@ -1231,8 +1254,10 @@ class LiveDataService {
             topGainerEl.textContent = '---';
         }
         if (topGainerChangeEl && topGainer) {
-            const change = topGainer.priceChange1h;
-            topGainerChangeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+            // Use 1h change if available, otherwise use 24h change
+            const change = topGainer.priceChange1h ?? topGainer.priceChange24h ?? 0;
+            const timeframe = topGainer.priceChange1h !== undefined ? '1h' : '24h';
+            topGainerChangeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}% (${timeframe})`;
             topGainerChangeEl.className = `top-gainer-change ${change >= 0 ? 'positive' : 'negative'}`;
         }
 
