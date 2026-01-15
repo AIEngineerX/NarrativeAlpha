@@ -552,7 +552,10 @@ class NavigationController {
                 document.querySelectorAll('.pulse-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 const tabType = tab.dataset.tab;
-                const targetId = tabType === 'market' ? 'pulseMarket' : tabType === 'social' ? 'pulseSocial' : tabType === 'kol' ? 'pulseKol' : 'pulseWallets';
+                const targetId = tabType === 'market' ? 'pulseMarket' :
+                                 tabType === 'alpha' ? 'pulseAlpha' :
+                                 tabType === 'social' ? 'pulseSocial' :
+                                 tabType === 'kol' ? 'pulseKol' : 'pulseWallets';
                 document.getElementById(targetId)?.classList.add('active');
             });
         });
@@ -713,6 +716,7 @@ class LiveDataService {
         this.fetchAllData();
         this.fetchSocialTrends(); // Fetch real social trends
         this.fetchKolData(); // Fetch KOL leaderboard data
+        this.fetchNarrativeRadar(); // Fetch emerging narratives
         this.startAutoRefresh();
         // Refresh wallet activity periodically
         this.walletRefreshInterval = setInterval(() => this.refreshWalletActivity(), 300000); // 5 min
@@ -1943,6 +1947,135 @@ class LiveDataService {
                 kolSource.textContent = 'Data: KOLscan.io';
             }
         }
+    }
+
+    // ============================================
+    // NARRATIVE RADAR (EARLY ALPHA)
+    // ============================================
+
+    async fetchNarrativeRadar() {
+        try {
+            const response = await fetch('/.netlify/functions/narrative-radar');
+
+            if (!response.ok) {
+                throw new Error('Narrative radar fetch failed');
+            }
+
+            const data = await response.json();
+            this.displayNarratives(data);
+
+            return data;
+        } catch (error) {
+            console.warn('Narrative radar error:', error);
+            // Display sample data on error
+            const listEl = document.getElementById('narrativeList');
+            if (listEl) {
+                listEl.innerHTML = '<div class="narrative-item empty">Unable to load narrative data</div>';
+            }
+            return null;
+        }
+    }
+
+    displayNarratives(data) {
+        const listEl = document.getElementById('narrativeList');
+        if (!listEl) return;
+
+        const narratives = data.narratives || [];
+
+        if (narratives.length === 0) {
+            listEl.innerHTML = '<div class="narrative-item empty">No emerging narratives detected</div>';
+            return;
+        }
+
+        const html = narratives.slice(0, 8).map((narrative, i) => {
+            // Determine category styling
+            const categoryClass = (narrative.category || 'EMERGING').toLowerCase().replace('_', '-');
+            const categoryLabel = this.formatCategory(narrative.category);
+
+            // Determine engagement level
+            const engagementClass = narrative.engagement === 'viral' ? 'viral' :
+                                   narrative.engagement === 'high' ? 'high' : 'medium';
+
+            // Source icons
+            const sources = narrative.sources || [narrative.source];
+            const sourceIcons = sources.map(s => {
+                if (s === 'twitter') return '<span class="source-icon x" title="X/Twitter">𝕏</span>';
+                if (s === 'tiktok') return '<span class="source-icon tiktok" title="TikTok">♪</span>';
+                if (s === 'reddit') return '<span class="source-icon reddit" title="Reddit">⬡</span>';
+                return '';
+            }).join('');
+
+            // Search URLs
+            const searchTerm = encodeURIComponent(narrative.text?.replace(/#/g, '') || '');
+            const xSearchUrl = `https://x.com/search?q=${searchTerm}&src=typed_query&f=live`;
+            const dexSearchUrl = `https://dexscreener.com/solana?q=${searchTerm}`;
+
+            // Token status
+            const tokenStatus = narrative.tokenExists ?
+                '<span class="token-status exists">Tokens exist</span>' :
+                '<span class="token-status early">No token yet</span>';
+
+            return `
+                <div class="narrative-item ${engagementClass}" data-category="${categoryClass}">
+                    <div class="narrative-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+                    <div class="narrative-content">
+                        <div class="narrative-text">${escapeHtml(narrative.text || '')}</div>
+                        <div class="narrative-meta">
+                            <span class="narrative-category ${categoryClass}">${categoryLabel}</span>
+                            ${tokenStatus}
+                            <span class="narrative-sources">${sourceIcons}</span>
+                        </div>
+                        ${narrative.suggestion ? `<div class="narrative-suggestion">${escapeHtml(narrative.suggestion)}</div>` : ''}
+                    </div>
+                    <div class="narrative-score">
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${narrative.relevanceScore || 50}%"></div>
+                        </div>
+                        <span class="score-value">${narrative.relevanceScore || 50}</span>
+                    </div>
+                    <div class="narrative-actions">
+                        <a href="${xSearchUrl}" target="_blank" rel="noopener" class="narrative-link x" title="Search on X">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </a>
+                        <a href="${dexSearchUrl}" target="_blank" rel="noopener" class="narrative-link dex" title="Search DEX">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listEl.innerHTML = html;
+
+        // Update timestamp
+        const alphaTimeEl = document.getElementById('alphaUpdateTime');
+        if (alphaTimeEl) {
+            if (data.isSample) {
+                alphaTimeEl.textContent = 'Sample';
+                alphaTimeEl.classList.add('sample-data');
+            } else if (data.cached) {
+                alphaTimeEl.textContent = 'Cached';
+                alphaTimeEl.classList.remove('sample-data');
+            } else {
+                alphaTimeEl.textContent = 'Live';
+                alphaTimeEl.classList.remove('sample-data');
+            }
+        }
+    }
+
+    formatCategory(category) {
+        const labels = {
+            'AI_TECH': 'AI/Tech',
+            'POLITICAL': 'Political',
+            'CELEBRITY': 'Celebrity',
+            'MEME_CULTURE': 'Meme',
+            'ANIMAL': 'Animal',
+            'GAMING': 'Gaming',
+            'NEWS_EVENT': 'News',
+            'EMERGING': 'Emerging',
+            'CRYPTO': 'Crypto'
+        };
+        return labels[category] || category || 'Trend';
     }
 
     // ============================================

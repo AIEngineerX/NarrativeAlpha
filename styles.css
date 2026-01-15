@@ -4980,6 +4980,302 @@ span.negative,
     color: var(--accent-cyan);
 }
 
+/* ======================================
+   EARLY ALPHA / NARRATIVE RADAR
+   ====================================== */
+
+.alpha-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: -0.5rem 0 1rem 0;
+    font-style: italic;
+}
+
+.narrative-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.narrative-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.narrative-item:hover {
+    background: rgba(0, 240, 255, 0.05);
+    border-color: rgba(0, 240, 255, 0.2);
+}
+
+.narrative-item.viral {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), transparent);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.narrative-item.high {
+    background: linear-gradient(90deg, rgba(251, 191, 36, 0.08), transparent);
+    border-color: rgba(251, 191, 36, 0.25);
+}
+
+.narrative-item.loading {
+    min-height: 60px;
+}
+
+.narrative-loading-shimmer {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+.narrative-rank {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.narrative-rank.top {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    color: var(--bg-primary);
+}
+
+.narrative-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.narrative-text {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.35rem;
+    line-height: 1.3;
+}
+
+.narrative-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.narrative-category {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.narrative-category.ai-tech {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--accent-purple);
+}
+
+.narrative-category.political {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--accent-red);
+}
+
+.narrative-category.celebrity {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--accent-yellow);
+}
+
+.narrative-category.meme-culture {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+.narrative-category.animal {
+    background: rgba(251, 146, 60, 0.2);
+    color: var(--accent-orange);
+}
+
+.narrative-category.gaming {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3B82F6;
+}
+
+.narrative-category.news-event {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-red);
+}
+
+.narrative-category.emerging,
+.narrative-category.crypto {
+    background: rgba(0, 240, 255, 0.15);
+    color: var(--accent-cyan);
+}
+
+.token-status {
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+}
+
+.token-status.early {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-green);
+    border: 1px dashed rgba(16, 185, 129, 0.4);
+}
+
+.token-status.exists {
+    background: rgba(107, 114, 128, 0.15);
+    color: var(--text-muted);
+}
+
+.narrative-sources {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.source-icon {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.source-icon.x {
+    color: var(--text-primary);
+}
+
+.source-icon.tiktok {
+    color: #ff0050;
+}
+
+.source-icon.reddit {
+    color: #ff4500;
+}
+
+.narrative-suggestion {
+    font-size: 0.7rem;
+    color: var(--accent-cyan);
+    margin-top: 0.35rem;
+    font-style: italic;
+}
+
+.narrative-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 50px;
+}
+
+.score-bar {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.score-value {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.narrative-actions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.narrative-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.narrative-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.narrative-link.x:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.narrative-link.dex:hover {
+    background: rgba(0, 240, 255, 0.15);
+    color: var(--accent-cyan);
+}
+
+.narrative-item.empty {
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 1.5rem;
+}
+
+/* Alpha Sources */
+.alpha-sources {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.alpha-source {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.alpha-source svg {
+    opacity: 0.7;
+}
+
+.x-source svg {
+    color: var(--text-primary);
+}
+
+.tiktok-source svg {
+    color: #ff0050;
+}
+
+.reddit-source svg {
+    color: #ff4500;
+}
+
 .wallet-activity-title {
     font-size: 0.75rem;
     font-weight: 600;
