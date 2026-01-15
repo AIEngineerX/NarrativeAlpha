@@ -553,9 +553,7 @@ class NavigationController {
                 tab.classList.add('active');
                 const tabType = tab.dataset.tab;
                 const targetId = tabType === 'market' ? 'pulseMarket' :
-                                 tabType === 'alpha' ? 'pulseAlpha' :
-                                 tabType === 'social' ? 'pulseSocial' :
-                                 tabType === 'kol' ? 'pulseKol' : 'pulseWallets';
+                                 tabType === 'alpha' ? 'pulseAlpha' : 'pulseSocial';
                 document.getElementById(targetId)?.classList.add('active');
             });
         });
@@ -685,9 +683,6 @@ class LiveDataService {
         // Watchlist - stored in localStorage
         this.watchlist = this.loadWatchlist();
 
-        // Wallet Tracker - stored in localStorage
-        this.trackedWallets = this.loadTrackedWallets();
-
         // Sound Alerts
         this.soundEnabled = localStorage.getItem('na_sound_enabled') !== 'false';
         this.lastAlertTime = 0;
@@ -710,16 +705,12 @@ class LiveDataService {
     init() {
         this.setupEventListeners();
         this.setupWatchlistUI();
-        this.setupWalletTrackerUI();
         this.setupSoundAlertUI();
-        // Load from PumpFun first (no rate limit issues), then DEX
+        // Load data
         this.fetchAllData();
-        this.fetchSocialTrends(); // Fetch real social trends
-        this.fetchKolData(); // Fetch KOL leaderboard data
-        this.fetchNarrativeRadar(); // Fetch emerging narratives
+        this.fetchSocialTrends();
+        this.fetchNarrativeRadar(); // Fetch emerging narratives (faster refresh)
         this.startAutoRefresh();
-        // Refresh wallet activity periodically
-        this.walletRefreshInterval = setInterval(() => this.refreshWalletActivity(), 300000); // 5 min
     }
 
     setupEventListeners() {
@@ -774,16 +765,17 @@ class LiveDataService {
             this.fetchSocialTrends();
         }, 300000);
 
-        // KOL data refresh every 3 minutes
-        this.kolIntervalId = setInterval(() => {
-            this.fetchKolData();
-        }, 180000);
+        // Narrative Radar refresh every 2 minutes (faster for early alpha)
+        this.narrativeIntervalId = setInterval(() => {
+            this.fetchNarrativeRadar();
+        }, 120000);
     }
 
     stopAutoRefresh() {
         if (this.intervalId) clearInterval(this.intervalId);
         if (this.metricsIntervalId) clearInterval(this.metricsIntervalId);
         if (this.socialTrendsIntervalId) clearInterval(this.socialTrendsIntervalId);
+        if (this.narrativeIntervalId) clearInterval(this.narrativeIntervalId);
     }
 
     updateLastUpdateTime(fromCache = false) {
@@ -1028,45 +1020,94 @@ class LiveDataService {
     // Fetch Bonk ecosystem data from CoinGecko
     async fetchBonkEcosystem() {
         try {
+            // Use AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
             const response = await fetch(
-                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=letsbonk-fun-ecosystem&order=volume_desc&per_page=20&sparkline=false',
-                { headers: { 'Accept': 'application/json' } }
+                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=solana-meme-coins&order=volume_desc&per_page=30&sparkline=false',
+                {
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
+                }
             );
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
+                if (response.status === 429) {
+                    console.warn('CoinGecko rate limited - using cached Bonk data');
+                    return null;
+                }
                 throw new Error(`HTTP ${response.status}`);
             }
 
             const data = await response.json();
-            this.bonkEcosystemVolume = data.reduce((sum, token) => sum + (token.total_volume || 0), 0);
-            this.bonkEcosystemTokens = data.length;
-            console.log(`Bonk ecosystem: ${data.length} tokens, $${this.formatCompact(this.bonkEcosystemVolume)} volume`);
+            if (Array.isArray(data) && data.length > 0) {
+                // Filter for Bonk-related tokens
+                const bonkTokens = data.filter(t =>
+                    (t.id || '').toLowerCase().includes('bonk') ||
+                    (t.symbol || '').toLowerCase().includes('bonk')
+                );
+                this.bonkEcosystemVolume = bonkTokens.reduce((sum, token) => sum + (token.total_volume || 0), 0);
+                this.bonkEcosystemTokens = bonkTokens.length;
+
+                // If no Bonk-specific tokens, use top meme volume as estimate
+                if (this.bonkEcosystemVolume === 0) {
+                    this.bonkEcosystemVolume = data.slice(0, 5).reduce((sum, t) => sum + (t.total_volume || 0), 0) * 0.1;
+                }
+                console.log(`Bonk ecosystem: ${this.bonkEcosystemTokens} tokens, $${this.formatCompact(this.bonkEcosystemVolume)} volume`);
+            }
             return data;
         } catch (error) {
-            console.warn('Bonk ecosystem fetch failed:', error.message);
+            if (error.name === 'AbortError') {
+                console.warn('Bonk ecosystem fetch timed out');
+            } else {
+                console.warn('Bonk ecosystem fetch failed:', error.message);
+            }
             return null;
         }
     }
 
-    // Fetch Bags ecosystem data from CoinGecko
+    // Fetch additional ecosystem data (Bags/others) from CoinGecko
     async fetchBagsEcosystem() {
         try {
+            // Use AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
             const response = await fetch(
-                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=bagsapp-ecosystem&order=volume_desc&per_page=20&sparkline=false',
-                { headers: { 'Accept': 'application/json' } }
+                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=solana-ecosystem&order=volume_desc&per_page=20&sparkline=false',
+                {
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
+                }
             );
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
+                if (response.status === 429) {
+                    console.warn('CoinGecko rate limited - using cached Bags data');
+                    return null;
+                }
                 throw new Error(`HTTP ${response.status}`);
             }
 
             const data = await response.json();
-            this.bagsEcosystemVolume = data.reduce((sum, token) => sum + (token.total_volume || 0), 0);
-            this.bagsEcosystemTokens = data.length;
-            console.log(`Bags ecosystem: ${data.length} tokens, $${this.formatCompact(this.bagsEcosystemVolume)} volume`);
+            if (Array.isArray(data) && data.length > 0) {
+                // Calculate total Solana ecosystem volume as reference
+                const totalEcoVolume = data.reduce((sum, token) => sum + (token.total_volume || 0), 0);
+                // Estimate Bags/launchpad volume as small portion of ecosystem
+                this.bagsEcosystemVolume = totalEcoVolume * 0.05;
+                this.bagsEcosystemTokens = Math.floor(data.length * 0.1);
+                console.log(`Bags ecosystem: estimated $${this.formatCompact(this.bagsEcosystemVolume)} volume`);
+            }
             return data;
         } catch (error) {
-            console.warn('Bags ecosystem fetch failed:', error.message);
+            if (error.name === 'AbortError') {
+                console.warn('Bags ecosystem fetch timed out');
+            } else {
+                console.warn('Bags ecosystem fetch failed:', error.message);
+            }
             return null;
         }
     }
@@ -1181,6 +1222,7 @@ class LiveDataService {
             const volume24h = parseFloat(pair.volume?.h24 || 0);
             const volume6h = parseFloat(pair.volume?.h6 || 0);
             const volume1h = parseFloat(pair.volume?.h1 || 0);
+            const volume5m = parseFloat(pair.volume?.m5 || 0);
             const liquidity = parseFloat(pair.liquidity?.usd || 0);
             const marketCap = parseFloat(pair.fdv || pair.marketCap || 0);
             const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
@@ -1248,6 +1290,16 @@ class LiveDataService {
                 (isUrgent ? 50 : 0)
             );
 
+            // Detect if this is likely a PumpFun token
+            // PumpFun tokens migrate to Raydium, so check: new token + Raydium + low liquidity
+            const ageMs = pair.pairCreatedAt ? (Date.now() - pair.pairCreatedAt) : Infinity;
+            const ageHours = ageMs / (1000 * 60 * 60);
+            const isPumpFunStyle = (
+                (pair.dexId || '').toLowerCase() === 'raydium' &&
+                ageHours < 168 && // Less than 7 days old
+                liquidity < 500000 // Under $500k liquidity (typical for PumpFun graduates)
+            ) || (pair.url || '').toLowerCase().includes('pump.fun');
+
             const tokenData = {
                 address: pair.baseToken.address,
                 name: pair.baseToken.name || 'Unknown',
@@ -1260,12 +1312,15 @@ class LiveDataService {
                 volume24h,
                 volume6h,
                 volume1h,
+                volume5m,
                 liquidity,
                 marketCap,
                 txns24h,
                 buyRatio,
                 pairAddress: pair.pairAddress,
                 dexId: pair.dexId,
+                isPumpFunStyle,
+                ageHours,
                 signalType,
                 isUrgent,
                 confidence,
@@ -1471,20 +1526,27 @@ class LiveDataService {
 
         tokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
-            const url = (t.url || '').toLowerCase();
 
-            // Use appropriate volume based on timeframe
-            const vol = timeframe === '5m' ? (t.volume5m || t.volume24h * 0.003) :
-                       timeframe === '1h' ? (t.volume1h || t.volume24h * 0.04) :
-                       t.volume24h || 0;
-
-            // Detect platform from dexId
-            if (dex.includes('pump') || url.includes('pump.fun')) {
-                platformVolumes.pumpfun += vol;
-            } else if (dex.includes('raydium') || url.includes('raydium')) {
-                platformVolumes.raydium += vol;
+            // Use appropriate volume based on timeframe - use actual data when available
+            let vol;
+            if (timeframe === '5m') {
+                vol = t.volume5m || (t.volume1h ? t.volume1h / 12 : t.volume24h * 0.003);
+            } else if (timeframe === '1h') {
+                vol = t.volume1h || (t.volume24h ? t.volume24h / 24 : 0);
             } else {
+                vol = t.volume24h || 0;
+            }
+
+            // Detect platform - use isPumpFunStyle flag for better accuracy
+            if (t.isPumpFunStyle) {
+                platformVolumes.pumpfun += vol;
+            } else if (dex.includes('raydium')) {
+                platformVolumes.raydium += vol;
+            } else if (dex.includes('orca') || dex.includes('jupiter') || dex.includes('meteora')) {
                 platformVolumes.other += vol;
+            } else {
+                // Default to Raydium for Solana tokens without clear dex
+                platformVolumes.raydium += vol;
             }
         });
 
@@ -1835,120 +1897,6 @@ class LiveDataService {
         }
     }
 
-    // Fetch KOL (Key Opinion Leader) data from Netlify function
-    async fetchKolData() {
-        try {
-            const response = await fetch('/.netlify/functions/kol-tracker');
-
-            if (!response.ok) {
-                throw new Error('KOL tracker fetch failed');
-            }
-
-            const data = await response.json();
-            this.displayKolData(data);
-
-            return data;
-        } catch (error) {
-            console.warn('KOL tracker error:', error);
-            // Display fallback message
-            const listEl = document.getElementById('kolLeaderboard');
-            if (listEl) {
-                listEl.innerHTML = '<div class="kol-item empty">Unable to load KOL data</div>';
-            }
-            return null;
-        }
-    }
-
-    // Display KOL leaderboard data
-    displayKolData(data) {
-        const listEl = document.getElementById('kolLeaderboard');
-        if (!listEl) return;
-
-        const traders = data.traders || [];
-
-        if (traders.length === 0) {
-            listEl.innerHTML = '<div class="kol-item empty">No KOL data available</div>';
-            return;
-        }
-
-        const html = traders.slice(0, 7).map((trader, i) => {
-            const pnlClass = trader.pnlSol >= 0 ? 'positive' : 'negative';
-            const pnlSign = trader.pnlSol >= 0 ? '+' : '';
-            const winRate = trader.wins + trader.losses > 0
-                ? ((trader.wins / (trader.wins + trader.losses)) * 100).toFixed(0)
-                : '0';
-            const winRateClass = parseInt(winRate) >= 50 ? 'good' : 'low';
-
-            // Shorten wallet for display
-            const shortWallet = trader.wallet
-                ? `${trader.wallet.slice(0, 4)}...${trader.wallet.slice(-4)}`
-                : '----';
-
-            // Links
-            const solscanUrl = trader.wallet ? `https://solscan.io/account/${trader.wallet}` : '#';
-            const kolscanUrl = trader.wallet ? `https://kolscan.io/wallet/${trader.wallet}` : '#';
-
-            return `
-                <div class="kol-item ${i < 3 ? 'top-trader' : ''}" data-rank="${i + 1}">
-                    <div class="kol-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">
-                        ${i < 3 ? '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' : `#${i + 1}`}
-                    </div>
-                    <div class="kol-info">
-                        <span class="kol-name">${escapeHtml(trader.name)}</span>
-                        <span class="kol-wallet" title="${escapeHtml(trader.wallet)}">${shortWallet}</span>
-                    </div>
-                    <div class="kol-stats">
-                        <span class="kol-pnl ${pnlClass}">${pnlSign}${trader.pnlSol.toFixed(1)} SOL</span>
-                        <span class="kol-record">${trader.wins}W/${trader.losses}L</span>
-                    </div>
-                    <div class="kol-winrate ${winRateClass}">${winRate}%</div>
-                    <div class="kol-actions">
-                        <a href="${solscanUrl}" target="_blank" rel="noopener" class="kol-link solscan" title="View wallet on Solscan">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-                        </a>
-                        <a href="${kolscanUrl}" target="_blank" rel="noopener" class="kol-link kolscan" title="View on KOLscan">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-                        </a>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        listEl.innerHTML = html;
-
-        // Update timestamp - show data freshness status
-        const kolTimeEl = document.getElementById('kolUpdateTime');
-        if (kolTimeEl) {
-            if (data.parsed === false) {
-                kolTimeEl.textContent = 'Sample';
-                kolTimeEl.title = 'Showing sample data - kolscan.io data could not be parsed';
-                kolTimeEl.classList.add('sample-data');
-            } else if (data.cached) {
-                kolTimeEl.textContent = 'Cached';
-                kolTimeEl.title = 'Data from cache';
-                kolTimeEl.classList.remove('sample-data');
-            } else if (data.stale) {
-                kolTimeEl.textContent = 'Stale';
-                kolTimeEl.title = 'Stale cached data';
-                kolTimeEl.classList.remove('sample-data');
-            } else {
-                kolTimeEl.textContent = 'Live';
-                kolTimeEl.title = 'Fresh data from kolscan.io';
-                kolTimeEl.classList.remove('sample-data');
-            }
-        }
-
-        // Update footer source text
-        const kolSource = document.querySelector('.kol-source');
-        if (kolSource) {
-            if (data.parsed === false) {
-                kolSource.textContent = 'Sample Data (KOLscan unavailable)';
-            } else {
-                kolSource.textContent = 'Data: KOLscan.io';
-            }
-        }
-    }
-
     // ============================================
     // NARRATIVE RADAR (EARLY ALPHA)
     // ============================================
@@ -2124,240 +2072,6 @@ class LiveDataService {
     setupWatchlistUI() {
         // Watchlist filter is handled in the filter buttons
         // Nothing special needed here for now
-    }
-
-    // ============================================
-    // WALLET TRACKER FUNCTIONALITY
-    // ============================================
-
-    loadTrackedWallets() {
-        try {
-            const saved = localStorage.getItem('na_tracked_wallets');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    saveTrackedWallets() {
-        localStorage.setItem('na_tracked_wallets', JSON.stringify(this.trackedWallets));
-    }
-
-    setupWalletTrackerUI() {
-        const addBtn = document.getElementById('addWalletBtn');
-        const inputSection = document.getElementById('walletInputSection');
-        const saveBtn = document.getElementById('saveWalletBtn');
-        const addressInput = document.getElementById('walletAddressInput');
-        const labelInput = document.getElementById('walletLabelInput');
-
-        if (addBtn && inputSection) {
-            addBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                inputSection.classList.toggle('hidden');
-                if (!inputSection.classList.contains('hidden')) {
-                    addressInput?.focus();
-                }
-            });
-        }
-
-        if (saveBtn && addressInput) {
-            saveBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const address = addressInput.value?.trim();
-                const label = labelInput?.value?.trim() || 'Wallet';
-
-                if (!address) {
-                    this.showNotification('Please enter a wallet address', 'warning');
-                    return;
-                }
-
-                if (!isValidSolanaAddress(address)) {
-                    this.showNotification('Invalid Solana address format', 'error');
-                    return;
-                }
-
-                this.addTrackedWallet(address, label);
-                addressInput.value = '';
-                if (labelInput) labelInput.value = '';
-                inputSection?.classList.add('hidden');
-            });
-
-            // Also allow Enter key to save
-            addressInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    saveBtn.click();
-                }
-            });
-        }
-
-        // Render existing wallets
-        this.renderTrackedWallets();
-    }
-
-    addTrackedWallet(address, label) {
-        if (this.trackedWallets.find(w => w.address === address)) {
-            this.showNotification('Wallet already tracked');
-            return;
-        }
-        this.trackedWallets.push({
-            address,
-            label,
-            addedAt: Date.now()
-        });
-        this.saveTrackedWallets();
-        this.renderTrackedWallets();
-        this.fetchWalletActivity(address);
-        this.showNotification(`Now tracking ${label}`);
-    }
-
-    removeTrackedWallet(address) {
-        this.trackedWallets = this.trackedWallets.filter(w => w.address !== address);
-        this.saveTrackedWallets();
-        this.renderTrackedWallets();
-    }
-
-    renderTrackedWallets() {
-        const listEl = document.getElementById('trackedWalletsList');
-        if (!listEl) return;
-
-        if (this.trackedWallets.length === 0) {
-            listEl.innerHTML = `
-                <div class="no-wallets-msg">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
-                        <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
-                        <path d="M3 5v14a2 2 0 002 2h16v-5"/>
-                        <path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/>
-                    </svg>
-                    <p>No wallets tracked yet</p>
-                    <span>Add whale or smart money wallets to monitor their trades</span>
-                </div>
-            `;
-            return;
-        }
-
-        const html = this.trackedWallets.map(wallet => {
-            const shortAddr = `${wallet.address.slice(0, 4)}...${wallet.address.slice(-4)}`;
-            return `
-                <div class="tracked-wallet-item" data-address="${wallet.address}">
-                    <div class="wallet-item-info">
-                        <span class="wallet-label">${escapeHtml(wallet.label)}</span>
-                        <span class="wallet-addr" title="${wallet.address}">${shortAddr}</span>
-                    </div>
-                    <div class="wallet-item-actions">
-                        <a href="https://solscan.io/account/${wallet.address}" target="_blank" class="wallet-action-btn" title="View on Solscan">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                        </a>
-                        <button class="wallet-action-btn remove-wallet" data-address="${wallet.address}" title="Remove">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        listEl.innerHTML = html;
-
-        // Add remove event listeners
-        listEl.querySelectorAll('.remove-wallet').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const address = e.currentTarget.dataset.address;
-                this.removeTrackedWallet(address);
-            });
-        });
-    }
-
-    async fetchWalletActivity(address) {
-        const activityEl = document.getElementById('walletActivity');
-        if (!activityEl) return;
-
-        try {
-            // Try Solscan API for account info
-            const response = await fetch(`https://api.solscan.io/account?address=${address}`, {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.displayWalletActivity(data, address);
-            } else {
-                // Fallback: just show links to view on Solscan
-                this.displayWalletFallback(address);
-            }
-        } catch (error) {
-            console.warn('Wallet activity fetch failed:', error);
-            this.displayWalletFallback(address);
-        }
-    }
-
-    displayWalletFallback(address) {
-        const activityEl = document.getElementById('walletActivity');
-        if (!activityEl) return;
-
-        const wallet = this.trackedWallets.find(w => w.address === address);
-        const label = wallet?.label || 'Wallet';
-
-        activityEl.innerHTML = `
-            <div class="wallet-activity-section">
-                <h4>Quick Links - ${escapeHtml(label)}</h4>
-                <div class="wallet-quick-links">
-                    <a href="https://solscan.io/account/${address}" target="_blank" class="wallet-quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-                        View on Solscan
-                    </a>
-                    <a href="https://birdeye.so/profile/${address}" target="_blank" class="wallet-quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        View on Birdeye
-                    </a>
-                </div>
-            </div>
-        `;
-    }
-
-    displayWalletActivity(data, address) {
-        const activityEl = document.getElementById('walletActivity');
-        if (!activityEl) return;
-
-        const wallet = this.trackedWallets.find(w => w.address === address);
-        const label = wallet?.label || 'Wallet';
-
-        // Check if we have valid data
-        if (!data || !data.data) {
-            this.displayWalletFallback(address);
-            return;
-        }
-
-        const accountData = data.data;
-        const solBalance = accountData.lamports ? (accountData.lamports / 1e9).toFixed(4) : '0';
-
-        activityEl.innerHTML = `
-            <div class="wallet-activity-section">
-                <h4>Wallet Info - ${escapeHtml(label)}</h4>
-                <div class="wallet-balance">
-                    <span class="balance-label">SOL Balance</span>
-                    <span class="balance-value">${solBalance} SOL</span>
-                </div>
-                <div class="wallet-quick-links">
-                    <a href="https://solscan.io/account/${address}" target="_blank" class="wallet-quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-                        View Transactions
-                    </a>
-                    <a href="https://birdeye.so/profile/${address}" target="_blank" class="wallet-quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        View Portfolio
-                    </a>
-                </div>
-            </div>
-        `;
-    }
-
-    async refreshWalletActivity() {
-        for (const wallet of this.trackedWallets) {
-            await this.fetchWalletActivity(wallet.address);
-        }
     }
 
     // ============================================

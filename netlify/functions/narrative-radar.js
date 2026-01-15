@@ -4,7 +4,7 @@
 let cache = {
     data: null,
     timestamp: 0,
-    ttl: 300000 // 5 minute cache
+    ttl: 120000 // 2 minute cache for faster updates
 };
 
 // Crypto-related keywords to filter for
