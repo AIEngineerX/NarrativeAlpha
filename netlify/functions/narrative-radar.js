@@ -119,7 +119,8 @@ exports.handler = async (event, context) => {
     }
 };
 
-// Fetch PumpFun trending/new launches
+// Fetch PumpFun-style tokens via DEX Screener (direct PumpFun API is blocked)
+// Finds fresh Solana memecoins that match PumpFun launch patterns
 async function fetchPumpFunTrending() {
     const trends = [];
 
@@ -127,73 +128,84 @@ async function fetchPumpFunTrending() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        // PumpFun API - get coins sorted by various metrics
-        // Try multiple endpoints for better coverage
-        const endpoints = [
-            'https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=last_trade_timestamp&order=DESC&includeNsfw=false',
-            'https://frontend-api.pump.fun/coins?offset=0&limit=20&sort=market_cap&order=DESC&includeNsfw=false'
-        ];
+        // Search for fresh memecoins using common PumpFun naming patterns
+        const searchTerms = ['pump', 'fun', 'sol', 'meme', 'pepe', 'doge', 'cat', 'moon'];
+        const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
 
-        for (const endpoint of endpoints) {
-            try {
-                const response = await fetch(endpoint, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    },
-                    signal: controller.signal
-                });
-
-                if (response.ok) {
-                    const coins = await response.json();
-
-                    if (Array.isArray(coins)) {
-                        coins.slice(0, 10).forEach(coin => {
-                            // Skip if already added
-                            if (trends.find(t => t.address === coin.mint)) return;
-
-                            const ageMs = coin.created_timestamp ? (Date.now() - coin.created_timestamp) : 0;
-                            const ageHours = ageMs / (1000 * 60 * 60);
-                            const marketCap = coin.usd_market_cap || coin.market_cap || 0;
-
-                            // Determine engagement based on activity
-                            let engagement = 'medium';
-                            if (coin.reply_count > 50 || marketCap > 100000) engagement = 'viral';
-                            else if (coin.reply_count > 10 || marketCap > 20000) engagement = 'high';
-
-                            trends.push({
-                                text: `$${coin.symbol} - ${coin.name}`,
-                                description: coin.description?.slice(0, 100) || '',
-                                source: 'pumpfun',
-                                category: categorizeNarrative(coin.name + ' ' + coin.symbol + ' ' + (coin.description || '')),
-                                engagement,
-                                symbol: coin.symbol,
-                                name: coin.name,
-                                address: coin.mint,
-                                marketCap,
-                                ageHours: Math.round(ageHours * 10) / 10,
-                                replyCount: coin.reply_count || 0,
-                                isNew: ageHours < 1,
-                                isFresh: ageHours < 24,
-                                tokenExists: true
-                            });
-                        });
-                    }
-                }
-            } catch (e) {
-                console.warn('PumpFun endpoint failed:', e.message);
+        const response = await fetch(
+            `https://api.dexscreener.com/latest/dex/search?q=${randomTerm}`,
+            {
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal
             }
+        );
+
+        if (response.ok) {
+            const data = await response.json();
+            const pairs = data.pairs || [];
+
+            // Filter for fresh Solana memecoins (PumpFun style)
+            const pumpFunStyle = pairs.filter(p => {
+                if (p.chainId !== 'solana') return false;
+                const mcap = parseFloat(p.fdv || p.marketCap || 0);
+                const liquidity = parseFloat(p.liquidity?.usd || 0);
+                const ageHours = p.pairCreatedAt
+                    ? (Date.now() - p.pairCreatedAt) / (1000 * 60 * 60)
+                    : 999;
+
+                // PumpFun style: new (< 3 days), lower mcap, has some liquidity
+                return ageHours < 72 && mcap < 5000000 && mcap > 1000 && liquidity > 500;
+            });
+
+            pumpFunStyle.slice(0, 10).forEach(pair => {
+                if (!pair.baseToken) return;
+                if (trends.find(t => t.address === pair.baseToken.address)) return;
+
+                const ageHours = pair.pairCreatedAt
+                    ? (Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60)
+                    : 999;
+                const priceChange1h = parseFloat(pair.priceChange?.h1 || 0);
+                const priceChange24h = parseFloat(pair.priceChange?.h24 || 0);
+                const volume24h = parseFloat(pair.volume?.h24 || 0);
+                const mcap = parseFloat(pair.fdv || 0);
+
+                // Determine engagement
+                let engagement = 'medium';
+                if (priceChange1h > 30 || volume24h > 100000) engagement = 'viral';
+                else if (priceChange1h > 10 || volume24h > 20000) engagement = 'high';
+
+                trends.push({
+                    text: `$${pair.baseToken.symbol} - ${pair.baseToken.name}`,
+                    source: 'pumpfun',
+                    category: categorizeNarrative(pair.baseToken.name + ' ' + pair.baseToken.symbol),
+                    engagement,
+                    symbol: pair.baseToken.symbol,
+                    name: pair.baseToken.name,
+                    address: pair.baseToken.address,
+                    pairAddress: pair.pairAddress,
+                    marketCap: mcap,
+                    volume24h,
+                    priceChange1h,
+                    priceChange24h,
+                    ageHours: Math.round(ageHours * 10) / 10,
+                    isNew: ageHours < 1,
+                    isFresh: ageHours < 24,
+                    tokenExists: true,
+                    dexUrl: pair.url || `https://dexscreener.com/solana/${pair.baseToken.address}`
+                });
+            });
         }
 
         clearTimeout(timeoutId);
     } catch (error) {
-        console.warn('PumpFun fetch failed:', error.message);
+        console.warn('PumpFun-style fetch failed:', error.message);
     }
 
     return trends.slice(0, 8);
 }
 
-// Fetch X/Twitter trends via public aggregators
+// Fetch X/Twitter-related trends
+// Uses DEX Screener tokens with Twitter presence + CoinGecko trending
 async function fetchXTrends() {
     const trends = [];
 
@@ -201,87 +213,90 @@ async function fetchXTrends() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        // Try multiple trend sources
-        // Source 1: GetDayTrends (public Twitter trends)
+        // Source 1: DEX Screener token profiles with Twitter links (active social presence)
         try {
-            const response = await fetch('https://getdaytrends.com/united-states/', {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'text/html'
-                },
+            const dsResponse = await fetch('https://api.dexscreener.com/token-profiles/latest/v1', {
+                headers: { 'Accept': 'application/json' },
                 signal: controller.signal
             });
 
-            if (response.ok) {
-                const html = await response.text();
+            if (dsResponse.ok) {
+                const profiles = await dsResponse.json();
+                const solanaProfiles = (profiles || [])
+                    .filter(p => p.chainId === 'solana')
+                    .slice(0, 15);
 
-                // Extract trending topics from HTML
-                const trendPattern = /<a[^>]*href="[^"]*twitter\.com\/search[^"]*"[^>]*>([^<]+)</gi;
-                const matches = html.matchAll(trendPattern);
+                for (const profile of solanaProfiles) {
+                    // Check if has Twitter link
+                    const twitterLink = profile.links?.find(l =>
+                        l.type === 'twitter' || l.url?.includes('twitter.com') || l.url?.includes('x.com')
+                    );
 
-                const cryptoKeywords = ['crypto', 'bitcoin', 'btc', 'eth', 'sol', 'solana', 'memecoin', 'token', 'coin', 'nft', 'degen', 'pump', 'moon', 'ape', 'pepe', 'doge', 'shib', 'ai', 'trump', 'elon'];
+                    if (twitterLink && profile.description) {
+                        // Get token details for price data
+                        let priceChange = 0;
+                        let symbol = '';
+                        try {
+                            const detailRes = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${profile.tokenAddress}`);
+                            if (detailRes.ok) {
+                                const pairs = await detailRes.json();
+                                if (Array.isArray(pairs) && pairs[0]) {
+                                    priceChange = parseFloat(pairs[0].priceChange?.h1 || 0);
+                                    symbol = pairs[0].baseToken?.symbol || '';
+                                }
+                            }
+                        } catch (e) { }
 
-                for (const match of matches) {
-                    const trend = match[1].trim();
-                    const lowerTrend = trend.toLowerCase();
-
-                    // Filter for crypto-adjacent trends
-                    if (cryptoKeywords.some(kw => lowerTrend.includes(kw)) || trend.startsWith('$') || trend.startsWith('#')) {
-                        if (!trends.find(t => t.text.toLowerCase() === lowerTrend)) {
-                            trends.push({
-                                text: trend,
-                                source: 'twitter',
-                                category: categorizeNarrative(trend),
-                                engagement: 'trending',
-                                tokenExists: trend.startsWith('$')
-                            });
-                        }
+                        trends.push({
+                            text: symbol ? `$${symbol} active on X` : profile.description.slice(0, 50),
+                            source: 'twitter',
+                            category: categorizeNarrative(profile.description),
+                            engagement: priceChange > 20 ? 'viral' : priceChange > 5 ? 'high' : 'medium',
+                            address: profile.tokenAddress,
+                            symbol,
+                            twitterUrl: twitterLink.url,
+                            hasTwitter: true,
+                            priceChange1h: priceChange,
+                            tokenExists: true
+                        });
                     }
 
-                    if (trends.length >= 5) break;
+                    if (trends.length >= 4) break;
                 }
             }
         } catch (e) {
-            console.warn('GetDayTrends fetch failed:', e.message);
+            console.warn('DEX Screener profiles fetch failed:', e.message);
         }
 
-        // Source 2: Check DEX Screener token profiles for Twitter links (active projects)
-        if (trends.length < 3) {
-            try {
-                const dsResponse = await fetch('https://api.dexscreener.com/token-profiles/latest/v1', {
-                    headers: { 'Accept': 'application/json' },
-                    signal: controller.signal
-                });
+        // Source 2: CoinGecko trending (often driven by Twitter/social buzz)
+        try {
+            const cgResponse = await fetch('https://api.coingecko.com/api/v3/search/trending', {
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal
+            });
 
-                if (dsResponse.ok) {
-                    const profiles = await dsResponse.json();
-                    const solanaProfiles = (profiles || [])
-                        .filter(p => p.chainId === 'solana')
-                        .slice(0, 10);
+            if (cgResponse.ok) {
+                const data = await cgResponse.json();
+                const coins = data.coins || [];
 
-                    for (const profile of solanaProfiles) {
-                        // Check if has Twitter link
-                        const hasTwitter = profile.links?.some(l =>
-                            l.type === 'twitter' || l.url?.includes('twitter.com') || l.url?.includes('x.com')
-                        );
-
-                        if (hasTwitter && profile.description) {
-                            trends.push({
-                                text: `${profile.description.slice(0, 60)}...`,
-                                source: 'twitter',
-                                category: categorizeNarrative(profile.description),
-                                engagement: 'high',
-                                address: profile.tokenAddress,
-                                hasTwitter: true
-                            });
-                        }
-
-                        if (trends.length >= 5) break;
+                coins.slice(0, 4).forEach(item => {
+                    const coin = item.item;
+                    if (coin && !trends.find(t => t.symbol === coin.symbol)) {
+                        trends.push({
+                            text: `$${coin.symbol} trending (${coin.name})`,
+                            source: 'twitter',
+                            category: categorizeNarrative(coin.name + ' ' + coin.symbol),
+                            engagement: coin.score < 3 ? 'viral' : 'high',
+                            symbol: coin.symbol,
+                            name: coin.name,
+                            tokenExists: true,
+                            thumb: coin.thumb
+                        });
                     }
-                }
-            } catch (e) {
-                console.warn('DEX Screener profiles fetch failed:', e.message);
+                });
             }
+        } catch (e) {
+            console.warn('CoinGecko trending fetch failed:', e.message);
         }
 
         clearTimeout(timeoutId);
@@ -289,11 +304,11 @@ async function fetchXTrends() {
         console.warn('X trends fetch failed:', error.message);
     }
 
-    // Add known active narratives if we couldn't fetch live data
+    // Fallback narratives if we couldn't fetch
     if (trends.length < 2) {
         trends.push(
-            { text: '$AI agent coins trending', source: 'twitter', category: 'AI_TECH', engagement: 'high', tokenExists: false },
-            { text: 'Solana memecoin meta', source: 'twitter', category: 'MEME_CULTURE', engagement: 'high', tokenExists: false }
+            { text: 'AI agent narrative hot on CT', source: 'twitter', category: 'AI_TECH', engagement: 'high', tokenExists: false },
+            { text: 'Solana memecoins trending', source: 'twitter', category: 'MEME_CULTURE', engagement: 'high', tokenExists: false }
         );
     }
 

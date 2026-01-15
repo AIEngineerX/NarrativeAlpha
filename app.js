@@ -1959,23 +1959,57 @@ class LiveDataService {
                 return '';
             }).join('');
 
-            // Search URLs
-            const searchTerm = encodeURIComponent(narrative.text?.replace(/#/g, '') || '');
-            const xSearchUrl = `https://x.com/search?q=${searchTerm}&src=typed_query&f=live`;
-            const dexSearchUrl = `https://dexscreener.com/solana?q=${searchTerm}`;
+            // Build search URLs based on source
+            const searchText = narrative.text?.replace(/^\$/, '').replace(/#/g, '') || '';
+            const searchTerm = encodeURIComponent(searchText);
+            const symbol = narrative.symbol || searchText.split(' ')[0].replace('$', '');
+
+            // Primary link based on source
+            let primaryUrl, primaryTitle, primaryIcon;
+            const mainSource = narrative.source || sources[0];
+
+            if (mainSource === 'pumpfun') {
+                // Link to DEX Screener for the token (or PumpFun if we have address)
+                primaryUrl = narrative.dexUrl || (narrative.address
+                    ? `https://dexscreener.com/solana/${narrative.address}`
+                    : `https://pump.fun/board`);
+                primaryTitle = 'View on DEX';
+                primaryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>';
+            } else if (mainSource === 'twitter') {
+                // Link to X search with the full phrase
+                primaryUrl = `https://x.com/search?q=${searchTerm}&src=typed_query&f=live`;
+                primaryTitle = 'Search on X';
+                primaryIcon = '<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+            } else {
+                // DEX Screener
+                primaryUrl = narrative.address
+                    ? `https://dexscreener.com/solana/${narrative.address}`
+                    : `https://dexscreener.com/solana?q=${encodeURIComponent(symbol)}`;
+                primaryTitle = 'View on DEX';
+                primaryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
+            }
+
+            // Secondary X search link
+            const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(symbol.startsWith('$') ? symbol : '$' + symbol)}&src=typed_query&f=live`;
 
             // Token status
             const tokenStatus = narrative.tokenExists ?
-                '<span class="token-status exists">Tokens exist</span>' :
-                '<span class="token-status early">No token yet</span>';
+                '<span class="token-status exists">Token live</span>' :
+                '<span class="token-status early">Pre-token</span>';
+
+            // Age badge for fresh tokens
+            const ageBadge = narrative.ageHours !== undefined && narrative.ageHours < 24
+                ? `<span class="age-badge fresh">${narrative.ageHours < 1 ? '<1h' : Math.floor(narrative.ageHours) + 'h'} old</span>`
+                : '';
 
             return `
-                <div class="narrative-item ${engagementClass}" data-category="${categoryClass}">
+                <div class="narrative-item ${engagementClass}" data-category="${categoryClass}" data-source="${mainSource}">
                     <div class="narrative-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
                     <div class="narrative-content">
                         <div class="narrative-text">${escapeHtml(narrative.text || '')}</div>
                         <div class="narrative-meta">
                             <span class="narrative-category ${categoryClass}">${categoryLabel}</span>
+                            ${ageBadge}
                             ${tokenStatus}
                             <span class="narrative-sources">${sourceIcons}</span>
                         </div>
@@ -1988,11 +2022,11 @@ class LiveDataService {
                         <span class="score-value">${narrative.relevanceScore || 50}</span>
                     </div>
                     <div class="narrative-actions">
-                        <a href="${xSearchUrl}" target="_blank" rel="noopener" class="narrative-link x" title="Search on X">
-                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        <a href="${primaryUrl}" target="_blank" rel="noopener" class="narrative-link primary" title="${primaryTitle}">
+                            ${primaryIcon}
                         </a>
-                        <a href="${dexSearchUrl}" target="_blank" rel="noopener" class="narrative-link dex" title="Search DEX">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        <a href="${xSearchUrl}" target="_blank" rel="noopener" class="narrative-link x" title="Search $${escapeHtml(symbol)} on X">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                         </a>
                     </div>
                 </div>
