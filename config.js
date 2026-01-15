@@ -8,21 +8,37 @@
 const CONFIG = {
     // Application Info
     APP_NAME: 'NarrativeAlpha',
-    APP_VERSION: '1.0.0',
+    APP_VERSION: '2.0.0',
     APP_TAGLINE: 'Find the pump before it pumps',
 
     // API Settings
     API: {
         ANTHROPIC_BASE_URL: 'https://api.anthropic.com/v1',
         DEFAULT_MODEL: 'claude-sonnet-4-20250514',
-        MAX_TOKENS: 1500
+        MAX_TOKENS: 1500,
+        // DEX Screener API (no key required for public endpoints)
+        DEX_SCREENER_BASE: 'https://api.dexscreener.com/latest/dex',
+        // Birdeye API (optional - requires API key for advanced features)
+        BIRDEYE_BASE: 'https://public-api.birdeye.so',
+        // Solscan API
+        SOLSCAN_BASE: 'https://public-api.solscan.io'
+    },
+
+    // Live Data Settings
+    LIVE_DATA: {
+        REFRESH_INTERVAL: 30000, // 30 seconds
+        MAX_SIGNALS: 50,
+        ENABLE_WEBSOCKET: false, // Future: WebSocket support for real-time
+        DEFAULT_CHAIN: 'solana'
     },
 
     // UI Settings
     UI: {
         ANIMATION_DURATION: 2000,
         DEBOUNCE_DELAY: 300,
-        NOTIFICATION_TIMEOUT: 3000
+        NOTIFICATION_TIMEOUT: 3000,
+        CHART_HEIGHT: 450,
+        CHART_TIMEFRAMES: ['5m', '15m', '1h', '4h', '1d']
     },
 
     // Network Background Settings
@@ -41,7 +57,32 @@ const CONFIG = {
         URGENT: { min: 80, max: 100 }
     },
 
-    // Sample narratives for display
+    // Signal Classification Thresholds
+    SIGNAL_THRESHOLDS: {
+        BULLISH: {
+            minPriceChange: 10,
+            minVolume: 50000
+        },
+        URGENT: {
+            minPriceChange: 50,
+            minVolume: 500000
+        },
+        BEARISH: {
+            maxPriceChange: -10
+        }
+    },
+
+    // Confidence Calculation Weights
+    CONFIDENCE_WEIGHTS: {
+        LIQUIDITY_HIGH: { threshold: 100000, bonus: 20 },
+        LIQUIDITY_MEDIUM: { threshold: 50000, bonus: 10 },
+        VOLUME_HIGH: { threshold: 100000, bonus: 15 },
+        VOLUME_MEDIUM: { threshold: 50000, bonus: 8 },
+        MCAP_BONUS: { threshold: 1000000, bonus: 10 },
+        MAX_CONFIDENCE: 95
+    },
+
+    // Sample narratives for display (fallback when API fails)
     SAMPLE_NARRATIVES: [
         {
             type: 'bullish',
@@ -70,6 +111,34 @@ const CONFIG = {
             time: '1h ago',
             confidence: 71,
             velocity: '2.8x'
+        },
+        {
+            type: 'bullish',
+            title: 'Gaming x Crypto crossover gaining traction on CT',
+            time: '1h 15m ago',
+            confidence: 68,
+            velocity: '2.4x'
+        },
+        {
+            type: 'bearish',
+            title: 'Celebrity token launches showing fatigue signs',
+            time: '2h ago',
+            confidence: 61,
+            velocity: '1.2x'
+        },
+        {
+            type: 'bullish',
+            title: 'RWA tokenization narrative picking up steam',
+            time: '2h 30m ago',
+            confidence: 74,
+            velocity: '3.1x'
+        },
+        {
+            type: 'neutral',
+            title: 'Layer 2 competition heating up - rotation possible',
+            time: '3h ago',
+            confidence: 55,
+            velocity: '1.8x'
         }
     ],
 
@@ -91,7 +160,15 @@ const CONFIG = {
             label: '100x Plays',
             query: 'Identify potential 100x narrative plays in the next 48 hours'
         }
-    ]
+    ],
+
+    // External Links Templates
+    EXTERNAL_LINKS: {
+        DEX_SCREENER: 'https://dexscreener.com/solana/',
+        BIRDEYE: 'https://birdeye.so/token/',
+        SOLSCAN: 'https://solscan.io/token/',
+        PUMP_FUN: 'https://pump.fun/'
+    }
 };
 
 // Freeze config to prevent accidental modifications

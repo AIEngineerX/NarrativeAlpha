@@ -39,6 +39,7 @@
             <nav class="nav">
                 <a href="#terminal" class="nav-link active" data-section="terminal">Terminal</a>
                 <a href="#signals" class="nav-link" data-section="signals">Signals</a>
+                <a href="#chart" class="nav-link" data-section="chart">Chart</a>
                 <a href="#archive" class="nav-link" data-section="archive">Archive</a>
                 <a href="#docs" class="nav-link" data-section="docs">Docs</a>
             </nav>
@@ -256,7 +257,12 @@
             <section id="signals" class="page-section">
                 <div class="section-hero">
                     <h1 class="section-hero-title">Live <span class="gradient-text">Signals</span></h1>
-                    <p class="section-hero-subtitle">Real-time narrative detection across CT, Reddit, TikTok, and Telegram. Updated every 60 seconds.</p>
+                    <p class="section-hero-subtitle">Real-time token data from DEX Screener and PumpFun. Auto-refreshes every 30 seconds.</p>
+                    <div class="live-indicator">
+                        <span class="live-dot"></span>
+                        <span class="live-text">LIVE DATA</span>
+                        <span class="last-update" id="lastUpdateTime">Updating...</span>
+                    </div>
                 </div>
 
                 <div class="signals-filters">
@@ -264,9 +270,166 @@
                     <button class="filter-btn" data-filter="bullish">Bullish</button>
                     <button class="filter-btn" data-filter="bearish">Bearish</button>
                     <button class="filter-btn" data-filter="urgent">Urgent</button>
+                    <button class="filter-btn" data-filter="pumpfun">PumpFun</button>
                 </div>
 
-                <div class="signals-grid-full" id="signalsFeed"></div>
+                <div class="signals-grid-full" id="signalsFeed">
+                    <div class="signals-loading">
+                        <div class="loading-spinner"></div>
+                        <span>Fetching live data...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LIVE CHART SECTION -->
+            <section id="chart" class="page-section">
+                <div class="section-hero">
+                    <h1 class="section-hero-title">Token <span class="gradient-text">Analysis</span></h1>
+                    <p class="section-hero-subtitle">Deep dive into trending tokens with live charts and on-chain metrics.</p>
+                </div>
+
+                <div class="chart-container">
+                    <!-- Token Search -->
+                    <div class="token-search-panel">
+                        <div class="search-header">
+                            <span class="search-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <path d="m21 21-4.35-4.35"/>
+                                </svg>
+                            </span>
+                            <input type="text" id="tokenSearchInput" class="token-search-input" placeholder="Enter token address or search by name...">
+                            <button id="searchTokenBtn" class="search-btn">ANALYZE</button>
+                        </div>
+                        <div class="quick-tokens">
+                            <span class="quick-label">TRENDING:</span>
+                            <div class="quick-tokens-list" id="trendingTokensList">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Token Overview -->
+                    <div class="token-overview" id="tokenOverview">
+                        <div class="token-header">
+                            <div class="token-identity">
+                                <img id="tokenLogo" class="token-logo" src="" alt="">
+                                <div class="token-names">
+                                    <h2 id="tokenName" class="token-name">Select a Token</h2>
+                                    <span id="tokenSymbol" class="token-symbol">---</span>
+                                </div>
+                            </div>
+                            <div class="token-price-display">
+                                <span id="tokenPrice" class="token-price">$0.00</span>
+                                <span id="tokenPriceChange" class="token-price-change neutral">0%</span>
+                            </div>
+                        </div>
+
+                        <!-- Key Metrics Grid -->
+                        <div class="token-metrics-grid">
+                            <div class="token-metric">
+                                <span class="metric-title">MARKET CAP</span>
+                                <span id="tokenMcap" class="metric-value-lg">$0</span>
+                            </div>
+                            <div class="token-metric">
+                                <span class="metric-title">24H VOLUME</span>
+                                <span id="tokenVolume" class="metric-value-lg">$0</span>
+                            </div>
+                            <div class="token-metric">
+                                <span class="metric-title">LIQUIDITY</span>
+                                <span id="tokenLiquidity" class="metric-value-lg">$0</span>
+                            </div>
+                            <div class="token-metric">
+                                <span class="metric-title">HOLDERS</span>
+                                <span id="tokenHolders" class="metric-value-lg">0</span>
+                            </div>
+                            <div class="token-metric">
+                                <span class="metric-title">TOP 10 %</span>
+                                <span id="tokenTopHolders" class="metric-value-lg">0%</span>
+                            </div>
+                            <div class="token-metric">
+                                <span class="metric-title">CREATED</span>
+                                <span id="tokenCreated" class="metric-value-lg">---</span>
+                            </div>
+                        </div>
+
+                        <!-- Why Trending Section -->
+                        <div class="why-trending" id="whyTrending">
+                            <div class="trending-header">
+                                <span class="trending-icon"></span>
+                                <span class="trending-title">WHY IT'S TRENDING</span>
+                            </div>
+                            <div class="trending-reasons" id="trendingReasons">
+                                <p>Select a token to see analysis...</p>
+                            </div>
+                        </div>
+
+                        <!-- External Links -->
+                        <div class="token-links">
+                            <a id="linkDexScreener" href="#" target="_blank" class="token-link dexscreener">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                DEX Screener
+                            </a>
+                            <a id="linkBirdeye" href="#" target="_blank" class="token-link birdeye">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="var(--bg-primary)"/></svg>
+                                Birdeye
+                            </a>
+                            <a id="linkSolscan" href="#" target="_blank" class="token-link solscan">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4" stroke="var(--bg-primary)" stroke-width="1.5"/></svg>
+                                Solscan
+                            </a>
+                            <a id="linkPumpFun" href="#" target="_blank" class="token-link pumpfun">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                PumpFun
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- DEX Screener Chart Embed -->
+                    <div class="chart-embed-container">
+                        <div class="chart-header">
+                            <span class="chart-title">PRICE CHART</span>
+                            <div class="chart-timeframes">
+                                <button class="tf-btn active" data-tf="5m">5M</button>
+                                <button class="tf-btn" data-tf="15m">15M</button>
+                                <button class="tf-btn" data-tf="1h">1H</button>
+                                <button class="tf-btn" data-tf="4h">4H</button>
+                                <button class="tf-btn" data-tf="1d">1D</button>
+                            </div>
+                        </div>
+                        <div class="chart-embed" id="chartEmbed">
+                            <div class="chart-placeholder">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M3 3v18h18"/>
+                                    <path d="m19 9-5 5-4-4-7 7"/>
+                                </svg>
+                                <span>Enter a token address to load chart</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Links & Contract Info -->
+                    <div class="token-social-panel">
+                        <div class="social-section">
+                            <span class="social-title">SOCIAL LINKS</span>
+                            <div class="social-links" id="tokenSocials">
+                                <span class="no-socials">No social links available</span>
+                            </div>
+                        </div>
+                        <div class="contract-section">
+                            <span class="contract-title">CONTRACT ADDRESS</span>
+                            <div class="contract-address" id="contractAddress">
+                                <span class="address-text">---</span>
+                                <button class="copy-btn" id="copyAddressBtn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- ARCHIVE SECTION -->
