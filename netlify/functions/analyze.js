@@ -21,13 +21,25 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const { query } = JSON.parse(event.body);
+        const { query, liveData } = JSON.parse(event.body);
 
         if (!query) {
             return {
                 statusCode: 400,
                 body: JSON.stringify({ error: 'Query is required' })
             };
+        }
+
+        // Build live data context if available
+        let liveDataContext = '';
+        if (liveData && liveData.length > 0) {
+            liveDataContext = `\n\nCURRENT LIVE TOKEN DATA (Top movers from DEX Screener):\n`;
+            liveData.forEach((token, i) => {
+                liveDataContext += `${i + 1}. $${token.symbol} (${token.name})\n`;
+                liveDataContext += `   Price: $${token.price} | 1h: ${token.priceChange1h > 0 ? '+' : ''}${token.priceChange1h?.toFixed(1) || 0}% | 24h: ${token.priceChange24h > 0 ? '+' : ''}${token.priceChange24h?.toFixed(1) || 0}%\n`;
+                liveDataContext += `   Vol: $${(token.volume24h || 0).toLocaleString()} | MCap: $${(token.marketCap || 0).toLocaleString()}\n`;
+            });
+            liveDataContext += `\nUse this REAL data to inform your analysis. Reference specific tokens that are actually moving.`;
         }
 
         const systemPrompt = `You are NarrativeAlpha, an expert AI system specialized in detecting emerging memecoin narratives and crypto market trends. Your role is to analyze social signals, identify potential narrative plays, and provide actionable intelligence.
@@ -38,6 +50,7 @@ Your analysis style:
 - Identify specific narrative themes, potential tickers, and timing
 - Assess risk vectors honestly
 - Use crypto-native terminology
+${liveData ? '- When live data is provided, reference ACTUAL tokens that are moving' : ''}
 
 IMPORTANT: Respond ONLY with valid JSON. No markdown, no code blocks, just raw JSON.
 
@@ -68,7 +81,7 @@ Response format:
                 messages: [
                     {
                         role: 'user',
-                        content: `Analyze this narrative query and provide intelligence:\n\n${query}`
+                        content: `Analyze this narrative query and provide intelligence:\n\n${query}${liveDataContext}`
                     }
                 ],
                 system: systemPrompt

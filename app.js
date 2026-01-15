@@ -262,6 +262,12 @@ class NarrativeAlpha {
         this.elements.analyzeBtn.disabled = true;
 
         try {
+            // Refresh live data before analysis to ensure we have the latest
+            if (window.liveDataService) {
+                console.log('Refreshing token data for analysis...');
+                await window.liveDataService.fetchAllData();
+            }
+
             const response = await this.callAPI(query);
             this.displayResults(response);
         } catch (error) {
@@ -275,13 +281,33 @@ class NarrativeAlpha {
     }
 
     async callAPI(query) {
+        // Get live token data to provide context for the analysis
+        const liveTokens = window.liveDataService?.lastTokens || [];
+        const topMovers = liveTokens
+            .filter(t => t.priceChange1h !== undefined)
+            .sort((a, b) => (b.priceChange1h || 0) - (a.priceChange1h || 0))
+            .slice(0, 10)
+            .map(t => ({
+                symbol: t.symbol,
+                name: t.name,
+                price: t.price,
+                priceChange1h: t.priceChange1h,
+                priceChange24h: t.priceChange24h,
+                volume24h: t.volume24h,
+                marketCap: t.marketCap,
+                liquidity: t.liquidity
+            }));
+
         // Call the Netlify serverless function
         const response = await fetch('/.netlify/functions/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({
+                query,
+                liveData: topMovers.length > 0 ? topMovers : null
+            })
         });
 
         if (!response.ok) {
