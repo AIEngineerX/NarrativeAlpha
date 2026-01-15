@@ -39,8 +39,8 @@
             <nav class="nav">
                 <a href="#terminal" class="nav-link active" data-section="terminal">Terminal</a>
                 <a href="#signals" class="nav-link" data-section="signals">Signals</a>
-                <a href="#chart" class="nav-link" data-section="chart">Chart</a>
-                <a href="#archive" class="nav-link" data-section="archive">Archive</a>
+                <a href="#chart" class="nav-link" data-section="chart">Token Analysis</a>
+                <a href="#narr" class="nav-link" data-section="narr">$NARR</a>
                 <a href="#docs" class="nav-link" data-section="docs">Docs</a>
             </nav>
             <div class="header-actions">
@@ -436,84 +436,218 @@
                 </div>
             </section>
 
-            <!-- ARCHIVE SECTION -->
-            <section id="archive" class="page-section">
+            <!-- $NARR TOKEN SECTION -->
+            <section id="narr" class="page-section">
                 <div class="section-hero">
-                    <h1 class="section-hero-title">Narrative <span class="gradient-text">Archive</span></h1>
-                    <p class="section-hero-subtitle">Historical analysis of past narratives and their outcomes. Learn from the patterns.</p>
+                    <h1 class="section-hero-title"><span class="gradient-text">$NARR</span> Token</h1>
+                    <p class="section-hero-subtitle">The native token powering NarrativeAlpha - AI-driven narrative intelligence for degens.</p>
                 </div>
 
-                <div class="archive-grid">
-                    <div class="archive-card">
-                        <div class="archive-header">
-                            <span class="archive-date">Jan 2025</span>
-                            <span class="archive-result success">+2,400%</span>
+                <div class="narr-container">
+                    <!-- Token Hero Card -->
+                    <div class="narr-hero-card">
+                        <div class="narr-token-header">
+                            <div class="narr-token-identity">
+                                <div class="narr-logo">
+                                    <span class="narr-logo-icon">NA</span>
+                                </div>
+                                <div class="narr-token-names">
+                                    <h2 class="narr-token-name">NarrativeAlpha</h2>
+                                    <span class="narr-token-symbol">$NARR</span>
+                                    <span class="narr-sentiment bullish">
+                                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 14l5-5 5 5H7z"/></svg>
+                                        BULLISH
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="narr-price-display">
+                                <span class="narr-price" id="narrPrice">$0.00</span>
+                                <span class="narr-price-change positive" id="narrPriceChange">Coming Soon</span>
+                            </div>
                         </div>
-                        <h3 class="archive-title">AI Agents Meta</h3>
-                        <p class="archive-summary">The AI agent narrative exploded with GOAT reaching $1.2B market cap. Early detection: 2 weeks before peak.</p>
-                        <div class="archive-meta">
-                            <span>Detection: 87%</span>
-                            <span>Lead Time: 14 days</span>
+
+                        <div class="narr-metrics-grid">
+                            <div class="narr-metric">
+                                <span class="narr-metric-label">MARKET CAP</span>
+                                <span class="narr-metric-value" id="narrMcap">TBA</span>
+                            </div>
+                            <div class="narr-metric">
+                                <span class="narr-metric-label">TOTAL SUPPLY</span>
+                                <span class="narr-metric-value">1,000,000,000</span>
+                            </div>
+                            <div class="narr-metric">
+                                <span class="narr-metric-label">LIQUIDITY</span>
+                                <span class="narr-metric-value" id="narrLiquidity">TBA</span>
+                            </div>
+                            <div class="narr-metric">
+                                <span class="narr-metric-label">HOLDERS</span>
+                                <span class="narr-metric-value" id="narrHolders">TBA</span>
+                            </div>
+                        </div>
+
+                        <!-- Contract Address -->
+                        <div class="narr-contract">
+                            <span class="narr-contract-label">CONTRACT ADDRESS</span>
+                            <div class="narr-contract-box">
+                                <span class="narr-contract-address" id="narrContractAddress">Coming Soon - Stay Tuned!</span>
+                                <button class="narr-copy-btn" id="narrCopyBtn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Social Links -->
+                        <div class="narr-socials">
+                            <a href="#" class="narr-social-link twitter" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                Twitter
+                            </a>
+                            <a href="#" class="narr-social-link telegram" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                                Telegram
+                            </a>
+                            <a href="#" class="narr-social-link dexscreener" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                DEX Screener
+                            </a>
                         </div>
                     </div>
-                    <div class="archive-card">
-                        <div class="archive-header">
-                            <span class="archive-date">Dec 2024</span>
-                            <span class="archive-result success">+1,800%</span>
+
+                    <!-- Chart Placeholder -->
+                    <div class="narr-chart-section">
+                        <div class="narr-chart-header">
+                            <h3>Live Chart</h3>
+                            <span class="chart-coming-soon">Chart available at launch</span>
                         </div>
-                        <h3 class="archive-title">FARTCOIN Phenomenon</h3>
-                        <p class="archive-summary">AI bot-generated narrative that captured CT attention. Reached $2B market cap from pure meme energy.</p>
-                        <div class="archive-meta">
-                            <span>Detection: 72%</span>
-                            <span>Lead Time: 12 hours</span>
-                        </div>
-                    </div>
-                    <div class="archive-card">
-                        <div class="archive-header">
-                            <span class="archive-date">Nov 2024</span>
-                            <span class="archive-result success">+950%</span>
-                        </div>
-                        <h3 class="archive-title">Minecraft Grandma</h3>
-                        <p class="archive-summary">Viral TikTok story of grandmother streaming Minecraft. GRANDMA token hit $5.6M in hours.</p>
-                        <div class="archive-meta">
-                            <span>Detection: 91%</span>
-                            <span>Lead Time: 4 hours</span>
+                        <div class="narr-chart-placeholder">
+                            <div class="chart-placeholder-content">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="60" height="60">
+                                    <path d="M3 3v18h18"/>
+                                    <path d="M18 9l-5 5-4-4-4 4"/>
+                                </svg>
+                                <p>$NARR Chart Coming Soon</p>
+                                <span>Live price action will appear here after token launch</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="archive-card">
-                        <div class="archive-header">
-                            <span class="archive-date">Oct 2024</span>
-                            <span class="archive-result warning">+320%</span>
-                        </div>
-                        <h3 class="archive-title">DePIN Rotation</h3>
-                        <p class="archive-summary">Infrastructure narrative gained traction as traders rotated from memes. Moderate gains across sector.</p>
-                        <div class="archive-meta">
-                            <span>Detection: 65%</span>
-                            <span>Lead Time: 3 days</span>
+
+                    <!-- Why $NARR Section -->
+                    <div class="narr-why-section">
+                        <h3 class="narr-section-title">Why <span class="gradient-text">$NARR</span>?</h3>
+                        <div class="narr-features-grid">
+                            <div class="narr-feature">
+                                <div class="narr-feature-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                    </svg>
+                                </div>
+                                <h4>Early Access</h4>
+                                <p>$NARR holders get priority access to new features, premium signals, and alpha drops before anyone else.</p>
+                            </div>
+                            <div class="narr-feature">
+                                <div class="narr-feature-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
+                                    </svg>
+                                </div>
+                                <h4>AI-Powered Edge</h4>
+                                <p>The first memecoin backed by real AI utility. NarrativeAlpha's intelligence engine gives holders an unfair advantage.</p>
+                            </div>
+                            <div class="narr-feature">
+                                <div class="narr-feature-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                                    </svg>
+                                </div>
+                                <h4>Community First</h4>
+                                <p>Built by degens, for degens. Revenue sharing, governance, and exclusive community calls for holders.</p>
+                            </div>
+                            <div class="narr-feature">
+                                <div class="narr-feature-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                    </svg>
+                                </div>
+                                <h4>Narrative Meta</h4>
+                                <p>$NARR IS the narrative. A token about finding narratives - maximum meta, maximum meme potential.</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="archive-card">
-                        <div class="archive-header">
-                            <span class="archive-date">Sep 2024</span>
-                            <span class="archive-result failed">-45%</span>
-                        </div>
-                        <h3 class="archive-title">Celebrity Token Wave</h3>
-                        <p class="archive-summary">Multiple celebrity launches that mostly rugged. Narrative died quickly as trust evaporated.</p>
-                        <div class="archive-meta">
-                            <span>Detection: 44%</span>
-                            <span>Lead Time: 6 hours</span>
-                        </div>
-                    </div>
-                    <div class="archive-card">
-                        <div class="archive-header">
-                            <span class="archive-date">Aug 2024</span>
-                            <span class="archive-result success">+1,200%</span>
-                        </div>
-                        <h3 class="archive-title">Pump.fun Summer</h3>
-                        <p class="archive-summary">The bonding curve meta exploded. Early movers on the platform saw massive returns.</p>
-                        <div class="archive-meta">
-                            <span>Detection: 83%</span>
-                            <span>Lead Time: 1 week</span>
+
+                    <!-- Roadmap Section -->
+                    <div class="narr-roadmap-section">
+                        <h3 class="narr-section-title">Roadmap</h3>
+                        <div class="narr-roadmap">
+                            <div class="roadmap-phase current">
+                                <div class="phase-marker">
+                                    <span class="phase-number">V1</span>
+                                    <span class="phase-status">LIVE</span>
+                                </div>
+                                <div class="phase-content">
+                                    <h4>Foundation Launch</h4>
+                                    <ul>
+                                        <li class="completed">AI-Powered Narrative Analysis Terminal</li>
+                                        <li class="completed">Live Signal Feed with DEX Screener Integration</li>
+                                        <li class="completed">Token Analysis with AI Narrative Intel</li>
+                                        <li class="completed">Real-time Memecoin Discovery (PumpFun Style)</li>
+                                        <li class="completed">DEX Paid/Boost Detection</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="roadmap-phase upcoming">
+                                <div class="phase-marker">
+                                    <span class="phase-number">V2</span>
+                                    <span class="phase-status">Q1 2025</span>
+                                </div>
+                                <div class="phase-content">
+                                    <h4>Token Launch & Holder Benefits</h4>
+                                    <ul>
+                                        <li>$NARR Token Launch on Solana</li>
+                                        <li>Holder-Only Premium Signals Channel</li>
+                                        <li>Wallet Tracking & Smart Money Alerts</li>
+                                        <li>Custom Watchlists & Price Alerts</li>
+                                        <li>Telegram Bot Integration</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="roadmap-phase future">
+                                <div class="phase-marker">
+                                    <span class="phase-number">V3</span>
+                                    <span class="phase-status">Q2 2025</span>
+                                </div>
+                                <div class="phase-content">
+                                    <h4>Advanced Intelligence</h4>
+                                    <ul>
+                                        <li>Twitter/CT Sentiment Analysis</li>
+                                        <li>Whale Wallet Movement Tracking</li>
+                                        <li>Narrative Prediction Model (ML)</li>
+                                        <li>Multi-Chain Support (Base, ETH)</li>
+                                        <li>API Access for $NARR Holders</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="roadmap-phase future">
+                                <div class="phase-marker">
+                                    <span class="phase-number">V4</span>
+                                    <span class="phase-status">BEYOND</span>
+                                </div>
+                                <div class="phase-content">
+                                    <h4>Full Ecosystem</h4>
+                                    <ul>
+                                        <li>Revenue Sharing for $NARR Stakers</li>
+                                        <li>Governance & Feature Voting</li>
+                                        <li>Mobile App Launch</li>
+                                        <li>Copy Trading Integration</li>
+                                        <li>AI Agent Autonomous Trading (Beta)</li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

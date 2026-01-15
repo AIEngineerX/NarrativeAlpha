@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Main gradient -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="50%" style="stop-color:#00d4ff"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Background gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a12"/>
+      <stop offset="50%" style="stop-color:#0d0d18"/>
+      <stop offset="100%" style="stop-color:#0a0a12"/>
+    </linearGradient>
+
+    <!-- Glow gradient -->
+    <linearGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.15"/>
+    </linearGradient>
+
+    <!-- Inner glow -->
+    <radialGradient id="innerGlow" cx="30%" cy="50%" r="60%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#00f0ff;stop-opacity:0"/>
+    </radialGradient>
+
+    <!-- Right side glow -->
+    <radialGradient id="rightGlow" cx="85%" cy="50%" r="40%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0"/>
+    </radialGradient>
+
+    <!-- Drop shadow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Text glow -->
+    <filter id="textGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Grid pattern -->
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#00f0ff" stroke-width="0.3" opacity="0.15"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1500" height="500" fill="url(#bgGradient)"/>
+
+  <!-- Grid overlay -->
+  <rect width="1500" height="500" fill="url(#grid)"/>
+
+  <!-- Ambient glows -->
+  <rect width="1500" height="500" fill="url(#innerGlow)"/>
+  <rect width="1500" height="500" fill="url(#rightGlow)"/>
+
+  <!-- Decorative hexagons in background -->
+  <g opacity="0.1">
+    <path d="M-50 250L50 200V300L-50 350L-150 300V200L-50 250Z" stroke="#00f0ff" stroke-width="1" fill="none"/>
+    <path d="M1550 250L1450 200V300L1550 350L1650 300V200L1550 250Z" stroke="#8b5cf6" stroke-width="1" fill="none"/>
+  </g>
+
+  <!-- Floating particles/nodes -->
+  <g fill="url(#mainGradient)" opacity="0.4">
+    <circle cx="100" cy="80" r="3"/>
+    <circle cx="200" cy="420" r="2"/>
+    <circle cx="350" cy="60" r="2.5"/>
+    <circle cx="1150" cy="100" r="3"/>
+    <circle cx="1300" cy="380" r="2"/>
+    <circle cx="1400" cy="150" r="2.5"/>
+    <circle cx="1250" cy="450" r="2"/>
+  </g>
+
+  <!-- Connection lines -->
+  <g stroke="url(#mainGradient)" stroke-width="0.5" opacity="0.2">
+    <line x1="100" y1="80" x2="350" y2="60"/>
+    <line x1="200" y1="420" x2="350" y2="60"/>
+    <line x1="1150" y1="100" x2="1300" y2="380"/>
+    <line x1="1300" y1="380" x2="1400" y2="150"/>
+  </g>
+
+  <!-- Logo hexagon group -->
+  <g transform="translate(180, 250)">
+    <!-- Outer hexagon -->
+    <path d="M0 -120L104 -60V60L0 120L-104 60V-60L0 -120Z"
+          stroke="url(#mainGradient)"
+          stroke-width="3"
+          fill="none"
+          filter="url(#glow)"/>
+
+    <!-- Middle hexagon -->
+    <path d="M0 -90L78 -45V45L0 90L-78 45V-45L0 -90Z"
+          stroke="url(#mainGradient)"
+          stroke-width="2"
+          fill="url(#glowGradient)"
+          opacity="0.8"/>
+
+    <!-- Inner hexagon -->
+    <path d="M0 -55L48 -28V28L0 55L-48 28V-28L0 -55Z"
+          stroke="url(#mainGradient)"
+          stroke-width="1.5"
+          fill="rgba(0,240,255,0.15)"/>
+
+    <!-- Central core -->
+    <circle cx="0" cy="0" r="30"
+            fill="none"
+            stroke="url(#mainGradient)"
+            stroke-width="2.5"
+            filter="url(#glow)"/>
+    <circle cx="0" cy="0" r="12" fill="url(#mainGradient)"/>
+
+    <!-- Neural lines -->
+    <g stroke="url(#mainGradient)" stroke-width="1" opacity="0.6">
+      <line x1="0" y1="-30" x2="0" y2="-90"/>
+      <line x1="26" y1="-15" x2="78" y2="-45"/>
+      <line x1="26" y1="15" x2="78" y2="45"/>
+      <line x1="0" y1="30" x2="0" y2="90"/>
+      <line x1="-26" y1="15" x2="-78" y2="45"/>
+      <line x1="-26" y1="-15" x2="-78" y2="-45"/>
+    </g>
+
+    <!-- Nodes -->
+    <g fill="url(#mainGradient)">
+      <circle cx="0" cy="-90" r="5"/>
+      <circle cx="78" cy="-45" r="5"/>
+      <circle cx="78" cy="45" r="5"/>
+      <circle cx="0" cy="90" r="5"/>
+      <circle cx="-78" cy="45" r="5"/>
+      <circle cx="-78" cy="-45" r="5"/>
+    </g>
+  </g>
+
+  <!-- Main text: NARRATIVE -->
+  <text x="380" y="220"
+        font-family="'Orbitron', 'Arial Black', sans-serif"
+        font-weight="800"
+        font-size="72"
+        fill="#ffffff"
+        letter-spacing="4">NARRATIVE</text>
+
+  <!-- Alpha text with gradient -->
+  <text x="380" y="300"
+        font-family="'Orbitron', 'Arial Black', sans-serif"
+        font-weight="800"
+        font-size="72"
+        fill="url(#mainGradient)"
+        filter="url(#textGlow)"
+        letter-spacing="4">ALPHA</text>
+
+  <!-- $NARR badge -->
+  <g transform="translate(1050, 250)">
+    <rect x="0" y="-30" width="140" height="60" rx="8"
+          fill="rgba(0,240,255,0.1)"
+          stroke="url(#mainGradient)"
+          stroke-width="2"/>
+    <text x="70" y="8"
+          text-anchor="middle"
+          font-family="'Orbitron', 'Arial Black', sans-serif"
+          font-weight="700"
+          font-size="28"
+          fill="url(#mainGradient)"
+          filter="url(#textGlow)">$NARR</text>
+  </g>
+
+  <!-- Tagline -->
+  <text x="380" y="360"
+        font-family="'Space Grotesk', 'Arial', sans-serif"
+        font-weight="400"
+        font-size="24"
+        fill="#8892b0"
+        letter-spacing="2">FIND THE PUMP BEFORE IT PUMPS</text>
+
+  <!-- AI Badge -->
+  <g transform="translate(1220, 250)">
+    <rect x="0" y="-25" width="80" height="50" rx="6"
+          fill="rgba(139,92,246,0.15)"
+          stroke="#8b5cf6"
+          stroke-width="1.5"/>
+    <text x="40" y="8"
+          text-anchor="middle"
+          font-family="'JetBrains Mono', monospace"
+          font-weight="600"
+          font-size="20"
+          fill="#8b5cf6">AI</text>
+  </g>
+
+  <!-- Decorative scan line -->
+  <rect x="0" y="248" width="1500" height="1" fill="url(#mainGradient)" opacity="0.3"/>
+
+  <!-- Bottom accent line -->
+  <rect x="380" y="380" width="300" height="2" fill="url(#mainGradient)" opacity="0.6"/>
+
+  <!-- Top corner accent -->
+  <path d="M0 0L150 0L0 150Z" fill="url(#mainGradient)" opacity="0.05"/>
+
+  <!-- Bottom right corner accent -->
+  <path d="M1500 500L1350 500L1500 350Z" fill="url(#mainGradient)" opacity="0.05"/>
+</svg>

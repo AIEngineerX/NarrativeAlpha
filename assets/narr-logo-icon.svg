@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Main gradient -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="50%" style="stop-color:#00d4ff"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Glow gradient -->
+    <linearGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.2"/>
+    </linearGradient>
+
+    <!-- Inner glow -->
+    <radialGradient id="innerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#00f0ff;stop-opacity:0"/>
+    </radialGradient>
+
+    <!-- Drop shadow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="250" fill="#0a0a0f"/>
+  <circle cx="256" cy="256" r="250" fill="url(#innerGlow)"/>
+
+  <!-- Outer hexagon -->
+  <path d="M256 26L456 140V370L256 486L56 370V140L256 26Z"
+        stroke="url(#mainGradient)"
+        stroke-width="5"
+        fill="none"
+        filter="url(#glow)"/>
+
+  <!-- Middle hexagon -->
+  <path d="M256 76L406 166V346L256 436L106 346V166L256 76Z"
+        stroke="url(#mainGradient)"
+        stroke-width="3"
+        fill="url(#glowGradient)"
+        opacity="0.8"/>
+
+  <!-- Inner hexagon -->
+  <path d="M256 136L346 188V324L256 376L166 324V188L256 136Z"
+        stroke="url(#mainGradient)"
+        stroke-width="2.5"
+        fill="rgba(0,240,255,0.15)"/>
+
+  <!-- Central core circle -->
+  <circle cx="256" cy="256" r="60"
+          fill="none"
+          stroke="url(#mainGradient)"
+          stroke-width="4"
+          filter="url(#glow)"/>
+
+  <!-- Inner core -->
+  <circle cx="256" cy="256" r="25" fill="url(#mainGradient)"/>
+
+  <!-- Neural connection lines from center -->
+  <g stroke="url(#mainGradient)" stroke-width="2" opacity="0.7">
+    <line x1="256" y1="196" x2="256" y2="76"/>
+    <line x1="308" y1="226" x2="406" y2="166"/>
+    <line x1="308" y1="286" x2="406" y2="346"/>
+    <line x1="256" y1="316" x2="256" y2="436"/>
+    <line x1="204" y1="286" x2="106" y2="346"/>
+    <line x1="204" y1="226" x2="106" y2="166"/>
+  </g>
+
+  <!-- Connection nodes -->
+  <g fill="url(#mainGradient)">
+    <circle cx="256" cy="76" r="10"/>
+    <circle cx="406" cy="166" r="10"/>
+    <circle cx="406" cy="346" r="10"/>
+    <circle cx="256" cy="436" r="10"/>
+    <circle cx="106" cy="346" r="10"/>
+    <circle cx="106" cy="166" r="10"/>
+  </g>
+</svg>

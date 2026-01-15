@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Main gradient -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="50%" style="stop-color:#00d4ff"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Glow gradient -->
+    <linearGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.2"/>
+    </linearGradient>
+
+    <!-- Inner glow -->
+    <radialGradient id="innerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#00f0ff;stop-opacity:0"/>
+    </radialGradient>
+
+    <!-- Drop shadow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Outer glow filter -->
+    <filter id="outerGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+      <feFlood flood-color="#00f0ff" flood-opacity="0.5"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle with glow -->
+  <circle cx="256" cy="256" r="240" fill="#0a0a0f"/>
+  <circle cx="256" cy="256" r="240" fill="url(#innerGlow)"/>
+
+  <!-- Outer hexagon -->
+  <path d="M256 36L436 140V340L256 444L76 340V140L256 36Z"
+        stroke="url(#mainGradient)"
+        stroke-width="4"
+        fill="none"
+        filter="url(#glow)"/>
+
+  <!-- Middle hexagon -->
+  <path d="M256 76L396 156V316L256 396L116 316V156L256 76Z"
+        stroke="url(#mainGradient)"
+        stroke-width="2.5"
+        fill="url(#glowGradient)"
+        opacity="0.8"/>
+
+  <!-- Inner hexagon -->
+  <path d="M256 126L346 178V282L256 334L166 282V178L256 126Z"
+        stroke="url(#mainGradient)"
+        stroke-width="2"
+        fill="rgba(0,240,255,0.1)"/>
+
+  <!-- Central core circle -->
+  <circle cx="256" cy="230" r="50"
+          fill="none"
+          stroke="url(#mainGradient)"
+          stroke-width="3"
+          filter="url(#glow)"/>
+
+  <!-- Inner core -->
+  <circle cx="256" cy="230" r="20" fill="url(#mainGradient)"/>
+
+  <!-- Neural connection lines from center -->
+  <g stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6">
+    <line x1="256" y1="180" x2="256" y2="76"/>
+    <line x1="299" y1="205" x2="396" y2="156"/>
+    <line x1="299" y1="255" x2="396" y2="316"/>
+    <line x1="256" y1="280" x2="256" y2="396"/>
+    <line x1="213" y1="255" x2="116" y2="316"/>
+    <line x1="213" y1="205" x2="116" y2="156"/>
+  </g>
+
+  <!-- Connection nodes -->
+  <g fill="url(#mainGradient)">
+    <circle cx="256" cy="76" r="8"/>
+    <circle cx="396" cy="156" r="8"/>
+    <circle cx="396" cy="316" r="8"/>
+    <circle cx="256" cy="396" r="8"/>
+    <circle cx="116" cy="316" r="8"/>
+    <circle cx="116" cy="156" r="8"/>
+  </g>
+
+  <!-- $NARR text -->
+  <text x="256" y="340"
+        text-anchor="middle"
+        font-family="'Orbitron', 'Arial Black', sans-serif"
+        font-weight="700"
+        font-size="48"
+        fill="url(#mainGradient)"
+        filter="url(#glow)">$NARR</text>
+</svg>
