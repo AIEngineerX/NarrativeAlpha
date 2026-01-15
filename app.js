@@ -1017,15 +1017,15 @@ class LiveDataService {
         }
     }
 
-    // Fetch Bonk ecosystem data from CoinGecko
+    // Fetch Bonk/LetsBonk ecosystem tokens from DEX Screener
     async fetchBonkEcosystem() {
         try {
-            // Use AbortController for timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+            // Search DEX Screener for letsbonk tokens
             const response = await fetch(
-                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=solana-meme-coins&order=volume_desc&per_page=30&sparkline=false',
+                'https://api.dexscreener.com/latest/dex/search?q=letsbonk',
                 {
                     headers: { 'Accept': 'application/json' },
                     signal: controller.signal
@@ -1033,40 +1033,43 @@ class LiveDataService {
             );
             clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                if (response.status === 429) {
-                    console.warn('CoinGecko rate limited - using cached Bonk data');
-                    return null;
-                }
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
-            // Volume will be calculated from detected tokens in updateEcosystemPulse
-            // CoinGecko aggregate data is too large and causes market share mismatch
-            if (Array.isArray(data) && data.length > 0) {
-                console.log(`Bonk ecosystem data fetched: ${data.length} tokens from CoinGecko`);
-            }
-            return data;
+            const pairs = data.pairs || [];
+
+            // Filter for Solana letsbonk pairs only
+            const bonkPairs = pairs.filter(p =>
+                p.chainId === 'solana' &&
+                ((p.dexId || '').toLowerCase().includes('bonk') ||
+                 (p.url || '').toLowerCase().includes('letsbonk'))
+            );
+
+            // Process into our token format and store
+            this.bonkTokens = bonkPairs.map(pair => this.processDexPair(pair, 'bonk'));
+            console.log(`Bonk ecosystem: ${this.bonkTokens.length} tokens from DEX Screener`);
+
+            return this.bonkTokens;
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.warn('Bonk ecosystem fetch timed out');
             } else {
                 console.warn('Bonk ecosystem fetch failed:', error.message);
             }
-            return null;
+            this.bonkTokens = [];
+            return [];
         }
     }
 
-    // Fetch additional ecosystem data (Bags/others) from CoinGecko
+    // Fetch Bags.fm ecosystem tokens from DEX Screener
     async fetchBagsEcosystem() {
         try {
-            // Use AbortController for timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+            // Search DEX Screener for bags.fm tokens
             const response = await fetch(
-                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=solana-ecosystem&order=volume_desc&per_page=20&sparkline=false',
+                'https://api.dexscreener.com/latest/dex/search?q=bags.fm',
                 {
                     headers: { 'Accept': 'application/json' },
                     signal: controller.signal
@@ -1074,29 +1077,60 @@ class LiveDataService {
             );
             clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                if (response.status === 429) {
-                    console.warn('CoinGecko rate limited - using cached Bags data');
-                    return null;
-                }
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
-            // Volume will be calculated from detected tokens in updateEcosystemPulse
-            // CoinGecko aggregate data is too large and causes market share mismatch
-            if (Array.isArray(data) && data.length > 0) {
-                console.log(`Bags ecosystem data fetched: ${data.length} tokens from CoinGecko`);
-            }
-            return data;
+            const pairs = data.pairs || [];
+
+            // Filter for Solana bags pairs only
+            const bagsPairs = pairs.filter(p =>
+                p.chainId === 'solana' &&
+                ((p.dexId || '').toLowerCase().includes('bags') ||
+                 (p.url || '').toLowerCase().includes('bags.fm'))
+            );
+
+            // Process into our token format and store
+            this.bagsTokens = bagsPairs.map(pair => this.processDexPair(pair, 'bags'));
+            console.log(`Bags ecosystem: ${this.bagsTokens.length} tokens from DEX Screener`);
+
+            return this.bagsTokens;
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.warn('Bags ecosystem fetch timed out');
             } else {
                 console.warn('Bags ecosystem fetch failed:', error.message);
             }
-            return null;
+            this.bagsTokens = [];
+            return [];
         }
+    }
+
+    // Process a DEX Screener pair into our token format
+    processDexPair(pair, platform) {
+        const volume24h = parseFloat(pair.volume?.h24 || 0);
+        const volume1h = parseFloat(pair.volume?.h1 || volume24h / 24);
+        const volume5m = parseFloat(pair.volume?.m5 || volume1h / 12);
+
+        return {
+            symbol: pair.baseToken?.symbol || '???',
+            name: pair.baseToken?.name || 'Unknown',
+            address: pair.baseToken?.address || '',
+            price: parseFloat(pair.priceUsd || 0),
+            priceChange24h: parseFloat(pair.priceChange?.h24 || 0),
+            priceChange1h: parseFloat(pair.priceChange?.h1 || 0),
+            priceChange5m: parseFloat(pair.priceChange?.m5 || 0),
+            volume24h,
+            volume1h,
+            volume5m,
+            liquidity: parseFloat(pair.liquidity?.usd || 0),
+            marketCap: parseFloat(pair.fdv || pair.marketCap || 0),
+            dexId: pair.dexId || platform,
+            url: pair.url || '',
+            platform: platform, // Mark which ecosystem this is from
+            txns24h: (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0),
+            txns1h: (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0),
+            createdAt: pair.pairCreatedAt || null
+        };
     }
 
     // Process tokens that match pump.fun style (new, low-cap memecoins)
@@ -1535,6 +1569,27 @@ class LiveDataService {
     updateEcosystemPulse(tokens) {
         if (!tokens || tokens.length === 0) return;
 
+        // Merge in Bonk and Bags ecosystem tokens (fetched from DEX Screener search)
+        const bonkTokens = this.bonkTokens || [];
+        const bagsTokens = this.bagsTokens || [];
+
+        // Combine all tokens, avoiding duplicates by address
+        const seenAddresses = new Set(tokens.map(t => t.address));
+        const allTokens = [...tokens];
+
+        bonkTokens.forEach(t => {
+            if (t.address && !seenAddresses.has(t.address)) {
+                seenAddresses.add(t.address);
+                allTokens.push(t);
+            }
+        });
+        bagsTokens.forEach(t => {
+            if (t.address && !seenAddresses.has(t.address)) {
+                seenAddresses.add(t.address);
+                allTokens.push(t);
+            }
+        });
+
         // Store for timeframe refresh
         this.lastTokens = tokens;
         const timeframe = this.currentTimeframe || '24h';
@@ -1542,9 +1597,10 @@ class LiveDataService {
         // Calculate platform breakdown from token data (all from same source for accurate share)
         const platformVolumes = { raydium: 0, pumpfun: 0, bonk: 0, bags: 0, other: 0 };
 
-        tokens.forEach(t => {
+        allTokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
             const url = (t.url || '').toLowerCase();
+            const platform = (t.platform || '').toLowerCase();
 
             // Use appropriate volume based on timeframe
             let vol;
@@ -1556,10 +1612,10 @@ class LiveDataService {
                 vol = t.volume24h || 0;
             }
 
-            // Detect platform from dexId and URL
-            if (dex.includes('bonk') || dex.includes('letsbonk') || url.includes('letsbonk')) {
+            // Detect platform from platform flag, dexId and URL
+            if (platform === 'bonk' || dex.includes('bonk') || dex.includes('letsbonk') || url.includes('letsbonk')) {
                 platformVolumes.bonk += vol;
-            } else if (dex.includes('bags') || url.includes('bags.fm')) {
+            } else if (platform === 'bags' || dex.includes('bags') || url.includes('bags.fm')) {
                 platformVolumes.bags += vol;
             } else if (t.isPumpFunStyle || dex === 'pumpfun' || dex === 'pumpswap') {
                 platformVolumes.pumpfun += vol;
