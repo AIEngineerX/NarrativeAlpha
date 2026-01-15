@@ -1507,6 +1507,153 @@ body {
 }
 
 /* Signals Page */
+
+/* Ecosystem Pulse */
+.ecosystem-pulse {
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0, 240, 255, 0.03) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.pulse-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.pulse-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.05em;
+}
+
+.pulse-header svg {
+    stroke: var(--accent-cyan);
+}
+
+.pulse-update {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent-green);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.pulse-update::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.pulse-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .pulse-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .pulse-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.pulse-card {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.pulse-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+}
+
+.pulse-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.pulse-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.dex-breakdown {
+    margin-top: 0.5rem;
+}
+
+.dex-bar {
+    display: flex;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+
+.dex-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.5s ease;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.dex-segment span {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0.9;
+}
+
+.dex-segment.raydium {
+    background: linear-gradient(90deg, #9945FF, #7B3FE4);
+    color: white;
+}
+
+.dex-segment.orca {
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+    color: #1a1a2e;
+}
+
+.dex-segment.meteora {
+    background: linear-gradient(90deg, #00D4AA, #00B894);
+    color: #1a1a2e;
+}
+
+.dex-segment.other {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+}
+
 .signals-filters {
     display: flex;
     gap: 0.75rem;

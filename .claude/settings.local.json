@@ -12,7 +12,8 @@
       "Bash(git commit:*)",
       "WebFetch(domain:docs.dexscreener.com)",
       "WebFetch(domain:frontend-api.pump.fun)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:axiom.trade)"
     ]
   }
 }

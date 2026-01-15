@@ -484,17 +484,32 @@ class NavigationController {
     filterSignals(filter) {
         const cards = document.querySelectorAll('.signal-card');
         cards.forEach(card => {
+            const type = card.dataset.type || '';
+            const tag = card.dataset.tag || '';
+            const ageHours = parseFloat(card.dataset.age || '999');
+            const volume = parseFloat(card.dataset.volume || '0');
+
+            let show = false;
+
             if (filter === 'all') {
-                card.style.display = 'block';
-            } else if (filter === 'urgent') {
-                // Show urgent signals
-                card.style.display = card.classList.contains('urgent') ? 'block' : 'none';
-            } else if (filter === 'pumpfun') {
-                // Show only PumpFun tokens
-                card.style.display = card.dataset.source === 'pumpfun' ? 'block' : 'none';
+                show = true;
+            } else if (filter === 'fresh') {
+                // Show tokens < 24h old
+                show = ageHours < 24;
+            } else if (filter === 'bullish') {
+                // Show momentum/pumping signals
+                show = ['PUMPING', 'MOONING', 'RUNNER', 'NEW PUMP', 'EARLY MOVER', 'VOL SURGE', 'WHALES', 'REVERSAL'].includes(tag) || type === 'bullish';
+            } else if (filter === 'bearish') {
+                // Show dips and dumps
+                show = ['DUMPING', 'DISTRIBUTION', 'SELLING', 'DIP BUY'].includes(tag) || type === 'bearish';
+            } else if (filter === 'volume') {
+                // Show high volume tokens (> $50k 24h volume)
+                show = volume > 50000;
             } else {
-                card.style.display = card.dataset.type === filter ? 'block' : 'none';
+                show = type === filter;
             }
+
+            card.style.display = show ? 'block' : 'none';
         });
     }
 
@@ -1116,6 +1131,120 @@ class LiveDataService {
             const signalPercent = Math.min(100, (tokens.length / 50) * 100);
             signalsBar.style.setProperty('--fill-width', `${signalPercent}%`);
         }
+
+        // Update ecosystem pulse
+        this.updateEcosystemPulse(tokens);
+    }
+
+    // Update the ecosystem pulse section with market data
+    updateEcosystemPulse(tokens) {
+        if (!tokens || tokens.length === 0) return;
+
+        // Calculate DEX breakdown
+        const dexCounts = { raydium: 0, orca: 0, meteora: 0, other: 0 };
+        const dexVolumes = { raydium: 0, orca: 0, meteora: 0, other: 0 };
+
+        tokens.forEach(t => {
+            const dex = (t.dexId || '').toLowerCase();
+            const vol = t.volume24h || 0;
+            if (dex.includes('raydium')) {
+                dexCounts.raydium++;
+                dexVolumes.raydium += vol;
+            } else if (dex.includes('orca')) {
+                dexCounts.orca++;
+                dexVolumes.orca += vol;
+            } else if (dex.includes('meteora')) {
+                dexCounts.meteora++;
+                dexVolumes.meteora += vol;
+            } else {
+                dexCounts.other++;
+                dexVolumes.other += vol;
+            }
+        });
+
+        const totalVolume = Object.values(dexVolumes).reduce((a, b) => a + b, 0);
+
+        // Find top DEX
+        const topDexName = Object.entries(dexVolumes).sort((a, b) => b[1] - a[1])[0];
+        const topDexEl = document.getElementById('topDex');
+        const topDexShareEl = document.getElementById('topDexShare');
+        if (topDexEl) {
+            topDexEl.textContent = topDexName[0].charAt(0).toUpperCase() + topDexName[0].slice(1);
+        }
+        if (topDexShareEl && totalVolume > 0) {
+            const share = Math.round((topDexName[1] / totalVolume) * 100);
+            topDexShareEl.textContent = `${share}% volume`;
+        }
+
+        // Detect hot narrative from token names/symbols
+        const narrativeKeywords = {
+            'AI': ['ai', 'gpt', 'agent', 'neural', 'bot', 'llm'],
+            'Dogs': ['dog', 'doge', 'shib', 'inu', 'wif', 'bonk', 'pup'],
+            'Cats': ['cat', 'kit', 'meow', 'nyan'],
+            'Frogs': ['frog', 'pepe', 'kek'],
+            'Political': ['trump', 'biden', 'maga', 'political'],
+            'Culture': ['meme', 'wojak', 'chad', 'based'],
+            'Gaming': ['game', 'play', 'nft']
+        };
+
+        const narrativeCounts = {};
+        tokens.forEach(t => {
+            const name = ((t.name || '') + ' ' + (t.symbol || '')).toLowerCase();
+            for (const [narrative, keywords] of Object.entries(narrativeKeywords)) {
+                if (keywords.some(kw => name.includes(kw))) {
+                    narrativeCounts[narrative] = (narrativeCounts[narrative] || 0) + 1;
+                }
+            }
+        });
+
+        const hotNarrative = Object.entries(narrativeCounts).sort((a, b) => b[1] - a[1])[0];
+        const hotNarrativeEl = document.getElementById('hotNarrative');
+        const hotNarrativeCountEl = document.getElementById('hotNarrativeCount');
+        if (hotNarrativeEl && hotNarrative) {
+            hotNarrativeEl.textContent = hotNarrative[0];
+        }
+        if (hotNarrativeCountEl && hotNarrative) {
+            hotNarrativeCountEl.textContent = `${hotNarrative[1]} tokens`;
+        }
+
+        // Total volume
+        const totalVolumeEl = document.getElementById('totalVolume');
+        if (totalVolumeEl) {
+            totalVolumeEl.textContent = `$${this.formatCompact(totalVolume)}`;
+        }
+
+        // New launches (tokens < 24h old)
+        const newLaunchCount = tokens.filter(t => {
+            if (!t.createdAt) return false;
+            const ageHours = (Date.now() - t.createdAt) / (1000 * 60 * 60);
+            return ageHours < 24;
+        }).length;
+        const newLaunchesEl = document.getElementById('newLaunches');
+        if (newLaunchesEl) {
+            newLaunchesEl.textContent = newLaunchCount;
+        }
+
+        // Update DEX bar visualization
+        if (totalVolume > 0) {
+            const raydiumPct = Math.max(5, (dexVolumes.raydium / totalVolume) * 100);
+            const orcaPct = Math.max(5, (dexVolumes.orca / totalVolume) * 100);
+            const meteoraPct = Math.max(5, (dexVolumes.meteora / totalVolume) * 100);
+            const otherPct = Math.max(5, (dexVolumes.other / totalVolume) * 100);
+
+            // Normalize to 100%
+            const total = raydiumPct + orcaPct + meteoraPct + otherPct;
+            const normalize = (v) => ((v / total) * 100).toFixed(1);
+
+            const raydiumBar = document.getElementById('dexRaydium');
+            const orcaBar = document.getElementById('dexOrca');
+            const meteoraBar = document.getElementById('dexMeteora');
+            const otherBar = document.getElementById('dexOther');
+
+            if (raydiumBar) raydiumBar.style.width = `${normalize(raydiumPct)}%`;
+            if (orcaBar) orcaBar.style.width = `${normalize(orcaPct)}%`;
+            if (meteoraBar) meteoraBar.style.width = `${normalize(meteoraPct)}%`;
+            if (otherBar) otherBar.style.width = `${normalize(otherPct)}%`;
+        }
     }
 
     // Generate specific, actionable signal description based on data patterns
@@ -1313,8 +1442,11 @@ class LiveDataService {
                 </div>
         `;
 
+        // Calculate age in hours for filtering
+        const ageHours = token.createdAt ? (Date.now() - token.createdAt) / (1000 * 60 * 60) : 999;
+
         return `
-            <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}" data-source="${sourceSlug}">
+            <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}" data-source="${sourceSlug}" data-tag="${tag}" data-age="${ageHours.toFixed(1)}" data-volume="${token.volume24h || 0}">
                 <div class="signal-header">
                     <span class="signal-tag ${tagClass}">${tag}</span>
                     <span class="signal-source ${sourceSlug}">${source}</span>
