@@ -1038,12 +1038,16 @@ class LiveDataService {
             const data = await response.json();
             const pairs = data.pairs || [];
 
-            // Filter for Solana letsbonk pairs only
-            const bonkPairs = pairs.filter(p =>
-                p.chainId === 'solana' &&
-                ((p.dexId || '').toLowerCase().includes('bonk') ||
-                 (p.url || '').toLowerCase().includes('letsbonk'))
-            );
+            // Filter for Solana pairs - search already filtered for "letsbonk"
+            // Check token name, website info, or symbol for bonk/letsbonk
+            const bonkPairs = pairs.filter(p => {
+                if (p.chainId !== 'solana') return false;
+                const name = (p.baseToken?.name || '').toLowerCase();
+                const symbol = (p.baseToken?.symbol || '').toLowerCase();
+                const websites = p.info?.websites || [];
+                const hasLetsBonkSite = websites.some(w => (w.url || '').includes('letsbonk'));
+                return name.includes('bonk') || symbol.includes('bonk') || hasLetsBonkSite;
+            });
 
             // Process into our token format and store
             this.bonkTokens = bonkPairs.map(pair => this.processDexPair(pair, 'bonk'));
@@ -1082,12 +1086,14 @@ class LiveDataService {
             const data = await response.json();
             const pairs = data.pairs || [];
 
-            // Filter for Solana bags pairs only
-            const bagsPairs = pairs.filter(p =>
-                p.chainId === 'solana' &&
-                ((p.dexId || '').toLowerCase().includes('bags') ||
-                 (p.url || '').toLowerCase().includes('bags.fm'))
-            );
+            // Filter for Solana pairs - search already filtered for "bags.fm"
+            // Check token name for bags.fm reference
+            const bagsPairs = pairs.filter(p => {
+                if (p.chainId !== 'solana') return false;
+                const name = (p.baseToken?.name || '').toLowerCase();
+                const symbol = (p.baseToken?.symbol || '').toLowerCase();
+                return name.includes('bags') || symbol.includes('bags');
+            });
 
             // Process into our token format and store
             this.bagsTokens = bagsPairs.map(pair => this.processDexPair(pair, 'bags'));
