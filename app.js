@@ -1443,24 +1443,26 @@ class LiveDataService {
         // 3. Count urgent signals
         const urgentCount = tokens.filter(t => t.isUrgent === true).length;
 
-        // 4. Find top gainer (best 5m performance - real-time movers)
+        // 4. Find top mover using composite momentum (5m × 0.6 + 1h × 0.4)
         const topGainer = [...tokens]
             .filter(t => {
                 // Skip Meteora pairs - often have fake/wash volume
                 const dex = (t.dexId || '').toLowerCase();
                 if (dex.includes('meteora')) return false;
 
-                // Must have 5m price change data for real-time
-                if (t.priceChange5m === undefined) return false;
+                // Must have BOTH 5m and 1h data for composite score
+                if (t.priceChange5m === undefined || t.priceChange1h === undefined) return false;
 
-                // Require recent volume activity
-                const volume5m = t.volume5m || 0;
+                // Both timeframes should be positive (confirmed uptrend)
+                if (t.priceChange5m <= 0 || t.priceChange1h <= 0) return false;
+
+                // Require volume activity
                 const volume1h = t.volume1h || 0;
-                if (volume5m < 500 && volume1h < 3000) return false;
+                if (volume1h < 5000) return false;
 
-                // Require some liquidity
+                // Require liquidity
                 const liquidity = t.liquidity || 0;
-                if (liquidity < 3000) return false;
+                if (liquidity < 5000) return false;
 
                 // Skip potential scams/honeypots
                 const scamScore = t.scamCheck?.scamScore || 0;
@@ -1468,10 +1470,12 @@ class LiveDataService {
 
                 return true;
             })
-            .sort((a, b) => {
-                // Sort by 5m change (most recent momentum)
-                return (b.priceChange5m || 0) - (a.priceChange5m || 0);
-            })[0];
+            .map(t => ({
+                ...t,
+                // Composite momentum: recent action weighted more + sustained trend
+                momentumScore: (t.priceChange5m * 0.6) + (t.priceChange1h * 0.4)
+            }))
+            .sort((a, b) => b.momentumScore - a.momentumScore)[0];
 
         // Update DOM elements
         const volumeEl = document.getElementById('statsTotalVolume');
@@ -1522,10 +1526,11 @@ class LiveDataService {
             topGainerEl.textContent = '---';
         }
         if (topGainerChangeEl && topGainer) {
-            // Use 5m change (real-time)
-            const change = topGainer.priceChange5m ?? 0;
-            topGainerChangeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}% (5m)`;
-            topGainerChangeEl.className = `top-gainer-change ${change >= 0 ? 'positive' : 'negative'}`;
+            // Show both 5m and 1h for full picture
+            const change5m = topGainer.priceChange5m ?? 0;
+            const change1h = topGainer.priceChange1h ?? 0;
+            topGainerChangeEl.textContent = `+${change5m.toFixed(0)}% 5m / +${change1h.toFixed(0)}% 1h`;
+            topGainerChangeEl.className = `top-gainer-change positive`;
         }
 
         // Update timestamp
