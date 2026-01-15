@@ -284,21 +284,21 @@ async function fetchXTrends() {
                             }
                         } catch (e) { }
 
-                        // Generate CT-native text based on metrics
+                        // Generate text based on metrics
                         let ctText = '';
                         let engagement = 'medium';
 
                         if (priceData.priceChange1h > 50) {
-                            ctText = `$${symbol} sending it rn 🚀`;
+                            ctText = `$${symbol} +${priceData.priceChange1h.toFixed(0)}% 1h`;
                             engagement = 'viral';
                         } else if (priceData.priceChange1h > 20) {
-                            ctText = `$${symbol} pumping on CT`;
+                            ctText = `$${symbol} pumping +${priceData.priceChange1h.toFixed(0)}%`;
                             engagement = 'high';
                         } else if (priceData.volume24h > 500000) {
-                            ctText = `$${symbol} volume spiking - CT watching`;
+                            ctText = `$${symbol} high volume`;
                             engagement = 'high';
                         } else if (priceData.priceChange1h < -30) {
-                            ctText = `$${symbol} getting rekt - dip or dead?`;
+                            ctText = `$${symbol} dumping ${priceData.priceChange1h.toFixed(0)}%`;
                             engagement = 'medium';
                         } else {
                             ctText = `$${symbol} active on X`;
@@ -381,9 +381,9 @@ async function fetchXTrends() {
     // CT-native fallback narratives
     if (trends.length < 2) {
         const ctFallbacks = [
-            { text: 'AI agents meta still cooking 🤖', source: 'twitter', category: 'AI_AGENTS', engagement: 'high', tokenExists: false },
-            { text: 'SOL memes looking bullish ser', source: 'twitter', category: 'SOLANA_META', engagement: 'high', tokenExists: false },
-            { text: 'Degen szn loading...', source: 'twitter', category: 'MEME_CULTURE', engagement: 'medium', tokenExists: false }
+            { text: 'AI agents narrative trending', source: 'twitter', category: 'AI_AGENTS', engagement: 'high', tokenExists: false },
+            { text: 'SOL memes gaining traction', source: 'twitter', category: 'SOLANA_META', engagement: 'high', tokenExists: false },
+            { text: 'Memecoin activity increasing', source: 'twitter', category: 'MEME_CULTURE', engagement: 'medium', tokenExists: false }
         ];
         trends.push(...ctFallbacks.slice(0, 3 - trends.length));
     }
@@ -521,26 +521,26 @@ function categorizeNarrative(text) {
     return 'EMERGING';
 }
 
-// Generate CT-native description for a narrative
+// Generate description for a narrative category
 function getCTDescription(category, token) {
     const descriptions = {
-        'AI_AGENTS': 'AI agent meta play',
-        'POLITICAL': 'Political narrative coin',
-        'CELEBRITY': 'Celebrity/influencer play',
-        'ALPHA_CALL': 'CT alpha call',
-        'ANIMAL_DOG': 'Dog coin szn',
-        'ANIMAL_CAT': 'Cat coin play',
-        'ANIMAL_FROG': 'Frog/Pepe meta',
-        'ANIMAL_OTHER': 'Animal meta',
-        'SOLANA_META': 'SOL ecosystem play',
-        'NEWS_EVENT': 'News-driven pump',
-        'GAMING': 'Gaming/streamer play',
-        'FOOD_OBJECT': 'Random object memecoin',
+        'AI_AGENTS': 'AI Agent narrative',
+        'POLITICAL': 'Political narrative',
+        'CELEBRITY': 'Celebrity/Influencer',
+        'ALPHA_CALL': 'Alpha play',
+        'ANIMAL_DOG': 'Dog coin',
+        'ANIMAL_CAT': 'Cat coin',
+        'ANIMAL_FROG': 'Frog/Pepe narrative',
+        'ANIMAL_OTHER': 'Animal narrative',
+        'SOLANA_META': 'SOL ecosystem',
+        'NEWS_EVENT': 'News catalyst',
+        'GAMING': 'Gaming narrative',
+        'FOOD_OBJECT': 'Object memecoin',
         'DEFI': 'DeFi narrative',
-        'MEME_CULTURE': 'Pure degen play',
-        'EMERGING': 'New narrative forming'
+        'MEME_CULTURE': 'Meme culture',
+        'EMERGING': 'Emerging narrative'
     };
-    return descriptions[category] || 'Emerging narrative';
+    return descriptions[category] || 'Emerging';
 }
 
 // Score narratives for CT relevance - prioritize actionable alpha
@@ -637,14 +637,14 @@ function scoreNarratives(trends) {
     return scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
 }
 
-// CT-native sample narratives for fallback
+// Sample narratives for fallback
 function getSampleNarratives() {
     return [
         {
-            text: 'Fresh PumpFun launch cooking 🔥',
+            text: 'Fresh PumpFun launches trending',
             source: 'pumpfun',
             category: 'MEME_CULTURE',
-            ctCategory: 'Pure degen play',
+            ctCategory: 'Meme culture',
             engagement: 'viral',
             relevanceScore: 85,
             sources: ['pumpfun', 'twitter'],
@@ -652,21 +652,21 @@ function getSampleNarratives() {
             suggestion: 'Check PumpFun for fresh launches'
         },
         {
-            text: 'AI agents meta still printing 🤖',
+            text: 'AI agents narrative active',
             source: 'twitter',
             category: 'AI_AGENTS',
-            ctCategory: 'AI agent meta play',
+            ctCategory: 'AI Agent narrative',
             engagement: 'high',
             relevanceScore: 82,
             sources: ['twitter', 'dexscreener'],
             tokenExists: true,
-            suggestion: 'AI narrative tokens pumping'
+            suggestion: 'AI narrative tokens active'
         },
         {
-            text: 'SOL memes looking bullish ser',
+            text: 'SOL memecoins gaining volume',
             source: 'dexscreener',
             category: 'SOLANA_META',
-            ctCategory: 'SOL ecosystem play',
+            ctCategory: 'SOL ecosystem',
             engagement: 'high',
             relevanceScore: 75,
             sources: ['dexscreener'],
@@ -674,10 +674,10 @@ function getSampleNarratives() {
             suggestion: 'Volume rotating to SOL memes'
         },
         {
-            text: 'Political szn loading...',
+            text: 'Political narratives emerging',
             source: 'twitter',
             category: 'POLITICAL',
-            ctCategory: 'Political narrative coin',
+            ctCategory: 'Political narrative',
             engagement: 'medium',
             relevanceScore: 65,
             sources: ['twitter'],
@@ -685,10 +685,10 @@ function getSampleNarratives() {
             suggestion: 'Watch for political catalysts'
         },
         {
-            text: 'Dog coins waking up 🐕',
+            text: 'Dog coin activity increasing',
             source: 'pumpfun',
             category: 'ANIMAL_DOG',
-            ctCategory: 'Dog coin szn',
+            ctCategory: 'Dog coin',
             engagement: 'medium',
             relevanceScore: 58,
             sources: ['pumpfun'],
@@ -696,10 +696,10 @@ function getSampleNarratives() {
             suggestion: 'Animal meta rotation starting'
         },
         {
-            text: 'Degen szn vibes on CT',
+            text: 'Memecoin sentiment positive',
             source: 'twitter',
             category: 'MEME_CULTURE',
-            ctCategory: 'Pure degen play',
+            ctCategory: 'Meme culture',
             engagement: 'high',
             relevanceScore: 52,
             sources: ['twitter'],

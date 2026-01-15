@@ -1183,7 +1183,7 @@ class LiveDataService {
                 velocity: (volume24h / Math.max(liquidity, 1) * 2).toFixed(1),
                 heatScore,
                 createdAt: pair.pairCreatedAt,
-                isPumpFunStyle: (pair.dexId || '').toLowerCase() === 'pumpfun' || (pair.url || '').includes('pump.fun'),
+                isPumpFunStyle: ['pumpfun', 'pumpswap'].includes((pair.dexId || '').toLowerCase()) || (pair.url || '').includes('pump.fun') || (pair.baseToken?.address || '').endsWith('pump'),
                 ageHours,
                 url: pair.url,
                 info: pair.info || {}
@@ -1230,8 +1230,24 @@ class LiveDataService {
                 ? pair.txns.h24.buys / (pair.txns.h24.buys + pair.txns.h24.sells)
                 : 0.5;
 
-            // Skip tokens with very low liquidity (rug risk) or no volume
-            if (liquidity < 5000 || volume24h < 1000) continue;
+            // Detect PumpFun tokens early (before filtering)
+            const dexIdLower = (pair.dexId || '').toLowerCase();
+            const ageMs = pair.pairCreatedAt ? (Date.now() - pair.pairCreatedAt) : Infinity;
+            const ageHours = ageMs / (1000 * 60 * 60);
+            const isPumpFunToken = (
+                dexIdLower === 'pumpfun' ||
+                dexIdLower === 'pumpswap' ||
+                (pair.url || '').toLowerCase().includes('pump.fun') ||
+                (pair.baseToken?.address || '').endsWith('pump')
+            );
+
+            // Skip tokens with very low liquidity or no volume
+            // PumpFun tokens get more lenient filtering (they have low liq in bonding curve)
+            if (isPumpFunToken) {
+                if (volume24h < 500) continue; // Just need some volume
+            } else {
+                if (liquidity < 5000 || volume24h < 1000) continue;
+            }
 
             // Calculate signal type based on metrics
             let signalType = 'neutral';
@@ -1290,15 +1306,9 @@ class LiveDataService {
                 (isUrgent ? 50 : 0)
             );
 
-            // Detect if this is a PumpFun token
-            // Direct PumpFun tokens have dexId: 'pumpfun'
-            // Graduated tokens migrate to Raydium but are new + low liquidity
-            const ageMs = pair.pairCreatedAt ? (Date.now() - pair.pairCreatedAt) : Infinity;
-            const ageHours = ageMs / (1000 * 60 * 60);
-            const dexIdLower = (pair.dexId || '').toLowerCase();
+            // Detect if this is a PumpFun-style token (includes graduated tokens)
             const isPumpFunStyle = (
-                dexIdLower === 'pumpfun' || // Direct PumpFun listing
-                (pair.url || '').toLowerCase().includes('pump.fun') ||
+                isPumpFunToken || // Direct PumpFun listing (detected earlier)
                 (dexIdLower === 'raydium' && ageHours < 168 && liquidity < 500000) // Graduated from PumpFun
             );
 
@@ -1540,7 +1550,7 @@ class LiveDataService {
             }
 
             // Detect platform - use isPumpFunStyle flag OR direct dexId check
-            if (t.isPumpFunStyle || dex === 'pumpfun') {
+            if (t.isPumpFunStyle || dex === 'pumpfun' || dex === 'pumpswap') {
                 platformVolumes.pumpfun += vol;
             } else if (dex.includes('raydium')) {
                 platformVolumes.raydium += vol;
@@ -1958,9 +1968,9 @@ class LiveDataService {
             // Source icons
             const sources = narrative.sources || [narrative.source];
             const sourceIcons = sources.map(s => {
-                if (s === 'pumpfun') return '<span class="source-icon pumpfun" title="PumpFun">🚀</span>';
-                if (s === 'twitter') return '<span class="source-icon x" title="X/Twitter">𝕏</span>';
-                if (s === 'dexscreener') return '<span class="source-icon dex" title="DEX Screener">📊</span>';
+                if (s === 'pumpfun') return '<span class="source-icon pumpfun" title="PumpFun">PF</span>';
+                if (s === 'twitter') return '<span class="source-icon x" title="X/Twitter">X</span>';
+                if (s === 'dexscreener') return '<span class="source-icon dex" title="DEX Screener">DEX</span>';
                 return '';
             }).join('');
 
@@ -2417,13 +2427,13 @@ class LiveDataService {
         if (validation.isDead) {
             if (Math.abs(priceChange1h) > 10) {
                 return {
-                    edge: `${priceChange1h > 0 ? '+' : ''}${priceChange1h.toFixed(0)}% but zero vol ($${this.formatCompact(volume1h || 0)} 1h) - sus af`,
+                    edge: `${priceChange1h > 0 ? '+' : ''}${priceChange1h.toFixed(0)}% but no volume ($${this.formatCompact(volume1h || 0)} 1h) - suspicious`,
                     tag: 'DEAD',
                     confidence: validation.adjustedConfidence
                 };
             }
             return {
-                edge: `Ded: $${this.formatCompact(volume1h || 0)} vol, ${txns1h} txns - ngmi`,
+                edge: `Dead: $${this.formatCompact(volume1h || 0)} vol, ${txns1h} txns - no activity`,
                 tag: 'DEAD',
                 confidence: validation.adjustedConfidence
             };
@@ -2432,99 +2442,99 @@ class LiveDataService {
         // LOW ACTIVITY CHECK
         if (validation.isLowActivity && Math.abs(priceChange1h) < 20) {
             return {
-                edge: `Low activity: $${this.formatCompact(volume1h || 0)} vol, ${txns1h} txns/h - illiquid, be careful ser`,
+                edge: `Low activity: $${this.formatCompact(volume1h || 0)} vol, ${txns1h} txns/h - illiquid`,
                 tag: 'LOW ACTIVITY',
                 confidence: validation.adjustedConfidence
             };
         }
 
-        // Priority-ordered pattern detection - CT-native signals
+        // Priority-ordered pattern detection
 
-        // LAUNCH SIGNALS - fresh plays CT loves
+        // LAUNCH SIGNALS
         if (ageHours < 1) {
-            if (priceChange5m > 20 && (volume1h || 0) > 1000) return { edge: `Just launched & sending it +${priceChange5m.toFixed(0)}% in 5m 🚀`, tag: 'NEW LAUNCH' };
-            if (liquidity > 50000) return { edge: `Fresh launch, $${this.formatCompact(liquidity)} liq - early entry`, tag: 'NEW LAUNCH' };
-            return { edge: `${Math.round(ageHours * 60)}m old - super early ser`, tag: 'NEW LAUNCH' };
+            if (priceChange5m > 20 && (volume1h || 0) > 1000) return { edge: `Just launched +${priceChange5m.toFixed(0)}% in 5m`, tag: 'NEW LAUNCH' };
+            if (liquidity > 50000) return { edge: `Fresh launch, $${this.formatCompact(liquidity)} liquidity`, tag: 'NEW LAUNCH' };
+            return { edge: `${Math.round(ageHours * 60)}m old - early entry`, tag: 'NEW LAUNCH' };
         }
 
         if (ageHours < 6 && priceChange1h > 30) {
-            return { edge: `Young token cooking +${priceChange1h.toFixed(0)}% 1h - still early`, tag: 'EARLY MOVER' };
+            return { edge: `Young token +${priceChange1h.toFixed(0)}% 1h - still early`, tag: 'EARLY MOVER' };
         }
 
-        // MOMENTUM SIGNALS - validate before calling pump
+        // MOMENTUM SIGNALS - validate with volume
         if (priceChange5m > 15 && priceChange1h > 20) {
             // Validate with volume before PUMPING tag
             if ((volume1h || 0) > 5000 && txns1h > 20 && buyRatio > 0.45) {
-                return { edge: `IT'S SENDING: +${priceChange5m.toFixed(0)}% 5m, +${priceChange1h.toFixed(0)}% 1h | $${this.formatCompact(volume1h || 0)} vol`, tag: 'PUMPING' };
+                return { edge: `Accelerating +${priceChange5m.toFixed(0)}% 5m, +${priceChange1h.toFixed(0)}% 1h | $${this.formatCompact(volume1h || 0)} vol`, tag: 'PUMPING' };
             } else {
-                // Price spiking without volume = sus
-                return { edge: `+${priceChange1h.toFixed(0)}% but weak vol ($${this.formatCompact(volume1h || 0)}) - sus, DYOR`, tag: 'VERIFY' };
+                // Price spiking without volume
+                return { edge: `+${priceChange1h.toFixed(0)}% but weak vol ($${this.formatCompact(volume1h || 0)}) - verify`, tag: 'VERIFY' };
             }
         }
 
         if (priceChange1h > 50) {
             // Validate mooning with volume
             if ((volume1h || 0) > 10000 && txns1h > 30) {
-                return { edge: `PARABOLIC +${priceChange1h.toFixed(0)}% 1h | $${this.formatCompact(volume1h || 0)} vol - might be late`, tag: 'MOONING' };
+                return { edge: `Parabolic +${priceChange1h.toFixed(0)}% 1h | $${this.formatCompact(volume1h || 0)} vol`, tag: 'MOONING' };
             } else {
-                return { edge: `+${priceChange1h.toFixed(0)}% spike, low vol ($${this.formatCompact(volume1h || 0)}) - could be jeets`, tag: 'VERIFY' };
+                return { edge: `+${priceChange1h.toFixed(0)}% spike, low vol ($${this.formatCompact(volume1h || 0)}) - verify`, tag: 'VERIFY' };
             }
         }
 
         if (priceChange24h > 100 && priceChange1h > 5) {
-            return { edge: `Runner: +${priceChange24h.toFixed(0)}% day, still going +${priceChange1h.toFixed(0)}% 1h`, tag: 'RUNNER' };
+            return { edge: `Runner +${priceChange24h.toFixed(0)}% day, +${priceChange1h.toFixed(0)}% 1h`, tag: 'RUNNER' };
         }
 
-        // REVERSAL SIGNALS - dip plays
+        // REVERSAL SIGNALS
         if (priceChange24h < -25 && priceChange1h > 10 && buyRatio > 0.55) {
-            return { edge: `Bouncing +${priceChange1h.toFixed(0)}% off ${priceChange24h.toFixed(0)}% dump - dip bought`, tag: 'REVERSAL' };
+            return { edge: `Bouncing +${priceChange1h.toFixed(0)}% off ${priceChange24h.toFixed(0)}% drop`, tag: 'REVERSAL' };
         }
 
         if (priceChange24h < -20 && priceChange5m > 5 && buyRatio > 0.6) {
-            return { edge: `Degens buying dip: ${Math.round(buyRatio*100)}% buys after ${priceChange24h.toFixed(0)}% rekt`, tag: 'DIP BUY' };
+            return { edge: `Dip buying: ${Math.round(buyRatio*100)}% buys after ${priceChange24h.toFixed(0)}% drop`, tag: 'DIP BUY' };
         }
 
-        // ACCUMULATION SIGNALS - smart money
+        // ACCUMULATION SIGNALS
         if (buyRatio > 0.65 && priceChange1h < 5 && priceChange1h > -5) {
-            return { edge: `${Math.round(buyRatio*100)}% buys but price flat - someone loading`, tag: 'ACCUMULATING' };
+            return { edge: `${Math.round(buyRatio*100)}% buys, price flat - accumulation`, tag: 'ACCUMULATING' };
         }
 
         if (volumeVelocity > 5 && priceChange1h < 10 && priceChange1h > -10) {
-            return { edge: `High rotation ${volumeVelocity.toFixed(1)}x vol/liq - coiling for move`, tag: 'COILING' };
+            return { edge: `High rotation ${volumeVelocity.toFixed(1)}x vol/liq - consolidating`, tag: 'COILING' };
         }
 
-        // VOLUME SIGNALS - money flowing
+        // VOLUME SIGNALS
         if (volume1h > 100000 && priceChange1h > 10) {
-            return { edge: `Volume pumping $${this.formatCompact(volume1h)} 1h, price +${priceChange1h.toFixed(0)}%`, tag: 'VOL SURGE' };
+            return { edge: `Volume spike $${this.formatCompact(volume1h)} 1h, +${priceChange1h.toFixed(0)}%`, tag: 'VOL SURGE' };
         }
 
         if (avgTxSize > 5000 && priceChange1h > 5) {
-            return { edge: `Whales loading: $${this.formatCompact(avgTxSize)} avg tx, +${priceChange1h.toFixed(0)}%`, tag: 'WHALES' };
+            return { edge: `Large buys: $${this.formatCompact(avgTxSize)} avg tx, +${priceChange1h.toFixed(0)}%`, tag: 'WHALES' };
         }
 
-        // WARNING SIGNALS - exit liquidity vibes
+        // WARNING SIGNALS
         if (priceChange24h > 50 && priceChange1h < -10) {
-            return { edge: `Taking profit: -${Math.abs(priceChange1h).toFixed(0)}% 1h after +${priceChange24h.toFixed(0)}% run`, tag: 'DISTRIBUTION' };
+            return { edge: `Profit taking: -${Math.abs(priceChange1h).toFixed(0)}% 1h after +${priceChange24h.toFixed(0)}% run`, tag: 'DISTRIBUTION' };
         }
 
         if (buyRatio < 0.35 && priceChange1h < -5) {
-            return { edge: `Jeets selling: ${Math.round(buyRatio*100)}% buys, down ${Math.abs(priceChange1h).toFixed(0)}%`, tag: 'SELLING' };
+            return { edge: `Sell pressure: ${Math.round(buyRatio*100)}% buys, down ${Math.abs(priceChange1h).toFixed(0)}%`, tag: 'SELLING' };
         }
 
         if (priceChange1h < -15) {
-            return { edge: `Getting rekt ${priceChange1h.toFixed(0)}% 1h - ngmi or buy the dip?`, tag: 'DUMPING' };
+            return { edge: `Dumping ${priceChange1h.toFixed(0)}% 1h`, tag: 'DUMPING' };
         }
 
         // STABLE/HOLDING SIGNALS
         if (priceChange24h > 30 && Math.abs(priceChange1h) < 5) {
-            return { edge: `Diamond hands: +${priceChange24h.toFixed(0)}% 24h, holding strong`, tag: 'HOLDING' };
+            return { edge: `Holding gains: +${priceChange24h.toFixed(0)}% 24h, consolidating`, tag: 'HOLDING' };
         }
 
-        // DEFAULT - CT-native summary
+        // DEFAULT
         if (priceChange1h > 0) {
-            return { edge: `+${priceChange1h.toFixed(0)}% 1h | ${Math.round(buyRatio*100)}% buying | $${this.formatCompact(volume24h)} vol`, tag: 'ACTIVE' };
+            return { edge: `+${priceChange1h.toFixed(0)}% 1h | ${Math.round(buyRatio*100)}% buys | $${this.formatCompact(volume24h)} vol`, tag: 'ACTIVE' };
         } else {
-            return { edge: `${priceChange1h.toFixed(0)}% 1h | ${Math.round(buyRatio*100)}% buys | watching for entry`, tag: 'WATCHING' };
+            return { edge: `${priceChange1h.toFixed(0)}% 1h | ${Math.round(buyRatio*100)}% buys | $${this.formatCompact(volume24h)} vol`, tag: 'WATCHING' };
         }
     }
 
