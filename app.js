@@ -1433,12 +1433,11 @@ class LiveDataService {
         // 1. Calculate total 1h volume across all tokens
         const totalVolume1h = tokens.reduce((sum, t) => sum + (t.volume1h || 0), 0);
 
-        // 2. Count fresh launches (tokens < 24h old)
-        const now = Date.now();
-        const freshLaunches = tokens.filter(t => {
-            if (!t.createdAt) return false;
-            const ageHours = (now - t.createdAt) / (1000 * 60 * 60);
-            return ageHours < 24;
+        // 2. Count hot movers (tokens with >20% 1h gain and real volume)
+        const hotMovers = tokens.filter(t => {
+            const change = t.priceChange1h ?? 0;
+            const volume = t.volume1h || 0;
+            return change > 20 && volume > 500;
         }).length;
 
         // 3. Count urgent signals
@@ -1463,8 +1462,8 @@ class LiveDataService {
         // Update DOM elements
         const volumeEl = document.getElementById('statsTotalVolume');
         const volumeBar = document.getElementById('statsVolumeBar');
-        const freshEl = document.getElementById('statsFreshLaunches');
-        const freshBar = document.getElementById('statsFreshBar');
+        const hotEl = document.getElementById('statsHotMovers');
+        const hotBar = document.getElementById('statsHotBar');
         const urgentEl = document.getElementById('statsUrgentCount');
         const urgentBar = document.getElementById('statsUrgentBar');
         const topGainerEl = document.getElementById('statsTopGainer');
@@ -1480,15 +1479,15 @@ class LiveDataService {
             volumeBar.style.setProperty('--fill-width', `${volPercent}%`);
         }
 
-        // Fresh Launches (tokens < 24h old)
-        if (freshEl) {
-            freshEl.textContent = freshLaunches;
-            freshEl.className = `metric-value ${freshLaunches > 10 ? 'positive' : ''}`;
+        // Hot Movers (tokens with >20% 1h gain)
+        if (hotEl) {
+            hotEl.textContent = hotMovers;
+            hotEl.className = `metric-value ${hotMovers > 5 ? 'positive' : ''}`;
         }
-        if (freshBar) {
-            // Scale: 20+ fresh launches = 100%
-            const freshPercent = Math.min(100, (freshLaunches / 20) * 100);
-            freshBar.style.setProperty('--fill-width', `${freshPercent}%`);
+        if (hotBar) {
+            // Scale: 10+ hot movers = 100%
+            const hotPercent = Math.min(100, (hotMovers / 10) * 100);
+            hotBar.style.setProperty('--fill-width', `${hotPercent}%`);
         }
 
         // Urgent Signals
@@ -1670,18 +1669,23 @@ class LiveDataService {
                 { id: 'dexOther', vol: platformVolumes.other }
             ];
 
-            // Calculate actual percentages (same as share display)
-            segments.forEach(s => {
+            // Calculate actual percentages matching the share display
+            const withPct = segments.map(s => ({
+                ...s,
+                pct: Math.round((s.vol / totalVolume) * 100)
+            }));
+
+            // Apply widths directly - percentages already match share display
+            withPct.forEach(s => {
                 const el = document.getElementById(s.id);
                 if (el) {
-                    const actualPct = (s.vol / totalVolume) * 100;
-                    // Use actual percentage, but give minimum 1% width if volume exists for visibility
-                    const displayPct = s.vol > 0 ? Math.max(1, actualPct) : 0;
-                    el.style.width = `${displayPct.toFixed(1)}%`;
+                    // Use the same percentage as share display, minimum 2% if has volume for visibility
+                    const displayPct = s.vol > 0 ? Math.max(2, s.pct) : 0;
+                    el.style.width = `${displayPct}%`;
                     // Hide label if segment too small
                     const label = el.querySelector('span');
                     if (label) {
-                        label.style.display = displayPct < 8 ? 'none' : '';
+                        label.style.display = s.pct < 10 ? 'none' : '';
                     }
                 }
             });
