@@ -1339,19 +1339,34 @@ class LiveDataService {
             const url = (t.url || '').toLowerCase();
             const name = (t.name || '').toLowerCase();
             const symbol = (t.symbol || '').toLowerCase();
+
+            // Check websites array for platform detection
+            const websiteUrls = (t.info?.websites || t.websites || [])
+                .map(w => (w.url || w || '').toLowerCase())
+                .join(' ');
+
+            // Check socials array for platform detection
+            const socialUrls = (t.info?.socials || t.socials || [])
+                .map(s => (s.url || '').toLowerCase())
+                .join(' ');
+
+            // Combined text for searching
+            const allUrls = `${url} ${websiteUrls} ${socialUrls}`;
+
             // Use appropriate volume based on timeframe
             const vol = timeframe === '5m' ? (t.volume5m || t.volume24h * 0.003) :
                        timeframe === '1h' ? (t.volume1h || t.volume24h * 0.04) :
                        t.volume24h || 0;
 
-            // Detect platform/ecosystem based on dexId, URL, and token name
-            if (dex.includes('pump') || url.includes('pump.fun')) {
+            // Detect platform/ecosystem based on dexId, URL, token name, websites, socials
+            if (dex.includes('pump') || allUrls.includes('pump.fun')) {
                 platformVolumes.pumpfun += vol;
-            } else if (url.includes('bags.fm') || dex.includes('bags')) {
+            } else if (allUrls.includes('bags.fm') || allUrls.includes('getbags') || dex.includes('bags')) {
                 platformVolumes.bags += vol;
-            } else if (name.includes('bonk') || symbol.includes('bonk') || url.includes('bonk')) {
+            } else if (name.includes('bonk') || symbol.includes('bonk') || symbol === 'bonk' ||
+                       allUrls.includes('bonkcoin') || allUrls.includes('letsbonk')) {
                 platformVolumes.bonk += vol;
-            } else if (dex.includes('raydium') || url.includes('raydium')) {
+            } else if (dex.includes('raydium') || allUrls.includes('raydium')) {
                 platformVolumes.raydium += vol;
             } else {
                 // Default unrecognized DEXs to "other"
