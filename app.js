@@ -1861,10 +1861,22 @@ class LiveDataService {
 
         listEl.innerHTML = html;
 
-        // Update timestamp
+        // Update timestamp - show data freshness status
         const kolTimeEl = document.getElementById('kolUpdateTime');
         if (kolTimeEl) {
-            kolTimeEl.textContent = data.cached ? 'Cached' : (data.stale ? 'Stale' : 'Live');
+            if (data.parsed === false) {
+                kolTimeEl.textContent = 'Sample';
+                kolTimeEl.title = 'Showing sample data - kolscan.io data could not be parsed';
+            } else if (data.cached) {
+                kolTimeEl.textContent = 'Cached';
+                kolTimeEl.title = 'Data from cache';
+            } else if (data.stale) {
+                kolTimeEl.textContent = 'Stale';
+                kolTimeEl.title = 'Stale cached data';
+            } else {
+                kolTimeEl.textContent = 'Live';
+                kolTimeEl.title = 'Fresh data from kolscan.io';
+            }
         }
     }
 
