@@ -2021,6 +2021,12 @@ body {
     margin-left: 0.5rem;
 }
 
+.signal-source.pumpfun {
+    color: #00d18c;
+    background: rgba(0, 209, 140, 0.15);
+    font-weight: 600;
+}
+
 /* ============================================
    LIVE CHART SECTION
    ============================================ */

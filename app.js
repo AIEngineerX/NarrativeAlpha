@@ -487,9 +487,11 @@ class NavigationController {
             if (filter === 'all') {
                 card.style.display = 'block';
             } else if (filter === 'urgent') {
-                // Show high confidence bullish signals as "urgent"
-                const confidence = parseInt(card.querySelector('.signal-confidence').textContent.match(/\d+/)[0]);
-                card.style.display = confidence >= 70 ? 'block' : 'none';
+                // Show urgent signals
+                card.style.display = card.classList.contains('urgent') ? 'block' : 'none';
+            } else if (filter === 'pumpfun') {
+                // Show only PumpFun tokens
+                card.style.display = card.dataset.source === 'pumpfun' ? 'block' : 'none';
             } else {
                 card.style.display = card.dataset.type === filter ? 'block' : 'none';
             }
@@ -512,10 +514,16 @@ class NavigationController {
 class LiveDataService {
     constructor() {
         this.dexScreenerBaseUrl = 'https://api.dexscreener.com/latest/dex';
-        this.updateInterval = 30000; // 30 seconds
+        this.pumpFunApiUrl = 'https://frontend-api.pump.fun';
+        this.updateInterval = 60000; // 60 seconds (reduced to avoid rate limits)
         this.intervalId = null;
         this.currentTokenAddress = null;
         this.cachedTrendingTokens = [];
+        this.cachedPumpFunTokens = [];
+        this.lastFetchTime = 0;
+        this.minFetchInterval = 30000; // Minimum 30s between fetches
+        this.retryCount = 0;
+        this.maxRetries = 3;
 
         this.elements = {
             signalsFeed: document.getElementById('signalsFeed'),
@@ -532,7 +540,7 @@ class LiveDataService {
 
     init() {
         this.setupEventListeners();
-        this.fetchTrendingTokens();
+        this.fetchAllData();
         this.startAutoRefresh();
     }
 
@@ -572,7 +580,7 @@ class LiveDataService {
 
     startAutoRefresh() {
         this.intervalId = setInterval(() => {
-            this.fetchTrendingTokens();
+            this.fetchAllData();
         }, this.updateInterval);
     }
 
@@ -594,57 +602,206 @@ class LiveDataService {
         }
     }
 
-    // Fetch trending tokens from DEX Screener
-    async fetchTrendingTokens() {
+    // Main fetch function - fetches from both DEX Screener and PumpFun
+    async fetchAllData() {
+        // Rate limit protection
+        const now = Date.now();
+        if (now - this.lastFetchTime < this.minFetchInterval) {
+            console.log('Skipping fetch - too soon since last request');
+            return;
+        }
+        this.lastFetchTime = now;
+
+        // Show loading state
+        if (this.elements.signalsFeed && this.cachedTrendingTokens.length === 0) {
+            this.elements.signalsFeed.innerHTML = `
+                <div class="signals-loading">
+                    <div class="loading-spinner"></div>
+                    <span>Fetching live data...</span>
+                </div>
+            `;
+        }
+
+        // Fetch both sources in parallel (only 2 API calls total)
+        const [dexData, pumpFunData] = await Promise.allSettled([
+            this.fetchDexScreener(),
+            this.fetchPumpFun()
+        ]);
+
+        let allTokens = [];
+
+        // Process DEX Screener data
+        if (dexData.status === 'fulfilled' && dexData.value) {
+            allTokens = [...allTokens, ...dexData.value];
+            this.retryCount = 0; // Reset retry count on success
+        }
+
+        // Process PumpFun data
+        if (pumpFunData.status === 'fulfilled' && pumpFunData.value) {
+            this.cachedPumpFunTokens = pumpFunData.value;
+            allTokens = [...allTokens, ...pumpFunData.value];
+        }
+
+        if (allTokens.length > 0) {
+            // Deduplicate by address
+            const seen = new Set();
+            const uniqueTokens = allTokens.filter(t => {
+                if (seen.has(t.address)) return false;
+                seen.add(t.address);
+                return true;
+            });
+
+            // Sort by heat score
+            uniqueTokens.sort((a, b) => b.heatScore - a.heatScore);
+
+            this.cachedTrendingTokens = uniqueTokens.slice(0, 50);
+            this.renderSignalsFeed(this.cachedTrendingTokens);
+            this.renderTrendingTokens(this.cachedTrendingTokens.slice(0, 8));
+            this.updateLastUpdateTime();
+        } else if (this.cachedTrendingTokens.length > 0) {
+            // Use cached data if fetch failed
+            this.renderSignalsFeed(this.cachedTrendingTokens);
+            this.updateLastUpdateTime();
+        } else {
+            // No data at all
+            this.handleFetchError();
+        }
+    }
+
+    // Fetch from DEX Screener - single API call
+    async fetchDexScreener() {
         try {
-            // Use DEX Screener's token boosts/trending endpoint for Solana
-            // This gets the most active pairs on Solana chain
-            const response = await fetch(`${this.dexScreenerBaseUrl}/pairs/solana`);
+            const response = await fetch(`${this.dexScreenerBaseUrl}/pairs/solana`, {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (response.status === 429) {
+                throw new Error('RATE_LIMITED');
+            }
 
             if (!response.ok) {
-                throw new Error('Failed to fetch from DEX Screener');
+                throw new Error(`HTTP ${response.status}`);
             }
 
             const data = await response.json();
-            let allPairs = data.pairs || [];
-
-            // Also fetch from the boosted tokens endpoint for trending tokens
-            try {
-                const boostResponse = await fetch('https://api.dexscreener.com/token-boosts/top/v1');
-                if (boostResponse.ok) {
-                    const boostData = await boostResponse.json();
-                    // Filter for Solana boosted tokens
-                    const solanaBoosts = (boostData || []).filter(t => t.chainId === 'solana');
-
-                    // Fetch details for boosted tokens
-                    for (const boost of solanaBoosts.slice(0, 10)) {
-                        try {
-                            const tokenResponse = await fetch(`${this.dexScreenerBaseUrl}/tokens/${boost.tokenAddress}`);
-                            if (tokenResponse.ok) {
-                                const tokenData = await tokenResponse.json();
-                                if (tokenData.pairs) {
-                                    allPairs = [...allPairs, ...tokenData.pairs];
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('Failed to fetch boosted token:', e);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('Boost endpoint unavailable:', e);
-            }
-
-            // Process and deduplicate
-            const processedTokens = this.processTokenData(allPairs);
-
-            this.cachedTrendingTokens = processedTokens;
-            this.renderSignalsFeed(processedTokens);
-            this.renderTrendingTokens(processedTokens.slice(0, 8));
-            this.updateLastUpdateTime();
+            return this.processTokenData(data.pairs || []);
 
         } catch (error) {
-            console.error('Error fetching trending tokens:', error);
+            console.warn('DEX Screener fetch failed:', error.message);
+            if (error.message === 'RATE_LIMITED') {
+                this.updateInterval = Math.min(this.updateInterval * 1.5, 180000); // Back off up to 3 min
+            }
+            return null;
+        }
+    }
+
+    // Fetch from PumpFun API - gets newest tokens
+    async fetchPumpFun() {
+        try {
+            // PumpFun's public API for coins
+            const response = await fetch(`${this.pumpFunApiUrl}/coins?offset=0&limit=50&sort=last_trade_timestamp&order=DESC&includeNsfw=false`, {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const coins = await response.json();
+            return this.processPumpFunData(coins || []);
+
+        } catch (error) {
+            console.warn('PumpFun fetch failed:', error.message);
+            return null;
+        }
+    }
+
+    // Process PumpFun API data into our standard format
+    processPumpFunData(coins) {
+        return coins.map(coin => {
+            const marketCap = coin.usd_market_cap || 0;
+            const volume24h = coin.volume || 0;
+            const priceChange24h = 0; // PumpFun doesn't provide this directly
+            const liquidity = marketCap * 0.1; // Estimate - PumpFun bonding curve
+
+            // Calculate signal type
+            let signalType = 'neutral';
+            let isUrgent = false;
+
+            if (marketCap > 50000 && coin.reply_count > 10) {
+                signalType = 'bullish';
+                if (marketCap > 200000 || coin.reply_count > 50) {
+                    isUrgent = true;
+                }
+            }
+
+            // Confidence based on social engagement and market cap
+            let confidence = 40;
+            if (coin.reply_count > 50) confidence += 20;
+            else if (coin.reply_count > 20) confidence += 10;
+            if (marketCap > 100000) confidence += 15;
+            else if (marketCap > 50000) confidence += 8;
+            if (coin.website || coin.twitter || coin.telegram) confidence += 10;
+            confidence = Math.min(confidence, 95);
+
+            // Heat score for PumpFun - based on engagement and recency
+            const ageMinutes = coin.created_timestamp
+                ? (Date.now() - coin.created_timestamp) / (1000 * 60)
+                : 999;
+            const heatScore = (
+                (coin.reply_count || 0) * 2 +
+                (marketCap / 10000) +
+                (ageMinutes < 60 ? 50 : ageMinutes < 360 ? 25 : 0) +
+                (isUrgent ? 40 : 0)
+            );
+
+            return {
+                address: coin.mint,
+                name: coin.name || 'Unknown',
+                symbol: coin.symbol || '???',
+                price: coin.price || 0,
+                priceChange24h,
+                priceChange6h: 0,
+                priceChange1h: 0,
+                priceChange5m: 0,
+                volume24h,
+                volume6h: 0,
+                volume1h: 0,
+                liquidity,
+                marketCap,
+                txns24h: coin.reply_count || 0, // Using replies as activity proxy
+                buyRatio: 0.5,
+                pairAddress: coin.mint,
+                dexId: 'pumpfun',
+                signalType,
+                isUrgent,
+                confidence,
+                velocity: (marketCap / 50000).toFixed(1),
+                heatScore,
+                createdAt: coin.created_timestamp,
+                isPumpFun: true,
+                description: coin.description || '',
+                image: coin.image_uri || '',
+                socials: {
+                    website: coin.website,
+                    twitter: coin.twitter,
+                    telegram: coin.telegram
+                },
+                replyCount: coin.reply_count || 0,
+                kingOfTheHill: coin.king_of_the_hill_timestamp ? true : false,
+                url: `https://pump.fun/${coin.mint}`,
+                info: { imageUrl: coin.image_uri }
+            };
+        }).filter(t => t.marketCap > 1000); // Filter out dead coins
+    }
+
+    handleFetchError() {
+        this.retryCount++;
+        if (this.retryCount <= this.maxRetries) {
+            const delay = Math.pow(2, this.retryCount) * 10000; // Exponential backoff
+            console.log(`Retrying in ${delay/1000}s (attempt ${this.retryCount}/${this.maxRetries})`);
+            setTimeout(() => this.fetchAllData(), delay);
+        } else {
             this.renderFallbackSignals();
         }
     }
@@ -888,32 +1045,83 @@ class LiveDataService {
         const urgentClass = token.isUrgent ? 'urgent' : '';
 
         const timeAgo = token.createdAt ? this.getTimeAgo(token.createdAt) : 'Active';
-        const source = token.dexId === 'raydium' ? 'Raydium' :
+        const isPumpFun = token.isPumpFun || token.dexId === 'pumpfun';
+        const source = isPumpFun ? 'PumpFun' :
+                       token.dexId === 'raydium' ? 'Raydium' :
                        token.dexId === 'orca' ? 'Orca' :
-                       token.dexId === 'meteora' ? 'Meteora' : 'PumpFun';
+                       token.dexId === 'meteora' ? 'Meteora' : 'DEX';
+        const sourceSlug = isPumpFun ? 'pumpfun' : 'dex';
 
         // Generate the specific edge/signal description
-        const { edge, tag } = this.generateSignalEdge(token);
+        let { edge, tag } = this.generateSignalEdge(token);
+
+        // Override edge for PumpFun tokens with their specific data
+        if (isPumpFun) {
+            const ageMinutes = token.createdAt ? Math.floor((Date.now() - token.createdAt) / (1000 * 60)) : 999;
+
+            if (token.kingOfTheHill) {
+                edge = `KING OF THE HILL - Graduated! MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'GRADUATED';
+            } else if (ageMinutes < 30) {
+                edge = `Fresh mint ${ageMinutes}m ago | ${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'NEW MINT';
+            } else if (token.replyCount > 50) {
+                edge = `Hot discussion: ${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'TRENDING';
+            } else if (token.replyCount > 20) {
+                edge = `Building buzz: ${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'ACTIVE';
+            } else {
+                edge = `${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'PUMPFUN';
+            }
+
+            // Add socials indicator
+            const socials = [];
+            if (token.socials?.website) socials.push('Web');
+            if (token.socials?.twitter) socials.push('X');
+            if (token.socials?.telegram) socials.push('TG');
+            if (socials.length > 0) {
+                edge += ` | ${socials.join('+')}`;
+            }
+        }
 
         // Determine tag color based on signal type
-        const tagClass = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER'].includes(tag)
+        const tagClass = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER', 'GRADUATED', 'NEW MINT', 'TRENDING'].includes(tag)
             ? 'positive'
             : ['DISTRIBUTION', 'SELLING', 'DUMPING'].includes(tag)
                 ? 'negative'
                 : '';
 
-        return `
-            <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}">
-                <div class="signal-header">
-                    <span class="signal-tag ${tagClass}">${tag}</span>
-                    <span class="signal-source">${source}</span>
-                    <span class="signal-time">${timeAgo}</span>
+        // Different stats layout for PumpFun vs DEX
+        const statsHtml = isPumpFun ? `
+                <div class="signal-stats">
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">$${this.formatCompact(token.marketCap)}</span>
+                        <span class="signal-stat-label">MCap</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">${token.replyCount || 0}</span>
+                        <span class="signal-stat-label">Replies</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">${timeAgo}</span>
+                        <span class="signal-stat-label">Age</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">${token.socials?.twitter ? '✓' : '✗'}</span>
+                        <span class="signal-stat-label">Twitter</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">${token.socials?.telegram ? '✓' : '✗'}</span>
+                        <span class="signal-stat-label">TG</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">${token.socials?.website ? '✓' : '✗'}</span>
+                        <span class="signal-stat-label">Web</span>
+                    </div>
                 </div>
-                <div class="signal-token">
-                    <strong>$${token.symbol}</strong>
-                    <span class="token-price">$${this.formatNumber(token.price)}</span>
-                </div>
-                <div class="signal-edge">${edge}</div>
+        ` : `
                 <div class="signal-stats">
                     <div class="signal-stat">
                         <span class="signal-stat-value ${priceChange1hClass}">${priceChange1hSign}${token.priceChange1h.toFixed(1)}%</span>
@@ -940,6 +1148,21 @@ class LiveDataService {
                         <span class="signal-stat-label">Vel</span>
                     </div>
                 </div>
+        `;
+
+        return `
+            <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}" data-source="${sourceSlug}">
+                <div class="signal-header">
+                    <span class="signal-tag ${tagClass}">${tag}</span>
+                    <span class="signal-source ${sourceSlug}">${source}</span>
+                    <span class="signal-time">${timeAgo}</span>
+                </div>
+                <div class="signal-token">
+                    <strong>$${token.symbol}</strong>
+                    <span class="token-price">$${this.formatNumber(token.price)}</span>
+                </div>
+                <div class="signal-edge">${edge}</div>
+                ${statsHtml}
             </div>
         `;
     }
