@@ -877,13 +877,13 @@ class LiveDataService {
         // Check if we have valid cached data
         if (this.cachedTrendingTokens.length > 0 && (now - this.lastDexFetchTime) < this.cacheExpiry) {
             console.log('Using cached DEX data');
-            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFunStyle);
         }
 
         // Rate limit check - don't hit API more than once per minute
         if ((now - this.lastDexFetchTime) < this.minFetchInterval) {
             console.log('Skipping DEX fetch - rate limit protection');
-            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFunStyle);
         }
 
         try {
@@ -967,11 +967,11 @@ class LiveDataService {
                 return this.processTokenData(allPairs);
             }
 
-            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFunStyle);
 
         } catch (error) {
             console.warn('DEX Screener fetch failed:', error.message);
-            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFunStyle);
         }
     }
 
@@ -1183,7 +1183,7 @@ class LiveDataService {
                 velocity: (volume24h / Math.max(liquidity, 1) * 2).toFixed(1),
                 heatScore,
                 createdAt: pair.pairCreatedAt,
-                isPumpFun: (pair.dexId || '').toLowerCase().includes('pump') || (pair.url || '').includes('pump.fun'),
+                isPumpFunStyle: (pair.dexId || '').toLowerCase() === 'pumpfun' || (pair.url || '').includes('pump.fun'),
                 ageHours,
                 url: pair.url,
                 info: pair.info || {}
@@ -1539,8 +1539,8 @@ class LiveDataService {
                 vol = t.volume24h || 0;
             }
 
-            // Detect platform - use isPumpFunStyle flag for better accuracy
-            if (t.isPumpFunStyle) {
+            // Detect platform - use isPumpFunStyle flag OR direct dexId check
+            if (t.isPumpFunStyle || dex === 'pumpfun') {
                 platformVolumes.pumpfun += vol;
             } else if (dex.includes('raydium')) {
                 platformVolumes.raydium += vol;
@@ -2533,7 +2533,7 @@ class LiveDataService {
         const urgentClass = token.isUrgent ? 'urgent' : '';
 
         const timeAgo = token.createdAt ? this.getTimeAgo(token.createdAt) : 'Active';
-        const isPumpFun = token.isPumpFun || token.dexId === 'pumpfun';
+        const isPumpFun = token.isPumpFunStyle || (token.dexId || '').toLowerCase() === 'pumpfun';
         const source = isPumpFun ? 'PumpFun' :
                        token.dexId === 'raydium' ? 'Raydium' :
                        token.dexId === 'orca' ? 'Orca' :
