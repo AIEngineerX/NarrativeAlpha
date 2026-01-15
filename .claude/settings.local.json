@@ -10,7 +10,9 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial release: NarrativeAlpha AI-powered memecoin intelligence platform\n\n- Arkham-style dark UI with animated particle network background\n- Claude AI integration for narrative analysis\n- Live signals feed with filtering\n- Historical archive of past narratives\n- Full documentation section\n- Netlify serverless function for secure API calls\n- Responsive design with custom fonts \\(Orbitron, JetBrains Mono\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(git commit:*)",
-      "WebFetch(domain:docs.dexscreener.com)"
+      "WebFetch(domain:docs.dexscreener.com)",
+      "WebFetch(domain:frontend-api.pump.fun)",
+      "WebSearch"
     ]
   }
 }

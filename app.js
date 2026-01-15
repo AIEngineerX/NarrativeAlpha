@@ -675,7 +675,7 @@ class LiveDataService {
         }
     }
 
-    // Fetch from DEX Screener - using search endpoint (300 req/min limit)
+    // Fetch from DEX Screener - using multiple strategies
     async fetchDexScreener() {
         const now = Date.now();
 
@@ -692,137 +692,213 @@ class LiveDataService {
         }
 
         try {
-            // Use search endpoint which has 300 req/min limit
-            // Search for popular Solana memecoins
-            const searchTerms = ['solana', 'sol'];
-            const searchTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
+            let allPairs = [];
 
-            const response = await fetch(`${this.dexScreenerBaseUrl}/latest/dex/search?q=${searchTerm}`, {
-                headers: { 'Accept': 'application/json' }
-            });
+            // Strategy 1: Get latest token profiles (shows trending/boosted - 60 req/min)
+            try {
+                const profilesResponse = await fetch(`${this.dexScreenerBaseUrl}/token-profiles/latest/v1`);
+                if (profilesResponse.ok) {
+                    const profiles = await profilesResponse.json();
+                    // Get Solana token addresses from profiles
+                    const solanaAddresses = (profiles || [])
+                        .filter(p => p.chainId === 'solana')
+                        .map(p => p.tokenAddress)
+                        .slice(0, 20);
 
-            if (response.status === 429) {
-                console.warn('DEX Screener rate limited - backing off');
-                this.updateInterval = Math.min(this.updateInterval * 2, 300000); // Back off up to 5 min
-                throw new Error('RATE_LIMITED');
+                    if (solanaAddresses.length > 0) {
+                        // Batch fetch token data (up to 30 at once)
+                        const batchResponse = await fetch(
+                            `${this.dexScreenerBaseUrl}/tokens/v1/solana/${solanaAddresses.join(',')}`
+                        );
+                        if (batchResponse.ok) {
+                            const batchData = await batchResponse.json();
+                            allPairs = [...allPairs, ...(Array.isArray(batchData) ? batchData : [])];
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Token profiles fetch failed:', e.message);
             }
+
+            // Strategy 2: Search for trending memecoin terms
+            const memeTerms = ['pepe', 'doge', 'shib', 'wojak', 'chad', 'mog', 'cat', 'dog', 'ai', 'trump'];
+            const randomTerm = memeTerms[Math.floor(Math.random() * memeTerms.length)];
+
+            try {
+                const searchResponse = await fetch(
+                    `${this.dexScreenerBaseUrl}/latest/dex/search?q=${randomTerm}`,
+                    { headers: { 'Accept': 'application/json' } }
+                );
+
+                if (searchResponse.status === 429) {
+                    console.warn('DEX Screener rate limited');
+                    this.updateInterval = Math.min(this.updateInterval * 2, 300000);
+                } else if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    const solanaPairs = (searchData.pairs || []).filter(p => p.chainId === 'solana');
+                    allPairs = [...allPairs, ...solanaPairs];
+                }
+            } catch (e) {
+                console.warn('Search fetch failed:', e.message);
+            }
+
+            // Strategy 3: Get latest boosted tokens (shows paid promotions - can indicate activity)
+            try {
+                const boostResponse = await fetch(`${this.dexScreenerBaseUrl}/token-boosts/top/v1`);
+                if (boostResponse.ok) {
+                    const boosts = await boostResponse.json();
+                    const solanaBoosts = (boosts || [])
+                        .filter(b => b.chainId === 'solana')
+                        .map(b => b.tokenAddress)
+                        .slice(0, 10);
+
+                    if (solanaBoosts.length > 0) {
+                        const boostBatchResponse = await fetch(
+                            `${this.dexScreenerBaseUrl}/tokens/v1/solana/${solanaBoosts.join(',')}`
+                        );
+                        if (boostBatchResponse.ok) {
+                            const boostData = await boostBatchResponse.json();
+                            allPairs = [...allPairs, ...(Array.isArray(boostData) ? boostData : [])];
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Boost fetch failed:', e.message);
+            }
+
+            this.lastDexFetchTime = now;
+
+            if (allPairs.length > 0) {
+                return this.processTokenData(allPairs);
+            }
+
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+
+        } catch (error) {
+            console.warn('DEX Screener fetch failed:', error.message);
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+        }
+    }
+
+    // Fetch from PumpFun via DEX Screener (PumpFun direct API requires auth)
+    // We search for pump.fun tokens on DEX Screener instead
+    async fetchPumpFun() {
+        try {
+            // Search for recent pump.fun style tokens
+            // These are usually new, low-cap Solana memecoins on Raydium
+            const pumpTerms = ['pump', 'fun', 'moon', 'inu', 'elon', 'bonk', 'wif', 'popcat', 'meme'];
+            const term = pumpTerms[Math.floor(Math.random() * pumpTerms.length)];
+
+            const response = await fetch(
+                `${this.dexScreenerBaseUrl}/latest/dex/search?q=${term}`,
+                { headers: { 'Accept': 'application/json' } }
+            );
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
 
             const data = await response.json();
-            this.lastDexFetchTime = now;
 
-            // Filter for Solana pairs only
-            const solanaPairs = (data.pairs || []).filter(p => p.chainId === 'solana');
-            return this.processTokenData(solanaPairs);
+            // Filter for Solana pairs that look like pump.fun tokens
+            // (new, low mcap, on Raydium)
+            const pumpFunStyle = (data.pairs || []).filter(p => {
+                if (p.chainId !== 'solana') return false;
+                const mcap = parseFloat(p.fdv || p.marketCap || 0);
+                const liquidity = parseFloat(p.liquidity?.usd || 0);
+                const ageHours = p.pairCreatedAt
+                    ? (Date.now() - p.pairCreatedAt) / (1000 * 60 * 60)
+                    : 999;
 
-        } catch (error) {
-            console.warn('DEX Screener fetch failed:', error.message);
-            // Return cached data on error
-            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
-        }
-    }
-
-    // Fetch from PumpFun API - gets newest tokens
-    async fetchPumpFun() {
-        try {
-            // PumpFun's public API for coins
-            const response = await fetch(`${this.pumpFunApiUrl}/coins?offset=0&limit=50&sort=last_trade_timestamp&order=DESC&includeNsfw=false`, {
-                headers: { 'Accept': 'application/json' }
+                // Pump.fun style: new (< 7 days), lower mcap (< $10M), has some liquidity
+                return ageHours < 168 && mcap < 10000000 && mcap > 1000 && liquidity > 1000;
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const coins = await response.json();
-            return this.processPumpFunData(coins || []);
+            return this.processPumpFunStyleData(pumpFunStyle);
 
         } catch (error) {
-            console.warn('PumpFun fetch failed:', error.message);
+            console.warn('PumpFun-style fetch failed:', error.message);
             return null;
         }
     }
 
-    // Process PumpFun API data into our standard format
-    processPumpFunData(coins) {
-        return coins.map(coin => {
-            const marketCap = coin.usd_market_cap || 0;
-            const volume24h = coin.volume || 0;
-            const priceChange24h = 0; // PumpFun doesn't provide this directly
-            const liquidity = marketCap * 0.1; // Estimate - PumpFun bonding curve
+    // Process tokens that match pump.fun style (new, low-cap memecoins)
+    processPumpFunStyleData(pairs) {
+        return pairs.map(pair => {
+            const mcap = parseFloat(pair.fdv || pair.marketCap || 0);
+            const volume24h = parseFloat(pair.volume?.h24 || 0);
+            const liquidity = parseFloat(pair.liquidity?.usd || 0);
+            const priceChange24h = parseFloat(pair.priceChange?.h24 || 0);
+            const priceChange1h = parseFloat(pair.priceChange?.h1 || 0);
+            const priceChange5m = parseFloat(pair.priceChange?.m5 || 0);
+            const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+            const buys24h = pair.txns?.h24?.buys || 0;
+            const buyRatio = txns24h > 0 ? buys24h / txns24h : 0.5;
+            const ageHours = pair.pairCreatedAt
+                ? (Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60)
+                : 999;
 
-            // Calculate signal type
+            // Signal type
             let signalType = 'neutral';
             let isUrgent = false;
-
-            if (marketCap > 50000 && coin.reply_count > 10) {
+            if (priceChange1h > 20 && buyRatio > 0.5) {
                 signalType = 'bullish';
-                if (marketCap > 200000 || coin.reply_count > 50) {
-                    isUrgent = true;
-                }
+                if (priceChange5m > 10 || priceChange1h > 50) isUrgent = true;
+            } else if (priceChange1h < -20) {
+                signalType = 'bearish';
             }
 
-            // Confidence based on social engagement and market cap
+            // Confidence
             let confidence = 40;
-            if (coin.reply_count > 50) confidence += 20;
-            else if (coin.reply_count > 20) confidence += 10;
-            if (marketCap > 100000) confidence += 15;
-            else if (marketCap > 50000) confidence += 8;
-            if (coin.website || coin.twitter || coin.telegram) confidence += 10;
+            if (liquidity > 50000) confidence += 15;
+            else if (liquidity > 20000) confidence += 8;
+            if (volume24h > 100000) confidence += 15;
+            else if (volume24h > 50000) confidence += 8;
+            if (txns24h > 500) confidence += 10;
+            if (buyRatio > 0.6) confidence += 5;
+            if (ageHours < 24) confidence += 5; // Fresh = interesting
             confidence = Math.min(confidence, 95);
 
-            // Heat score for PumpFun - based on engagement and recency
-            const ageMinutes = coin.created_timestamp
-                ? (Date.now() - coin.created_timestamp) / (1000 * 60)
-                : 999;
+            // Heat score prioritizing fresh pumps
             const heatScore = (
-                (coin.reply_count || 0) * 2 +
-                (marketCap / 10000) +
-                (ageMinutes < 60 ? 50 : ageMinutes < 360 ? 25 : 0) +
-                (isUrgent ? 40 : 0)
+                (Math.abs(priceChange5m) * 8) +
+                (Math.abs(priceChange1h) * 4) +
+                (volume24h / 5000) +
+                (txns24h / 50) +
+                (ageHours < 24 ? 40 : ageHours < 72 ? 20 : 0) +
+                (isUrgent ? 50 : 0)
             );
 
             return {
-                address: coin.mint,
-                name: coin.name || 'Unknown',
-                symbol: coin.symbol || '???',
-                price: coin.price || 0,
+                address: pair.baseToken?.address,
+                name: pair.baseToken?.name || 'Unknown',
+                symbol: pair.baseToken?.symbol || '???',
+                price: parseFloat(pair.priceUsd || 0),
                 priceChange24h,
-                priceChange6h: 0,
-                priceChange1h: 0,
-                priceChange5m: 0,
+                priceChange6h: parseFloat(pair.priceChange?.h6 || 0),
+                priceChange1h,
+                priceChange5m,
                 volume24h,
-                volume6h: 0,
-                volume1h: 0,
+                volume6h: parseFloat(pair.volume?.h6 || 0),
+                volume1h: parseFloat(pair.volume?.h1 || 0),
                 liquidity,
-                marketCap,
-                txns24h: coin.reply_count || 0, // Using replies as activity proxy
-                buyRatio: 0.5,
-                pairAddress: coin.mint,
-                dexId: 'pumpfun',
+                marketCap: mcap,
+                txns24h,
+                buyRatio,
+                pairAddress: pair.pairAddress,
+                dexId: pair.dexId || 'raydium',
                 signalType,
                 isUrgent,
                 confidence,
-                velocity: (marketCap / 50000).toFixed(1),
+                velocity: (volume24h / Math.max(liquidity, 1) * 2).toFixed(1),
                 heatScore,
-                createdAt: coin.created_timestamp,
-                isPumpFun: true,
-                description: coin.description || '',
-                image: coin.image_uri || '',
-                socials: {
-                    website: coin.website,
-                    twitter: coin.twitter,
-                    telegram: coin.telegram
-                },
-                replyCount: coin.reply_count || 0,
-                kingOfTheHill: coin.king_of_the_hill_timestamp ? true : false,
-                url: `https://pump.fun/${coin.mint}`,
-                info: { imageUrl: coin.image_uri }
+                createdAt: pair.pairCreatedAt,
+                isPumpFun: true, // Mark as pump.fun style
+                ageHours,
+                url: pair.url,
+                info: pair.info || {}
             };
-        }).filter(t => t.marketCap > 1000); // Filter out dead coins
+        }).filter(t => t.address); // Filter out any without addresses
     }
 
     handleFetchError() {
@@ -1085,70 +1161,65 @@ class LiveDataService {
         // Generate the specific edge/signal description
         let { edge, tag } = this.generateSignalEdge(token);
 
-        // Override edge for PumpFun tokens with their specific data
+        // Override edge for PumpFun-style tokens (new, low-cap memecoins)
         if (isPumpFun) {
-            const ageMinutes = token.createdAt ? Math.floor((Date.now() - token.createdAt) / (1000 * 60)) : 999;
+            const ageHours = token.ageHours || (token.createdAt ? (Date.now() - token.createdAt) / (1000 * 60 * 60) : 999);
+            const ageDisplay = ageHours < 1 ? `${Math.floor(ageHours * 60)}m` : ageHours < 24 ? `${Math.floor(ageHours)}h` : `${Math.floor(ageHours / 24)}d`;
 
-            if (token.kingOfTheHill) {
-                edge = `KING OF THE HILL - Graduated! MC: $${this.formatCompact(token.marketCap)}`;
-                tag = 'GRADUATED';
-            } else if (ageMinutes < 30) {
-                edge = `Fresh mint ${ageMinutes}m ago | ${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
-                tag = 'NEW MINT';
-            } else if (token.replyCount > 50) {
-                edge = `Hot discussion: ${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
-                tag = 'TRENDING';
-            } else if (token.replyCount > 20) {
-                edge = `Building buzz: ${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
-                tag = 'ACTIVE';
+            if (ageHours < 1 && token.priceChange1h > 20) {
+                edge = `Fresh launch pumping! +${token.priceChange1h.toFixed(0)}% | MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'NEW PUMP';
+            } else if (ageHours < 6) {
+                edge = `${ageDisplay} old | +${token.priceChange1h.toFixed(0)}% 1h | MC: $${this.formatCompact(token.marketCap)} | ${token.txns24h} txns`;
+                tag = 'FRESH';
+            } else if (ageHours < 24 && token.priceChange1h > 10) {
+                edge = `Day-1 runner: +${token.priceChange1h.toFixed(0)}% 1h | Vol: $${this.formatCompact(token.volume24h)}`;
+                tag = 'NEW MOVER';
+            } else if (token.priceChange1h > 30) {
+                edge = `Pumping +${token.priceChange1h.toFixed(0)}% 1h | MC: $${this.formatCompact(token.marketCap)}`;
+                tag = 'PUMPING';
+            } else if (token.priceChange1h < -20) {
+                edge = `Dumping ${token.priceChange1h.toFixed(0)}% 1h | MC: $${this.formatCompact(token.marketCap)} - dip or dead?`;
+                tag = 'DUMPING';
             } else {
-                edge = `${token.replyCount} replies | MC: $${this.formatCompact(token.marketCap)}`;
-                tag = 'PUMPFUN';
-            }
-
-            // Add socials indicator
-            const socials = [];
-            if (token.socials?.website) socials.push('Web');
-            if (token.socials?.twitter) socials.push('X');
-            if (token.socials?.telegram) socials.push('TG');
-            if (socials.length > 0) {
-                edge += ` | ${socials.join('+')}`;
+                edge = `MC: $${this.formatCompact(token.marketCap)} | Vol: $${this.formatCompact(token.volume24h)} | ${token.txns24h} txns`;
+                tag = 'MEMECOIN';
             }
         }
 
         // Determine tag color based on signal type
-        const tagClass = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER', 'GRADUATED', 'NEW MINT', 'TRENDING'].includes(tag)
+        const tagClass = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER', 'NEW PUMP', 'FRESH', 'NEW MOVER'].includes(tag)
             ? 'positive'
             : ['DISTRIBUTION', 'SELLING', 'DUMPING'].includes(tag)
                 ? 'negative'
                 : '';
 
-        // Different stats layout for PumpFun vs DEX
+        // Stats layout - same for all tokens now (showing useful trading data)
         const statsHtml = isPumpFun ? `
                 <div class="signal-stats">
+                    <div class="signal-stat">
+                        <span class="signal-stat-value ${priceChange1hClass}">${priceChange1hSign}${token.priceChange1h.toFixed(1)}%</span>
+                        <span class="signal-stat-label">1h</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value ${priceChange24hClass}">${priceChange24hSign}${token.priceChange24h.toFixed(1)}%</span>
+                        <span class="signal-stat-label">24h</span>
+                    </div>
                     <div class="signal-stat">
                         <span class="signal-stat-value">$${this.formatCompact(token.marketCap)}</span>
                         <span class="signal-stat-label">MCap</span>
                     </div>
                     <div class="signal-stat">
-                        <span class="signal-stat-value">${token.replyCount || 0}</span>
-                        <span class="signal-stat-label">Replies</span>
+                        <span class="signal-stat-value">$${this.formatCompact(token.volume24h)}</span>
+                        <span class="signal-stat-label">Vol</span>
                     </div>
                     <div class="signal-stat">
-                        <span class="signal-stat-value">${timeAgo}</span>
-                        <span class="signal-stat-label">Age</span>
+                        <span class="signal-stat-value">$${this.formatCompact(token.liquidity)}</span>
+                        <span class="signal-stat-label">Liq</span>
                     </div>
                     <div class="signal-stat">
-                        <span class="signal-stat-value">${token.socials?.twitter ? '✓' : '✗'}</span>
-                        <span class="signal-stat-label">Twitter</span>
-                    </div>
-                    <div class="signal-stat">
-                        <span class="signal-stat-value">${token.socials?.telegram ? '✓' : '✗'}</span>
-                        <span class="signal-stat-label">TG</span>
-                    </div>
-                    <div class="signal-stat">
-                        <span class="signal-stat-value">${token.socials?.website ? '✓' : '✗'}</span>
-                        <span class="signal-stat-label">Web</span>
+                        <span class="signal-stat-value">${token.txns24h}</span>
+                        <span class="signal-stat-label">Txns</span>
                     </div>
                 </div>
         ` : `
