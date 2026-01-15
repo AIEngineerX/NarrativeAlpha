@@ -1256,7 +1256,6 @@ class LiveDataService {
 
             // Filter obvious scams entirely
             if (scamCheck.shouldFilter) {
-                console.log(`Filtered potential scam: ${tokenData.symbol}`, scamCheck.warnings.map(w => w.message));
                 continue;
             }
 
