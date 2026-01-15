@@ -1639,9 +1639,9 @@ body {
     color: white;
 }
 
-.dex-segment.orca {
-    background: linear-gradient(90deg, #FFD700, #FFA500);
-    color: #1a1a2e;
+.dex-segment.bags {
+    background: linear-gradient(90deg, #9945FF, #7B3FE4);
+    color: #fff;
 }
 
 .dex-segment.meteora {
@@ -1659,8 +1659,8 @@ body {
     color: #1a1a2e;
 }
 
-.dex-segment.jupiter {
-    background: linear-gradient(90deg, #FFA500, #FF6B00);
+.dex-segment.bonk {
+    background: linear-gradient(90deg, #FFD700, #FFA500);
     color: #1a1a2e;
 }
 

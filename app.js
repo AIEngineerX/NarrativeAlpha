@@ -1229,24 +1229,26 @@ class LiveDataService {
         this.lastTokens = tokens;
         const timeframe = this.currentTimeframe || '24h';
 
-        // Calculate platform breakdown (Raydium, PumpFun, Jupiter, Orca, Other)
-        const platformVolumes = { raydium: 0, pumpfun: 0, jupiter: 0, orca: 0, other: 0 };
+        // Calculate platform breakdown (Raydium, PumpFun, Bonk, Bags, Other)
+        const platformVolumes = { raydium: 0, pumpfun: 0, bonk: 0, bags: 0, other: 0 };
 
         tokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
             const url = (t.url || '').toLowerCase();
+            const name = (t.name || '').toLowerCase();
+            const symbol = (t.symbol || '').toLowerCase();
             // Use appropriate volume based on timeframe
             const vol = timeframe === '5m' ? (t.volume5m || t.volume24h * 0.003) :
                        timeframe === '1h' ? (t.volume1h || t.volume24h * 0.04) :
                        t.volume24h || 0;
 
-            // Detect platform based on dexId and URL
+            // Detect platform/ecosystem based on dexId, URL, and token name
             if (dex.includes('pump') || url.includes('pump.fun')) {
                 platformVolumes.pumpfun += vol;
-            } else if (dex.includes('jupiter') || url.includes('jup.ag')) {
-                platformVolumes.jupiter += vol;
-            } else if (dex.includes('orca') || url.includes('orca.so')) {
-                platformVolumes.orca += vol;
+            } else if (url.includes('bags.fm') || dex.includes('bags')) {
+                platformVolumes.bags += vol;
+            } else if (name.includes('bonk') || symbol.includes('bonk') || url.includes('bonk')) {
+                platformVolumes.bonk += vol;
             } else if (dex.includes('raydium') || url.includes('raydium')) {
                 platformVolumes.raydium += vol;
             } else {
@@ -1269,8 +1271,8 @@ class LiveDataService {
 
         updatePlatformCard('raydium', platformVolumes.raydium, totalVolume);
         updatePlatformCard('pumpfun', platformVolumes.pumpfun, totalVolume);
-        updatePlatformCard('jupiter', platformVolumes.jupiter, totalVolume);
-        updatePlatformCard('orca', platformVolumes.orca, totalVolume);
+        updatePlatformCard('bonk', platformVolumes.bonk, totalVolume);
+        updatePlatformCard('bags', platformVolumes.bags, totalVolume);
 
         // Detect narratives from token names/symbols
         const narrativeKeywords = {
@@ -1339,8 +1341,8 @@ class LiveDataService {
             const segments = [
                 { id: 'dexRaydium', vol: platformVolumes.raydium },
                 { id: 'dexPumpfun', vol: platformVolumes.pumpfun },
-                { id: 'dexJupiter', vol: platformVolumes.jupiter },
-                { id: 'dexOrca', vol: platformVolumes.orca },
+                { id: 'dexBonk', vol: platformVolumes.bonk },
+                { id: 'dexBags', vol: platformVolumes.bags },
                 { id: 'dexOther', vol: platformVolumes.other }
             ];
 
