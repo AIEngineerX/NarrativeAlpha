@@ -7,15 +7,43 @@ let cache = {
     ttl: 120000 // 2 minute cache
 };
 
-// Narrative categories for classification
+// CT-Native Narrative Categories - understand degen culture
 const NARRATIVE_CATEGORIES = {
-    'AI_TECH': ['ai', 'artificial intelligence', 'gpt', 'chatgpt', 'agent', 'bot', 'llm', 'machine learning', 'virtual', 'neural'],
-    'POLITICAL': ['trump', 'biden', 'election', 'politics', 'government', 'maga', 'vote', 'president', 'political'],
-    'CELEBRITY': ['elon', 'musk', 'kanye', 'drake', 'celebrity', 'famous', 'influencer'],
-    'MEME_CULTURE': ['meme', 'viral', 'funny', 'lol', 'based', 'cope', 'wojak', 'pepe', 'npc', 'degen', 'moon', 'pump'],
-    'ANIMAL': ['dog', 'cat', 'frog', 'shiba', 'doge', 'pepe', 'animal', 'pet', 'inu', 'wif', 'bonk', 'popcat'],
-    'GAMING': ['game', 'gaming', 'esports', 'twitch', 'streamer', 'play', 'nft'],
-    'NEWS_EVENT': ['breaking', 'just in', 'happening', 'news', 'announcement', 'revealed']
+    // AI/Tech Meta (huge in 2024-2025)
+    'AI_AGENTS': ['ai', 'agent', 'gpt', 'llm', 'neural', 'virtual', 'autonomous', 'sentient', 'claude', 'openai', 'terminal', 'truth_terminal', 'zerebro', 'goat', 'act', 'fartcoin', 'arc'],
+
+    // Political/Culture War (always pumps on news)
+    'POLITICAL': ['trump', 'biden', 'maga', 'election', 'president', 'melania', 'barron', 'political', 'america', 'freedom', 'patriot', 'government', 'congress'],
+
+    // Celebrity/Influencer plays
+    'CELEBRITY': ['elon', 'musk', 'kanye', 'ye', 'drake', 'snoop', 'celebrity', 'famous', 'influencer', 'andrew', 'tate', 'logan', 'paul', 'mr beast', 'pewdiepie'],
+
+    // Classic CT Meme Culture
+    'MEME_CULTURE': ['meme', 'viral', 'based', 'cope', 'wojak', 'pepe', 'npc', 'degen', 'ape', 'moon', 'pump', 'wagmi', 'ngmi', 'gm', 'ser', 'anon', 'fren', 'jeet', 'rug', 'chad', 'gigachad', 'sigma', 'ratio'],
+
+    // Animal Coins (evergreen meta)
+    'ANIMAL_DOG': ['dog', 'doge', 'shib', 'shiba', 'inu', 'wif', 'bonk', 'pup', 'puppy', 'doggo', 'floki', 'cheems', 'dogwifhat'],
+    'ANIMAL_CAT': ['cat', 'kitty', 'meow', 'popcat', 'mew', 'nyan', 'kitten', 'pussy', 'felix'],
+    'ANIMAL_FROG': ['frog', 'pepe', 'kek', 'ribbit', 'toad', 'rare pepe', 'feels'],
+    'ANIMAL_OTHER': ['monkey', 'ape', 'gorilla', 'bear', 'bull', 'penguin', 'bird', 'owl', 'eagle', 'lion', 'tiger', 'dragon', 'fish', 'whale', 'shark', 'crab'],
+
+    // Food/Object memes (sometimes pump randomly)
+    'FOOD_OBJECT': ['pizza', 'burger', 'banana', 'apple', 'peanut', 'butter', 'bread', 'cheese', 'taco', 'sushi', 'ramen', 'coffee', 'beer', 'water', 'rock', 'paper', 'hat', 'glasses'],
+
+    // Gaming/Metaverse
+    'GAMING': ['game', 'gaming', 'esports', 'twitch', 'streamer', 'play', 'gamer', 'pixel', 'retro', '8bit', 'arcade', 'minecraft', 'fortnite', 'roblox'],
+
+    // DeFi/Infrastructure (less degen but still trades)
+    'DEFI': ['swap', 'yield', 'stake', 'farm', 'lend', 'borrow', 'vault', 'protocol', 'bridge', 'liquid', 'staking'],
+
+    // Breaking News/Events
+    'NEWS_EVENT': ['breaking', 'just in', 'happening', 'news', 'announcement', 'revealed', 'confirmed', 'leaked', 'exclusive', 'urgent'],
+
+    // CT Insider/Alpha terms
+    'ALPHA_CALL': ['alpha', 'call', 'gem', 'lowcap', 'microcap', 'early', '100x', '1000x', 'moonshot', 'hidden', 'stealth', 'presale', 'fairlaunch', 'cabal'],
+
+    // Solana specific
+    'SOLANA_META': ['sol', 'solana', 'raydium', 'jupiter', 'jup', 'bonk', 'jito', 'marinade', 'orca', 'phantom', 'backpack']
 };
 
 exports.handler = async (event, context) => {
@@ -204,16 +232,16 @@ async function fetchPumpFunTrending() {
     return trends.slice(0, 8);
 }
 
-// Fetch X/Twitter-related trends
-// Uses DEX Screener tokens with Twitter presence + CoinGecko trending
+// Fetch X/Twitter-related trends - CT-native approach
+// Uses multiple signals to understand what's buzzing on Crypto Twitter
 async function fetchXTrends() {
     const trends = [];
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        // Source 1: DEX Screener token profiles with Twitter links (active social presence)
+        // Source 1: DEX Screener token profiles with active socials (CT projects)
         try {
             const dsResponse = await fetch('https://api.dexscreener.com/token-profiles/latest/v1', {
                 headers: { 'Accept': 'application/json' },
@@ -224,51 +252,84 @@ async function fetchXTrends() {
                 const profiles = await dsResponse.json();
                 const solanaProfiles = (profiles || [])
                     .filter(p => p.chainId === 'solana')
-                    .slice(0, 15);
+                    .slice(0, 20);
 
                 for (const profile of solanaProfiles) {
-                    // Check if has Twitter link
+                    // Check for Twitter/X presence
                     const twitterLink = profile.links?.find(l =>
                         l.type === 'twitter' || l.url?.includes('twitter.com') || l.url?.includes('x.com')
                     );
 
-                    if (twitterLink && profile.description) {
-                        // Get token details for price data
-                        let priceChange = 0;
+                    if (twitterLink) {
+                        // Get token details for real metrics
+                        let priceData = {};
                         let symbol = '';
+                        let name = '';
                         try {
                             const detailRes = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${profile.tokenAddress}`);
                             if (detailRes.ok) {
                                 const pairs = await detailRes.json();
                                 if (Array.isArray(pairs) && pairs[0]) {
-                                    priceChange = parseFloat(pairs[0].priceChange?.h1 || 0);
-                                    symbol = pairs[0].baseToken?.symbol || '';
+                                    const p = pairs[0];
+                                    priceData = {
+                                        priceChange1h: parseFloat(p.priceChange?.h1 || 0),
+                                        priceChange24h: parseFloat(p.priceChange?.h24 || 0),
+                                        volume24h: parseFloat(p.volume?.h24 || 0),
+                                        marketCap: parseFloat(p.fdv || 0),
+                                        liquidity: parseFloat(p.liquidity?.usd || 0)
+                                    };
+                                    symbol = p.baseToken?.symbol || '';
+                                    name = p.baseToken?.name || '';
                                 }
                             }
                         } catch (e) { }
 
+                        // Generate CT-native text based on metrics
+                        let ctText = '';
+                        let engagement = 'medium';
+
+                        if (priceData.priceChange1h > 50) {
+                            ctText = `$${symbol} sending it rn 🚀`;
+                            engagement = 'viral';
+                        } else if (priceData.priceChange1h > 20) {
+                            ctText = `$${symbol} pumping on CT`;
+                            engagement = 'high';
+                        } else if (priceData.volume24h > 500000) {
+                            ctText = `$${symbol} volume spiking - CT watching`;
+                            engagement = 'high';
+                        } else if (priceData.priceChange1h < -30) {
+                            ctText = `$${symbol} getting rekt - dip or dead?`;
+                            engagement = 'medium';
+                        } else {
+                            ctText = `$${symbol} active on X`;
+                            engagement = 'medium';
+                        }
+
+                        const category = categorizeNarrative((name || '') + ' ' + (symbol || '') + ' ' + (profile.description || ''));
+
                         trends.push({
-                            text: symbol ? `$${symbol} active on X` : profile.description.slice(0, 50),
+                            text: ctText,
                             source: 'twitter',
-                            category: categorizeNarrative(profile.description),
-                            engagement: priceChange > 20 ? 'viral' : priceChange > 5 ? 'high' : 'medium',
+                            category,
+                            engagement,
                             address: profile.tokenAddress,
                             symbol,
+                            name,
                             twitterUrl: twitterLink.url,
                             hasTwitter: true,
-                            priceChange1h: priceChange,
+                            ...priceData,
                             tokenExists: true
                         });
                     }
 
-                    if (trends.length >= 4) break;
+                    if (trends.length >= 6) break;
                 }
             }
         } catch (e) {
             console.warn('DEX Screener profiles fetch failed:', e.message);
         }
 
-        // Source 2: CoinGecko trending (often driven by Twitter/social buzz)
+        // Source 2: CoinGecko trending (reflects broader CT buzz)
         try {
             const cgResponse = await fetch('https://api.coingecko.com/api/v3/search/trending', {
                 headers: { 'Accept': 'application/json' },
@@ -279,18 +340,31 @@ async function fetchXTrends() {
                 const data = await cgResponse.json();
                 const coins = data.coins || [];
 
-                coins.slice(0, 4).forEach(item => {
+                coins.slice(0, 5).forEach(item => {
                     const coin = item.item;
-                    if (coin && !trends.find(t => t.symbol === coin.symbol)) {
+                    if (coin && !trends.find(t => t.symbol?.toLowerCase() === coin.symbol?.toLowerCase())) {
+                        const category = categorizeNarrative(coin.name + ' ' + coin.symbol);
+
+                        // CT-native messaging based on rank
+                        let ctText = '';
+                        if (coin.score < 2) {
+                            ctText = `$${coin.symbol} trending #${coin.score + 1} - CT is talking`;
+                        } else if (coin.score < 5) {
+                            ctText = `$${coin.symbol} gaining CT attention`;
+                        } else {
+                            ctText = `$${coin.symbol} on the radar`;
+                        }
+
                         trends.push({
-                            text: `$${coin.symbol} trending (${coin.name})`,
+                            text: ctText,
                             source: 'twitter',
-                            category: categorizeNarrative(coin.name + ' ' + coin.symbol),
-                            engagement: coin.score < 3 ? 'viral' : 'high',
+                            category,
+                            engagement: coin.score < 3 ? 'viral' : coin.score < 6 ? 'high' : 'medium',
                             symbol: coin.symbol,
                             name: coin.name,
                             tokenExists: true,
-                            thumb: coin.thumb
+                            thumb: coin.thumb,
+                            marketCapRank: coin.market_cap_rank
                         });
                     }
                 });
@@ -304,15 +378,17 @@ async function fetchXTrends() {
         console.warn('X trends fetch failed:', error.message);
     }
 
-    // Fallback narratives if we couldn't fetch
+    // CT-native fallback narratives
     if (trends.length < 2) {
-        trends.push(
-            { text: 'AI agent narrative hot on CT', source: 'twitter', category: 'AI_TECH', engagement: 'high', tokenExists: false },
-            { text: 'Solana memecoins trending', source: 'twitter', category: 'MEME_CULTURE', engagement: 'high', tokenExists: false }
-        );
+        const ctFallbacks = [
+            { text: 'AI agents meta still cooking 🤖', source: 'twitter', category: 'AI_AGENTS', engagement: 'high', tokenExists: false },
+            { text: 'SOL memes looking bullish ser', source: 'twitter', category: 'SOLANA_META', engagement: 'high', tokenExists: false },
+            { text: 'Degen szn loading...', source: 'twitter', category: 'MEME_CULTURE', engagement: 'medium', tokenExists: false }
+        ];
+        trends.push(...ctFallbacks.slice(0, 3 - trends.length));
     }
 
-    return trends.slice(0, 6);
+    return trends.slice(0, 8);
 }
 
 // Fetch DEX Screener trending/boosted tokens
@@ -407,32 +483,87 @@ async function fetchDexScreenerTrending() {
     return trends.slice(0, 6);
 }
 
-// Categorize a narrative based on keywords
+// CT-native categorization - understands degen culture
 function categorizeNarrative(text) {
     if (!text) return 'EMERGING';
     const lowerText = text.toLowerCase();
 
-    for (const [category, keywords] of Object.entries(NARRATIVE_CATEGORIES)) {
-        if (keywords.some(kw => lowerText.includes(kw))) {
+    // Priority order matters - check more specific categories first
+    const categoryPriority = [
+        'AI_AGENTS',      // AI meta is huge rn
+        'POLITICAL',      // Political plays pump hard
+        'CELEBRITY',      // Celebrity coins can moon
+        'ALPHA_CALL',     // Alpha/gem calls
+        'ANIMAL_DOG',     // Dog coins (biggest animal meta)
+        'ANIMAL_CAT',     // Cat coins
+        'ANIMAL_FROG',    // Frog/Pepe meta
+        'ANIMAL_OTHER',   // Other animals
+        'SOLANA_META',    // SOL ecosystem specific
+        'NEWS_EVENT',     // Breaking news
+        'GAMING',         // Gaming/streamer plays
+        'FOOD_OBJECT',    // Random object memes
+        'DEFI',           // DeFi plays
+        'MEME_CULTURE'    // General meme culture (catch-all)
+    ];
+
+    for (const category of categoryPriority) {
+        const keywords = NARRATIVE_CATEGORIES[category];
+        if (keywords && keywords.some(kw => lowerText.includes(kw))) {
             return category;
         }
+    }
+
+    // Check for common CT patterns that might not match keywords
+    if (/\$[A-Z]{2,10}/.test(text)) {
+        return 'MEME_CULTURE'; // Has ticker format = likely memecoin
     }
 
     return 'EMERGING';
 }
 
-// Score narratives for relevance
+// Generate CT-native description for a narrative
+function getCTDescription(category, token) {
+    const descriptions = {
+        'AI_AGENTS': 'AI agent meta play',
+        'POLITICAL': 'Political narrative coin',
+        'CELEBRITY': 'Celebrity/influencer play',
+        'ALPHA_CALL': 'CT alpha call',
+        'ANIMAL_DOG': 'Dog coin szn',
+        'ANIMAL_CAT': 'Cat coin play',
+        'ANIMAL_FROG': 'Frog/Pepe meta',
+        'ANIMAL_OTHER': 'Animal meta',
+        'SOLANA_META': 'SOL ecosystem play',
+        'NEWS_EVENT': 'News-driven pump',
+        'GAMING': 'Gaming/streamer play',
+        'FOOD_OBJECT': 'Random object memecoin',
+        'DEFI': 'DeFi narrative',
+        'MEME_CULTURE': 'Pure degen play',
+        'EMERGING': 'New narrative forming'
+    };
+    return descriptions[category] || 'Emerging narrative';
+}
+
+// Score narratives for CT relevance - prioritize actionable alpha
 function scoreNarratives(trends) {
     const narrativeMap = new Map();
 
     for (const trend of trends) {
-        const textKey = (trend.text?.slice(0, 25) || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Use symbol as primary key if available, else text
+        const textKey = trend.symbol?.toLowerCase() ||
+            (trend.text?.slice(0, 25) || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const key = trend.category + '_' + textKey;
 
         if (narrativeMap.has(key)) {
             const existing = narrativeMap.get(key);
             existing.mentions++;
             existing.sources.add(trend.source);
+            // Keep best price data
+            if (trend.priceChange1h && (!existing.priceChange1h || trend.priceChange1h > existing.priceChange1h)) {
+                existing.priceChange1h = trend.priceChange1h;
+            }
+            if (trend.volume24h && (!existing.volume24h || trend.volume24h > existing.volume24h)) {
+                existing.volume24h = trend.volume24h;
+            }
         } else {
             narrativeMap.set(key, {
                 ...trend,
@@ -442,43 +573,59 @@ function scoreNarratives(trends) {
         }
     }
 
-    // Calculate relevance scores
+    // Calculate CT relevance scores
     const scored = Array.from(narrativeMap.values()).map(n => {
         let score = 0;
 
-        // Multi-platform bonus
-        score += n.sources.size * 25;
+        // Multi-source validation (huge signal - means CT is talking)
+        score += n.sources.size * 30;
 
-        // Mention count bonus
-        score += Math.min(n.mentions * 10, 30);
+        // Mention frequency
+        score += Math.min(n.mentions * 12, 36);
 
-        // Engagement bonus
-        if (n.engagement === 'viral') score += 30;
-        else if (n.engagement === 'high') score += 20;
+        // Engagement level (CT buzz indicator)
+        if (n.engagement === 'viral') score += 35;
+        else if (n.engagement === 'high') score += 22;
         else if (n.engagement === 'trending') score += 15;
-        else score += 10;
+        else score += 8;
 
-        // PumpFun new launch bonus
+        // PumpFun signals (fresh launches CT loves)
         if (n.source === 'pumpfun') {
-            if (n.isNew) score += 20; // < 1 hour old
-            else if (n.isFresh) score += 10; // < 24 hours old
-            if (n.replyCount > 20) score += 10;
-            if (n.marketCap > 50000) score += 10;
+            if (n.isNew) score += 25; // Just launched = max alpha
+            else if (n.isFresh) score += 15; // Still early
+            if (n.replyCount > 20) score += 12; // Community engagement
+            if (n.marketCap > 50000 && n.marketCap < 5000000) score += 15; // Sweet spot mcap
         }
 
-        // DEX Screener boosted bonus
+        // DEX signals (volume + boosted = project spending money)
         if (n.source === 'dexscreener') {
-            if (n.isBoosted) score += 15;
-            if (n.priceChange1h > 20) score += 10;
+            if (n.isBoosted) score += 18; // Paid promo = active team
+            if (n.priceChange1h > 30) score += 15;
+            else if (n.priceChange1h > 15) score += 10;
+            if (n.volume24h > 500000) score += 12;
+            else if (n.volume24h > 100000) score += 8;
         }
 
-        // Category bonus (actionable)
-        if (['AI_TECH', 'CELEBRITY', 'POLITICAL', 'NEWS_EVENT'].includes(n.category)) {
-            score += 10;
+        // Twitter/X signals (CT buzz)
+        if (n.source === 'twitter') {
+            if (n.hasTwitter) score += 10; // Active socials
+            if (n.priceChange1h > 20) score += 12; // Pumping while trending
         }
 
-        // Token exists bonus (tradeable)
-        if (n.tokenExists) score += 5;
+        // CT-hot categories get priority
+        if (['AI_AGENTS', 'POLITICAL', 'CELEBRITY', 'NEWS_EVENT'].includes(n.category)) {
+            score += 15; // These narratives pump hardest
+        } else if (['ANIMAL_DOG', 'ANIMAL_CAT', 'ANIMAL_FROG'].includes(n.category)) {
+            score += 10; // Animal metas are evergreen
+        } else if (['ALPHA_CALL', 'SOLANA_META'].includes(n.category)) {
+            score += 12; // Alpha calls and SOL plays
+        }
+
+        // Tradeable token bonus
+        if (n.tokenExists && n.address) score += 8;
+
+        // Add CT description
+        n.ctCategory = getCTDescription(n.category, n);
 
         return {
             ...n,
@@ -490,58 +637,74 @@ function scoreNarratives(trends) {
     return scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
 }
 
-// Sample narratives for fallback
+// CT-native sample narratives for fallback
 function getSampleNarratives() {
     return [
         {
-            text: 'New PumpFun launch trending',
+            text: 'Fresh PumpFun launch cooking 🔥',
             source: 'pumpfun',
             category: 'MEME_CULTURE',
+            ctCategory: 'Pure degen play',
             engagement: 'viral',
             relevanceScore: 85,
             sources: ['pumpfun', 'twitter'],
             tokenExists: true,
-            suggestion: 'Check recent PumpFun launches'
+            suggestion: 'Check PumpFun for fresh launches'
         },
         {
-            text: 'AI agent narratives heating up',
+            text: 'AI agents meta still printing 🤖',
             source: 'twitter',
-            category: 'AI_TECH',
+            category: 'AI_AGENTS',
+            ctCategory: 'AI agent meta play',
             engagement: 'high',
-            relevanceScore: 78,
+            relevanceScore: 82,
             sources: ['twitter', 'dexscreener'],
             tokenExists: true,
-            suggestion: 'Watch for new AI agent tokens'
+            suggestion: 'AI narrative tokens pumping'
         },
         {
-            text: 'Solana memecoin meta strong',
+            text: 'SOL memes looking bullish ser',
             source: 'dexscreener',
-            category: 'MEME_CULTURE',
+            category: 'SOLANA_META',
+            ctCategory: 'SOL ecosystem play',
             engagement: 'high',
-            relevanceScore: 72,
+            relevanceScore: 75,
             sources: ['dexscreener'],
             tokenExists: true,
-            suggestion: 'Volume flowing to SOL memes'
+            suggestion: 'Volume rotating to SOL memes'
         },
         {
-            text: 'Political tokens seeing action',
+            text: 'Political szn loading...',
             source: 'twitter',
             category: 'POLITICAL',
+            ctCategory: 'Political narrative coin',
             engagement: 'medium',
-            relevanceScore: 55,
+            relevanceScore: 65,
             sources: ['twitter'],
             tokenExists: true,
-            suggestion: 'Check election-related tokens'
+            suggestion: 'Watch for political catalysts'
         },
         {
-            text: 'Animal coin rotation starting',
+            text: 'Dog coins waking up 🐕',
             source: 'pumpfun',
-            category: 'ANIMAL',
+            category: 'ANIMAL_DOG',
+            ctCategory: 'Dog coin szn',
             engagement: 'medium',
-            relevanceScore: 48,
+            relevanceScore: 58,
             sources: ['pumpfun'],
+            tokenExists: true,
+            suggestion: 'Animal meta rotation starting'
+        },
+        {
+            text: 'Degen szn vibes on CT',
+            source: 'twitter',
+            category: 'MEME_CULTURE',
+            ctCategory: 'Pure degen play',
+            engagement: 'high',
+            relevanceScore: 52,
+            sources: ['twitter'],
             tokenExists: false,
-            suggestion: 'Watch for new animal memes'
+            suggestion: 'Risk appetite increasing'
         }
     ];
 }
