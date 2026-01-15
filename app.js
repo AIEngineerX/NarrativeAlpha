@@ -1953,10 +1953,9 @@ class LiveDataService {
             // Source icons
             const sources = narrative.sources || [narrative.source];
             const sourceIcons = sources.map(s => {
-                if (s === 'coingecko') return '<span class="source-icon coingecko" title="CoinGecko Trending">🦎</span>';
-                if (s === 'dexscreener') return '<span class="source-icon dex" title="DEX Screener">📊</span>';
-                if (s === 'reddit') return '<span class="source-icon reddit" title="Reddit">⬡</span>';
+                if (s === 'pumpfun') return '<span class="source-icon pumpfun" title="PumpFun">🚀</span>';
                 if (s === 'twitter') return '<span class="source-icon x" title="X/Twitter">𝕏</span>';
+                if (s === 'dexscreener') return '<span class="source-icon dex" title="DEX Screener">📊</span>';
                 return '';
             }).join('');
 
