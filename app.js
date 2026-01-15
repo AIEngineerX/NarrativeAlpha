@@ -1054,7 +1054,7 @@ class LiveDataService {
                 (isUrgent ? 50 : 0)
             );
 
-            processed.push({
+            const tokenData = {
                 address: pair.baseToken.address,
                 name: pair.baseToken.name || 'Unknown',
                 symbol: pair.baseToken.symbol || '???',
