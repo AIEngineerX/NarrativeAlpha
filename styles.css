@@ -1792,81 +1792,191 @@ body {
     color: var(--text-muted);
 }
 
-/* Social Trends / CT Buzz */
-.social-trends-grid {
+/* Social Trends / CT Buzz - Redesigned */
+.social-trends-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
     margin-bottom: 1rem;
 }
 
-.trend-card {
+.trend-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.85rem 1rem;
-    background: var(--bg-secondary);
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
     border-radius: 8px;
-    border-left: 3px solid var(--border-color);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     transition: all 0.2s ease;
 }
 
-.trend-card:hover {
-    background: var(--bg-tertiary);
+.trend-item:hover {
+    background: rgba(0, 240, 255, 0.05);
+    border-color: rgba(0, 240, 255, 0.2);
 }
 
-.trend-card.hot {
-    border-left-color: var(--accent-red);
-    background: linear-gradient(90deg, rgba(255, 51, 102, 0.1), transparent);
+.trend-item.hot {
+    background: linear-gradient(90deg, rgba(0, 240, 255, 0.1), transparent);
+    border-color: rgba(0, 240, 255, 0.3);
 }
 
-.trend-card.warm {
-    border-left-color: var(--accent-orange);
+.trend-item.narrative {
+    background: rgba(139, 92, 246, 0.05);
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.trend-item.loading {
+    min-height: 48px;
+}
+
+.trend-loading-shimmer {
+    width: 100%;
+    height: 20px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
 }
 
 .trend-rank {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--text-muted);
-    min-width: 28px;
+    min-width: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.trend-card.hot .trend-rank {
-    color: var(--accent-red);
+.trend-item.hot .trend-rank {
+    color: var(--accent-cyan);
 }
 
-.trend-card.warm .trend-rank {
-    color: var(--accent-orange);
+.trend-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.trend-content {
+.trend-info {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.1rem;
+    min-width: 0;
 }
 
-.trend-topic {
+.trend-symbol {
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.trend-meta {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
+.trend-item.hot .trend-symbol {
+    color: var(--accent-cyan);
+}
+
+.trend-name {
+    font-size: 0.65rem;
     color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.trend-heat {
+.trend-change {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.trend-change.positive {
+    color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.trend-change.negative {
     color: var(--accent-red);
-    animation: heatPulse 1.5s ease-in-out infinite;
+    background: rgba(239, 68, 68, 0.1);
 }
 
-@keyframes heatPulse {
-    0%, 100% { opacity: 0.6; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.1); }
+.trend-actions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.trend-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.trend-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.trend-link.dex:hover {
+    background: rgba(0, 240, 255, 0.2);
+    color: var(--accent-cyan);
+}
+
+.trend-link.twitter:hover {
+    background: rgba(29, 161, 242, 0.2);
+    color: #1DA1F2;
+}
+
+.trend-link.cg:hover {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--accent-purple);
+}
+
+.trend-source {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.trend-source.coingecko {
+    color: #8DC63F;
+    background: rgba(141, 198, 63, 0.15);
+}
+
+.trend-source.dexscreener {
+    color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.15);
+}
+
+.trend-item.empty {
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 1.5rem;
 }
 
 /* Social Sources */
@@ -1892,6 +2002,16 @@ body {
     background: var(--bg-tertiary);
     border-radius: 4px;
     color: var(--text-secondary);
+}
+
+.source-tag.coingecko {
+    color: #8DC63F;
+    background: rgba(141, 198, 63, 0.1);
+}
+
+.source-tag.dexscreener {
+    color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.1);
 }
 
 .signals-filters {

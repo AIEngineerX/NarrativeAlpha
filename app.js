@@ -1541,61 +1541,93 @@ class LiveDataService {
         this.updateSocialTrends(sortedNarratives, tokens);
     }
 
-    // Update the CT Buzz / Social Trends tab
+    // Update the CT Buzz / Social Trends tab (fallback when social-trends API fails)
     updateSocialTrends(sortedNarratives, tokens) {
-        // Generate trend topics from narratives and top movers
-        const trends = [];
+        const listEl = document.getElementById('socialTrendsList');
+        if (!listEl) return;
 
-        // Add top narratives as trends
-        sortedNarratives.slice(0, 3).forEach(([narrative, count], i) => {
-            trends.push({
-                topic: narrative,
-                meta: `${count} tokens trending`,
+        const items = [];
+
+        // Add top mover tokens (scam-filtered)
+        const topMovers = [...tokens]
+            .filter(t => {
+                if (t.priceChange1h <= 10) return false;
+                const scamScore = t.scamCheck?.scamScore || 0;
+                if (scamScore >= 40 || t.scamCheck?.isPotentialHoneypot) return false;
+                return true;
+            })
+            .sort((a, b) => b.priceChange1h - a.priceChange1h)
+            .slice(0, 4);
+
+        topMovers.forEach((t, i) => {
+            items.push({
+                type: 'token',
+                symbol: t.symbol,
+                name: t.name,
+                change: t.priceChange1h,
+                address: t.address,
+                source: 'dexscreener',
                 hot: i === 0
             });
         });
 
-        // Add top mover tokens
-        const topMovers = [...tokens]
-            .filter(t => t.priceChange1h > 20)
-            .sort((a, b) => b.priceChange1h - a.priceChange1h)
-            .slice(0, 2);
-
-        topMovers.forEach(t => {
-            trends.push({
-                topic: `$${t.symbol} pumping`,
-                meta: `+${t.priceChange1h.toFixed(0)}% in 1h`,
-                hot: t.priceChange1h > 50
+        // Add top narratives
+        sortedNarratives.slice(0, 2).forEach(([narrative, count]) => {
+            items.push({
+                type: 'narrative',
+                name: narrative,
+                count: count,
+                source: 'detected'
             });
         });
 
-        // Fill remaining with fresh launches
-        if (trends.length < 5) {
-            const freshTokens = tokens
-                .filter(t => t.createdAt && (Date.now() - t.createdAt) < 6 * 60 * 60 * 1000)
-                .slice(0, 5 - trends.length);
-            freshTokens.forEach(t => {
-                trends.push({
-                    topic: `$${t.symbol} launched`,
-                    meta: `New token alert`,
-                    hot: false
-                });
-            });
-        }
+        // Render items
+        const html = items.slice(0, 6).map((item, i) => {
+            if (item.type === 'token') {
+                const changeClass = (item.change || 0) >= 0 ? 'positive' : 'negative';
+                const changeText = `${item.change >= 0 ? '+' : ''}${item.change.toFixed(1)}%`;
+                const searchUrl = item.address
+                    ? `https://dexscreener.com/solana/${item.address}`
+                    : `https://dexscreener.com/solana?q=${encodeURIComponent(item.symbol)}`;
+                const twitterUrl = `https://twitter.com/search?q=%24${encodeURIComponent(item.symbol)}&src=typed_query&f=live`;
 
-        // Update DOM
-        for (let i = 1; i <= 5; i++) {
-            const topicEl = document.getElementById(`trend${i}Topic`);
-            const metaEl = document.getElementById(`trend${i}Meta`);
-            const trend = trends[i - 1];
+                return `
+                    <div class="trend-item ${item.hot ? 'hot' : ''}" data-symbol="${escapeHtml(item.symbol)}">
+                        <div class="trend-rank">${i + 1}</div>
+                        <div class="trend-info">
+                            <span class="trend-symbol">$${escapeHtml(item.symbol)}</span>
+                            <span class="trend-name">${escapeHtml(item.name || 'Token')}</span>
+                        </div>
+                        <span class="trend-change ${changeClass}">${changeText}</span>
+                        <div class="trend-actions">
+                            <a href="${searchUrl}" target="_blank" rel="noopener" class="trend-link dex" title="View on DEX Screener">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                            </a>
+                            <a href="${twitterUrl}" target="_blank" rel="noopener" class="trend-link twitter" title="Search on X/Twitter">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                        </div>
+                        <span class="trend-source dexscreener">DEX</span>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="trend-item narrative">
+                        <div class="trend-rank">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M17.56 21a1 1 0 01-.46-.11L12 18.22l-5.1 2.67a1 1 0 01-1.45-1.06l1-5.63-4.12-4a1 1 0 01.56-1.71l5.7-.83 2.51-5.13a1 1 0 011.8 0l2.51 5.13 5.7.83a1 1 0 01.56 1.71l-4.12 4 1 5.63a1 1 0 01-1 1.18z"/></svg>
+                        </div>
+                        <div class="trend-info">
+                            <span class="trend-symbol">${escapeHtml(item.name)}</span>
+                            <span class="trend-name">${item.count} tokens</span>
+                        </div>
+                        <span class="trend-change positive">Trending</span>
+                        <span class="trend-source dexscreener">Live</span>
+                    </div>
+                `;
+            }
+        }).join('');
 
-            if (topicEl) {
-                topicEl.textContent = trend ? trend.topic : 'No data';
-            }
-            if (metaEl) {
-                metaEl.textContent = trend ? trend.meta : '--';
-            }
-        }
+        listEl.innerHTML = html || '<div class="trend-item empty">Loading trends...</div>';
     }
 
     // Fetch real social trends from Netlify function
@@ -1623,62 +1655,116 @@ class LiveDataService {
 
     // Display real social trends in CT Buzz tab
     displaySocialTrends(data) {
+        const listEl = document.getElementById('socialTrendsList');
+        if (!listEl) return;
+
         const trends = data.aggregatedTrends || [];
         const categories = data.hotCategories || [];
+        const cgTrending = data.coingeckoTrending || [];
 
-        // Build combined trend list
-        const displayTrends = [];
+        // Build display items
+        const items = [];
 
-        // Add trending tokens
-        trends.slice(0, 3).forEach((t, i) => {
-            displayTrends.push({
-                topic: `$${t.symbol} trending`,
-                meta: t.priceChange24h !== undefined
-                    ? `${t.priceChange24h >= 0 ? '+' : ''}${t.priceChange24h.toFixed(1)}% 24h`
-                    : `Rank #${t.marketCapRank || t.rank}`,
-                hot: i === 0,
-                source: t.source
+        // Add CoinGecko trending tokens (most reliable)
+        cgTrending.slice(0, 3).forEach((t, i) => {
+            items.push({
+                type: 'token',
+                symbol: t.symbol,
+                name: t.name,
+                change: t.priceChange24h,
+                rank: t.marketCapRank,
+                thumb: t.thumb,
+                source: 'coingecko',
+                hot: i === 0
             });
         });
 
-        // Add hot categories/narratives
+        // Add DEX Screener trending
+        const dexTrending = data.dexScreenerTrending || [];
+        dexTrending.slice(0, 2).forEach(t => {
+            // Avoid duplicates
+            if (!items.find(x => x.symbol === t.symbol)) {
+                items.push({
+                    type: 'token',
+                    symbol: t.symbol,
+                    name: t.name,
+                    change: t.priceChange24h || t.priceChange1h,
+                    volume: t.volume24h,
+                    source: 'dexscreener',
+                    hot: (t.priceChange1h || 0) > 20
+                });
+            }
+        });
+
+        // Add hot narratives/categories
         categories.slice(0, 2).forEach(cat => {
-            displayTrends.push({
-                topic: cat.name,
-                meta: cat.change24h
-                    ? `${cat.change24h >= 0 ? '+' : ''}${cat.change24h.toFixed(1)}% MC`
-                    : 'Hot narrative',
-                hot: cat.change24h > 10,
-                source: 'narrative'
+            items.push({
+                type: 'narrative',
+                name: cat.name,
+                change: cat.change24h,
+                volume: cat.volume24h,
+                source: 'coingecko'
             });
         });
 
-        // Update DOM
-        for (let i = 1; i <= 5; i++) {
-            const topicEl = document.getElementById(`trend${i}Topic`);
-            const metaEl = document.getElementById(`trend${i}Meta`);
-            const cardEl = topicEl?.closest('.trend-card');
-            const trend = displayTrends[i - 1];
+        // Render items
+        const html = items.slice(0, 6).map((item, i) => {
+            if (item.type === 'token') {
+                const changeClass = (item.change || 0) >= 0 ? 'positive' : 'negative';
+                const changeText = item.change !== undefined
+                    ? `${item.change >= 0 ? '+' : ''}${item.change.toFixed(1)}%`
+                    : `#${item.rank}`;
+                const searchUrl = `https://dexscreener.com/solana?q=${encodeURIComponent(item.symbol)}`;
+                const twitterUrl = `https://twitter.com/search?q=%24${encodeURIComponent(item.symbol)}&src=typed_query&f=live`;
 
-            if (topicEl) {
-                topicEl.textContent = trend ? trend.topic : 'No data';
+                return `
+                    <div class="trend-item ${item.hot ? 'hot' : ''}" data-symbol="${escapeHtml(item.symbol)}">
+                        <div class="trend-rank">${i + 1}</div>
+                        ${item.thumb ? `<img class="trend-thumb" src="${escapeHtml(item.thumb)}" alt="" onerror="this.style.display='none'">` : ''}
+                        <div class="trend-info">
+                            <span class="trend-symbol">$${escapeHtml(item.symbol)}</span>
+                            <span class="trend-name">${escapeHtml(item.name || '')}</span>
+                        </div>
+                        <span class="trend-change ${changeClass}">${changeText}</span>
+                        <div class="trend-actions">
+                            <a href="${searchUrl}" target="_blank" rel="noopener" class="trend-link dex" title="View on DEX Screener">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                            </a>
+                            <a href="${twitterUrl}" target="_blank" rel="noopener" class="trend-link twitter" title="Search on X/Twitter">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                        </div>
+                        <span class="trend-source ${item.source}">${item.source === 'coingecko' ? 'CG' : 'DEX'}</span>
+                    </div>
+                `;
+            } else {
+                // Narrative/category
+                const changeClass = (item.change || 0) >= 0 ? 'positive' : 'negative';
+                const changeText = item.change ? `${item.change >= 0 ? '+' : ''}${item.change.toFixed(1)}%` : 'Hot';
+                const searchUrl = `https://www.coingecko.com/en/categories/${item.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+                return `
+                    <div class="trend-item narrative">
+                        <div class="trend-rank">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M17.56 21a1 1 0 01-.46-.11L12 18.22l-5.1 2.67a1 1 0 01-1.45-1.06l1-5.63-4.12-4a1 1 0 01.56-1.71l5.7-.83 2.51-5.13a1 1 0 011.8 0l2.51 5.13 5.7.83a1 1 0 01.56 1.71l-4.12 4 1 5.63a1 1 0 01-1 1.18z"/></svg>
+                        </div>
+                        <div class="trend-info">
+                            <span class="trend-symbol">${escapeHtml(item.name)}</span>
+                            <span class="trend-name">Narrative</span>
+                        </div>
+                        <span class="trend-change ${changeClass}">${changeText}</span>
+                        <div class="trend-actions">
+                            <a href="${searchUrl}" target="_blank" rel="noopener" class="trend-link cg" title="View category">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                            </a>
+                        </div>
+                        <span class="trend-source coingecko">CG</span>
+                    </div>
+                `;
             }
-            if (metaEl) {
-                metaEl.textContent = trend ? trend.meta : '--';
-                // Color code the meta based on value
-                if (trend && trend.meta.includes('+')) {
-                    metaEl.classList.add('positive');
-                    metaEl.classList.remove('negative');
-                } else if (trend && trend.meta.includes('-')) {
-                    metaEl.classList.add('negative');
-                    metaEl.classList.remove('positive');
-                }
-            }
-            if (cardEl && trend) {
-                cardEl.classList.toggle('hot', trend.hot && i === 1);
-                cardEl.dataset.source = trend.source || 'unknown';
-            }
-        }
+        }).join('');
+
+        listEl.innerHTML = html || '<div class="trend-item empty">No trending data available</div>';
 
         // Update timestamp
         const socialTimeEl = document.getElementById('socialUpdateTime');

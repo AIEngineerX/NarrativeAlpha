@@ -361,58 +361,22 @@
                         <div class="pulse-header">
                             <h3>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                    <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/>
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                                 </svg>
-                                Trending on CT
+                                Trending Now
                             </h3>
                             <span class="pulse-update" id="socialUpdateTime">Live</span>
                         </div>
-                        <div class="social-trends-grid">
-                            <div class="trend-card hot">
-                                <div class="trend-rank">#1</div>
-                                <div class="trend-content">
-                                    <span class="trend-topic" id="trend1Topic">Loading...</span>
-                                    <span class="trend-meta" id="trend1Meta">Scanning CT...</span>
-                                </div>
-                                <div class="trend-heat">
-                                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                                </div>
-                            </div>
-                            <div class="trend-card warm">
-                                <div class="trend-rank">#2</div>
-                                <div class="trend-content">
-                                    <span class="trend-topic" id="trend2Topic">Loading...</span>
-                                    <span class="trend-meta" id="trend2Meta">Scanning CT...</span>
-                                </div>
-                            </div>
-                            <div class="trend-card warm">
-                                <div class="trend-rank">#3</div>
-                                <div class="trend-content">
-                                    <span class="trend-topic" id="trend3Topic">Loading...</span>
-                                    <span class="trend-meta" id="trend3Meta">Scanning CT...</span>
-                                </div>
-                            </div>
-                            <div class="trend-card">
-                                <div class="trend-rank">#4</div>
-                                <div class="trend-content">
-                                    <span class="trend-topic" id="trend4Topic">Loading...</span>
-                                    <span class="trend-meta" id="trend4Meta">Scanning CT...</span>
-                                </div>
-                            </div>
-                            <div class="trend-card">
-                                <div class="trend-rank">#5</div>
-                                <div class="trend-content">
-                                    <span class="trend-topic" id="trend5Topic">Loading...</span>
-                                    <span class="trend-meta" id="trend5Meta">Scanning CT...</span>
-                                </div>
+                        <div class="social-trends-list" id="socialTrendsList">
+                            <!-- Populated by JS -->
+                            <div class="trend-item loading">
+                                <div class="trend-loading-shimmer"></div>
                             </div>
                         </div>
                         <div class="social-sources">
-                            <span class="source-label">Sources:</span>
-                            <span class="source-tag">Twitter/X</span>
-                            <span class="source-tag">Telegram</span>
-                            <span class="source-tag">Discord</span>
-                            <span class="source-tag">Reddit</span>
+                            <span class="source-label">Data:</span>
+                            <span class="source-tag coingecko">CoinGecko</span>
+                            <span class="source-tag dexscreener">DEX Screener</span>
                         </div>
                     </div>
                 </div>
