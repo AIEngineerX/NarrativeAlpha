@@ -4625,6 +4625,10 @@ span.negative,
     background: linear-gradient(90deg, var(--accent-orange), var(--accent-red));
 }
 
+.metric-fill.fresh-fill {
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+}
+
 .metric-value.urgent-pulse {
     animation: urgentPulse 1.5s ease-in-out infinite;
     color: var(--accent-orange);

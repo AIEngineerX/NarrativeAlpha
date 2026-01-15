@@ -22,7 +22,8 @@
       "WebFetch(domain:api.coingecko.com)",
       "WebFetch(domain:kolscan.io)",
       "WebFetch(domain:api.kolscan.io)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(npx netlify-cli:*)"
     ]
   }
 }

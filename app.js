@@ -1433,12 +1433,13 @@ class LiveDataService {
         // 1. Calculate total 1h volume across all tokens
         const totalVolume1h = tokens.reduce((sum, t) => sum + (t.volume1h || 0), 0);
 
-        // 2. Calculate aggregate buy pressure
-        const tokensWithBuyData = tokens.filter(t => t.buyRatio !== undefined);
-        const avgBuyPressure = tokensWithBuyData.length > 0
-            ? tokensWithBuyData.reduce((sum, t) => sum + t.buyRatio, 0) / tokensWithBuyData.length
-            : 0.5;
-        const buyPressurePercent = Math.round(avgBuyPressure * 100);
+        // 2. Count fresh launches (tokens < 24h old)
+        const now = Date.now();
+        const freshLaunches = tokens.filter(t => {
+            if (!t.createdAt) return false;
+            const ageHours = (now - t.createdAt) / (1000 * 60 * 60);
+            return ageHours < 24;
+        }).length;
 
         // 3. Count urgent signals
         const urgentCount = tokens.filter(t => t.isUrgent === true).length;
@@ -1462,8 +1463,8 @@ class LiveDataService {
         // Update DOM elements
         const volumeEl = document.getElementById('statsTotalVolume');
         const volumeBar = document.getElementById('statsVolumeBar');
-        const buyEl = document.getElementById('statsBuyPressure');
-        const buyBar = document.getElementById('statsBuyBar');
+        const freshEl = document.getElementById('statsFreshLaunches');
+        const freshBar = document.getElementById('statsFreshBar');
         const urgentEl = document.getElementById('statsUrgentCount');
         const urgentBar = document.getElementById('statsUrgentBar');
         const topGainerEl = document.getElementById('statsTopGainer');
@@ -1479,14 +1480,15 @@ class LiveDataService {
             volumeBar.style.setProperty('--fill-width', `${volPercent}%`);
         }
 
-        // Buy Pressure
-        if (buyEl) {
-            buyEl.textContent = `${buyPressurePercent}%`;
-            buyEl.className = `metric-value ${buyPressurePercent > 55 ? 'positive' : buyPressurePercent < 45 ? 'negative' : ''}`;
+        // Fresh Launches (tokens < 24h old)
+        if (freshEl) {
+            freshEl.textContent = freshLaunches;
+            freshEl.className = `metric-value ${freshLaunches > 10 ? 'positive' : ''}`;
         }
-        if (buyBar) {
-            buyBar.style.setProperty('--fill-width', `${buyPressurePercent}%`);
-            buyBar.className = `metric-fill ${buyPressurePercent > 55 ? 'bullish' : buyPressurePercent < 45 ? 'bearish' : ''}`;
+        if (freshBar) {
+            // Scale: 20+ fresh launches = 100%
+            const freshPercent = Math.min(100, (freshLaunches / 20) * 100);
+            freshBar.style.setProperty('--fill-width', `${freshPercent}%`);
         }
 
         // Urgent Signals
@@ -1658,7 +1660,7 @@ class LiveDataService {
             avgMcapEl.textContent = `$${this.formatCompact(avgMcap)}`;
         }
 
-        // Update DEX bar visualization
+        // Update DEX bar visualization - match the share percentages exactly
         if (totalVolume > 0) {
             const segments = [
                 { id: 'dexRaydium', vol: platformVolumes.raydium },
@@ -1668,17 +1670,26 @@ class LiveDataService {
                 { id: 'dexOther', vol: platformVolumes.other }
             ];
 
-            // Calculate percentages with minimum 3% for visibility
-            let percentages = segments.map(s => ({ ...s, pct: Math.max(3, (s.vol / totalVolume) * 100) }));
-            const totalPct = percentages.reduce((sum, s) => sum + s.pct, 0);
-
-            // Normalize to 100%
-            percentages.forEach(s => {
+            // Calculate actual percentages (same as share display)
+            segments.forEach(s => {
                 const el = document.getElementById(s.id);
                 if (el) {
-                    const normalizedPct = (s.pct / totalPct) * 100;
-                    el.style.width = `${normalizedPct.toFixed(1)}%`;
+                    const actualPct = (s.vol / totalVolume) * 100;
+                    // Use actual percentage, but give minimum 1% width if volume exists for visibility
+                    const displayPct = s.vol > 0 ? Math.max(1, actualPct) : 0;
+                    el.style.width = `${displayPct.toFixed(1)}%`;
+                    // Hide label if segment too small
+                    const label = el.querySelector('span');
+                    if (label) {
+                        label.style.display = displayPct < 8 ? 'none' : '';
+                    }
                 }
+            });
+        } else {
+            // No volume - show equal segments
+            ['dexRaydium', 'dexPumpfun', 'dexBonk', 'dexBags', 'dexOther'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.width = '20%';
             });
         }
 
