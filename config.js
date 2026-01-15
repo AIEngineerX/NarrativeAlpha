@@ -99,16 +99,16 @@ const CONFIG = {
     // Query suggestions
     QUERY_HINTS: [
         {
-            label: 'CT Narratives',
-            query: "What's the next major pump.fun narrative brewing on CT?"
+            label: "What's Pumping",
+            query: "What's pumping right now with real volume? Give me the best plays from the live data."
         },
         {
-            label: 'AI Crypto',
-            query: 'Analyze AI x Crypto convergence plays and emerging tokens'
+            label: 'Fresh Launches',
+            query: 'Show me fresh launches under 24h old that look promising. Any early gems?'
         },
         {
-            label: 'Hot Movers',
-            query: 'What memecoins are showing strong momentum right now?'
+            label: 'CT Meta',
+            query: "What's the current meta narrative on CT? Which tokens are riding it?"
         },
     ],
 
