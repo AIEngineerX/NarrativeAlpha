@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$NA Asset Exporter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 40px;
+        }
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00f0ff, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 40px;
+        }
+        .section {
+            margin-bottom: 50px;
+        }
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: #00f0ff;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0,240,255,0.2);
+        }
+        .assets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .asset-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(0,240,255,0.15);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.3s;
+        }
+        .asset-card:hover {
+            border-color: rgba(0,240,255,0.4);
+        }
+        .asset-preview {
+            background: #050508;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            min-height: 150px;
+        }
+        .asset-preview img, .asset-preview object {
+            max-width: 100%;
+            max-height: 200px;
+        }
+        .asset-info {
+            margin-bottom: 15px;
+        }
+        .asset-name {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+        .asset-specs {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .asset-specs span {
+            display: inline-block;
+            background: rgba(0,240,255,0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            margin-bottom: 5px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00f0ff, #00c4cc);
+            color: #000;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,240,255,0.3);
+        }
+        .btn-secondary {
+            background: rgba(139,92,246,0.2);
+            color: #8b5cf6;
+            border: 1px solid rgba(139,92,246,0.3);
+        }
+        .btn-secondary:hover {
+            background: rgba(139,92,246,0.3);
+        }
+        .instructions {
+            background: rgba(139,92,246,0.1);
+            border: 1px solid rgba(139,92,246,0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+        .instructions h3 {
+            color: #8b5cf6;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .instructions ol {
+            padding-left: 20px;
+            line-height: 1.8;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+        .instructions code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        canvas { display: none; }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .badge-animated {
+            background: linear-gradient(135deg, #00f0ff, #8b5cf6);
+            color: #000;
+        }
+        .badge-static {
+            background: rgba(255,255,255,0.1);
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <h1>$NA Asset Exporter</h1>
+    <p class="subtitle">Export your NarrativeAlpha branding assets to PNG, JPG, or GIF format</p>
+
+    <div class="instructions">
+        <h3>How to Export</h3>
+        <ol>
+            <li>Click <strong>"Download PNG"</strong> or <strong>"Download JPG"</strong> to export static images</li>
+            <li>For <strong>animated GIF</strong> exports, use online tools like <code>ezgif.com/svg-to-gif</code> or <code>cloudconvert.com</code></li>
+            <li>Alternatively, use command line: <code>npx svg2gif input.svg output.gif</code></li>
+            <li>All assets meet the platform requirements: Icons 1:1, Headers 3:1</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">ICON ASSETS (1:1 Ratio)</h2>
+        <div class="assets-grid">
+            <div class="asset-card">
+                <div class="asset-preview">
+                    <object type="image/svg+xml" data="narr-icon-500x500.svg" id="icon500"></object>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-name">Icon 500x500 <span class="badge badge-static">Static</span></div>
+                    <div class="asset-specs">
+                        <span>500 x 500px</span>
+                        <span>1:1 Ratio</span>
+                        <span>SVG</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="exportToPNG('icon500', 500, 500, 'narr-icon-500x500')">Download PNG</button>
+                    <button class="btn btn-secondary" onclick="exportToJPG('icon500', 500, 500, 'narr-icon-500x500')">Download JPG</button>
+                </div>
+            </div>
+
+            <div class="asset-card">
+                <div class="asset-preview">
+                    <object type="image/svg+xml" data="narr-icon-100x100.svg" id="icon100"></object>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-name">Icon 100x100 <span class="badge badge-static">Static</span></div>
+                    <div class="asset-specs">
+                        <span>100 x 100px</span>
+                        <span>1:1 Ratio</span>
+                        <span>Min Size</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="exportToPNG('icon100', 100, 100, 'narr-icon-100x100')">Download PNG</button>
+                    <button class="btn btn-secondary" onclick="exportToJPG('icon100', 100, 100, 'narr-icon-100x100')">Download JPG</button>
+                </div>
+            </div>
+
+            <div class="asset-card">
+                <div class="asset-preview">
+                    <object type="image/svg+xml" data="narr-icon-animated.svg" id="iconAnimated"></object>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-name">Icon Animated <span class="badge badge-animated">Animated</span></div>
+                    <div class="asset-specs">
+                        <span>500 x 500px</span>
+                        <span>1:1 Ratio</span>
+                        <span>SVG Animation</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="downloadSVG('narr-icon-animated.svg')">Download SVG</button>
+                    <button class="btn btn-secondary" onclick="window.open('https://ezgif.com/svg-to-gif', '_blank')">Convert to GIF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">HEADER ASSETS (3:1 Ratio)</h2>
+        <div class="assets-grid">
+            <div class="asset-card">
+                <div class="asset-preview">
+                    <object type="image/svg+xml" data="narr-header-1500x500.svg" id="header1500" style="width:100%"></object>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-name">Header 1500x500 <span class="badge badge-static">Static</span></div>
+                    <div class="asset-specs">
+                        <span>1500 x 500px</span>
+                        <span>3:1 Ratio</span>
+                        <span>Full Size</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="exportToPNG('header1500', 1500, 500, 'narr-header-1500x500')">Download PNG</button>
+                    <button class="btn btn-secondary" onclick="exportToJPG('header1500', 1500, 500, 'narr-header-1500x500')">Download JPG</button>
+                </div>
+            </div>
+
+            <div class="asset-card">
+                <div class="asset-preview">
+                    <object type="image/svg+xml" data="narr-header-600x200.svg" id="header600" style="width:100%"></object>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-name">Header 600x200 <span class="badge badge-static">Static</span></div>
+                    <div class="asset-specs">
+                        <span>600 x 200px</span>
+                        <span>3:1 Ratio</span>
+                        <span>Min Size</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="exportToPNG('header600', 600, 200, 'narr-header-600x200')">Download PNG</button>
+                    <button class="btn btn-secondary" onclick="exportToJPG('header600', 600, 200, 'narr-header-600x200')">Download JPG</button>
+                </div>
+            </div>
+
+            <div class="asset-card">
+                <div class="asset-preview">
+                    <object type="image/svg+xml" data="narr-header-animated.svg" id="headerAnimated" style="width:100%"></object>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-name">Header Animated <span class="badge badge-animated">Animated</span></div>
+                    <div class="asset-specs">
+                        <span>1500 x 500px</span>
+                        <span>3:1 Ratio</span>
+                        <span>SVG Animation</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="downloadSVG('narr-header-animated.svg')">Download SVG</button>
+                    <button class="btn btn-secondary" onclick="window.open('https://ezgif.com/svg-to-gif', '_blank')">Convert to GIF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="exportCanvas"></canvas>
+
+    <script>
+        function exportToPNG(elementId, width, height, filename) {
+            const obj = document.getElementById(elementId);
+            const svgDoc = obj.contentDocument;
+            if (!svgDoc) {
+                alert('Please wait for SVG to load, then try again.');
+                return;
+            }
+            const svgElement = svgDoc.querySelector('svg');
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svgElement);
+            const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(svgBlob);
+
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.getElementById('exportCanvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#0a0a0f';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const link = document.createElement('a');
+                link.download = filename + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        function exportToJPG(elementId, width, height, filename) {
+            const obj = document.getElementById(elementId);
+            const svgDoc = obj.contentDocument;
+            if (!svgDoc) {
+                alert('Please wait for SVG to load, then try again.');
+                return;
+            }
+            const svgElement = svgDoc.querySelector('svg');
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svgElement);
+            const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(svgBlob);
+
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.getElementById('exportCanvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#0a0a0f';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const link = document.createElement('a');
+                link.download = filename + '.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        function downloadSVG(filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = filename;
+            link.click();
+        }
+    </script>
+</body>
+</html>

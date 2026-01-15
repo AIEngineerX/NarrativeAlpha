@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1500" height="500" viewBox="0 0 1500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="fillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.1"/>
+    </linearGradient>
+    <radialGradient id="leftGlow" cx="20%" cy="50%" r="40%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#00f0ff;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="rightGlow" cx="80%" cy="50%" r="30%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textGlow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#00f0ff" stroke-width="0.3" opacity="0.12"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1500" height="500" fill="#0a0a0f"/>
+  <rect width="1500" height="500" fill="url(#grid)"/>
+  <rect width="1500" height="500" fill="url(#leftGlow)"/>
+  <rect width="1500" height="500" fill="url(#rightGlow)"/>
+
+  <!-- Logo -->
+  <g transform="translate(200, 250)">
+    <path d="M0 -110L95 -55V55L0 110L-95 55V-55L0 -110Z" stroke="url(#mainGrad)" stroke-width="3" fill="none" filter="url(#glow)"/>
+    <path d="M0 -80L69 -40V40L0 80L-69 40V-40L0 -80Z" stroke="url(#mainGrad)" stroke-width="2" fill="url(#fillGrad)"/>
+    <path d="M0 -48L42 -24V24L0 48L-42 24V-24L0 -48Z" stroke="url(#mainGrad)" stroke-width="1.5" fill="rgba(0,240,255,0.1)"/>
+    <circle cx="0" cy="0" r="28" stroke="url(#mainGrad)" stroke-width="2.5" fill="none" filter="url(#glow)"/>
+    <circle cx="0" cy="0" r="11" fill="url(#mainGrad)"/>
+    <g stroke="url(#mainGrad)" stroke-width="1.2" opacity="0.6">
+      <line x1="0" y1="-28" x2="0" y2="-80"/>
+      <line x1="24" y1="-14" x2="69" y2="-40"/>
+      <line x1="24" y1="14" x2="69" y2="40"/>
+      <line x1="0" y1="28" x2="0" y2="80"/>
+      <line x1="-24" y1="14" x2="-69" y2="40"/>
+      <line x1="-24" y1="-14" x2="-69" y2="-40"/>
+    </g>
+    <g fill="url(#mainGrad)">
+      <circle cx="0" cy="-80" r="6"/>
+      <circle cx="69" cy="-40" r="6"/>
+      <circle cx="69" cy="40" r="6"/>
+      <circle cx="0" cy="80" r="6"/>
+      <circle cx="-69" cy="40" r="6"/>
+      <circle cx="-69" cy="-40" r="6"/>
+    </g>
+  </g>
+
+  <!-- NARRATIVE text -->
+  <text x="400" y="210" font-family="'Orbitron', 'Arial Black', sans-serif" font-weight="800" font-size="68" fill="#ffffff" letter-spacing="3">NARRATIVE</text>
+
+  <!-- ALPHA text -->
+  <text x="400" y="290" font-family="'Orbitron', 'Arial Black', sans-serif" font-weight="800" font-size="68" fill="url(#mainGrad)" filter="url(#textGlow)" letter-spacing="3">ALPHA</text>
+
+  <!-- $NA badge -->
+  <rect x="1050" y="220" width="130" height="55" rx="6" fill="rgba(0,240,255,0.08)" stroke="url(#mainGrad)" stroke-width="2"/>
+  <text x="1115" y="258" text-anchor="middle" font-family="'Orbitron', sans-serif" font-weight="700" font-size="26" fill="url(#mainGrad)" filter="url(#textGlow)">$NA</text>
+
+  <!-- AI badge -->
+  <rect x="1200" y="225" width="70" height="45" rx="5" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="1235" y="256" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-weight="600" font-size="18" fill="#8b5cf6">AI</text>
+
+  <!-- Tagline -->
+  <text x="400" y="355" font-family="'Space Grotesk', Arial, sans-serif" font-weight="400" font-size="22" fill="#6b7280" letter-spacing="2">FIND THE PUMP BEFORE IT PUMPS</text>
+
+  <!-- Accent line -->
+  <rect x="400" y="375" width="280" height="2" fill="url(#mainGrad)" opacity="0.5"/>
+
+  <!-- Corner accents -->
+  <path d="M0 0L80 0L80 2L2 2L2 80L0 80Z" fill="url(#mainGrad)" opacity="0.35"/>
+  <path d="M1500 0L1420 0L1420 2L1498 2L1498 80L1500 80Z" fill="url(#mainGrad)" opacity="0.35"/>
+  <path d="M0 500L80 500L80 498L2 498L2 420L0 420Z" fill="url(#mainGrad)" opacity="0.35"/>
+  <path d="M1500 500L1420 500L1420 498L1498 498L1498 420L1500 420Z" fill="url(#mainGrad)" opacity="0.35"/>
+</svg>

@@ -140,7 +140,7 @@
         fill="#ffffff"
         letter-spacing="6">NARRATIVE<tspan fill="url(#mainGradient)">ALPHA</tspan></text>
 
-  <!-- $NARR Token -->
+  <!-- $NA Token -->
   <text x="750" y="415"
         text-anchor="middle"
         font-family="'Orbitron', 'Arial Black', sans-serif"
@@ -148,7 +148,7 @@
         font-size="32"
         fill="url(#mainGradient)"
         filter="url(#glow)"
-        letter-spacing="4">$NARR</text>
+        letter-spacing="4">$NA</text>
 
   <!-- Tagline -->
   <text x="750" y="460"

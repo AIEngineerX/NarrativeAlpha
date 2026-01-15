@@ -160,7 +160,7 @@
         filter="url(#textGlow)"
         letter-spacing="4">ALPHA</text>
 
-  <!-- $NARR badge -->
+  <!-- $NA badge -->
   <g transform="translate(1050, 250)">
     <rect x="0" y="-30" width="140" height="60" rx="8"
           fill="rgba(0,240,255,0.1)"
@@ -172,7 +172,7 @@
           font-weight="700"
           font-size="28"
           fill="url(#mainGradient)"
-          filter="url(#textGlow)">$NARR</text>
+          filter="url(#textGlow)">$NA</text>
   </g>
 
   <!-- Tagline -->

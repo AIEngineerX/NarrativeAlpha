@@ -95,12 +95,12 @@
     <circle cx="116" cy="156" r="8"/>
   </g>
 
-  <!-- $NARR text -->
+  <!-- $NA text -->
   <text x="256" y="340"
         text-anchor="middle"
         font-family="'Orbitron', 'Arial Black', sans-serif"
         font-weight="700"
         font-size="48"
         fill="url(#mainGradient)"
-        filter="url(#glow)">$NARR</text>
+        filter="url(#glow)">$NA</text>
 </svg>

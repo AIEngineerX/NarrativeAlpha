@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="fillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00f0ff;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.1"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#0d1117"/>
+      <stop offset="70%" style="stop-color:#0a0a0f"/>
+      <stop offset="100%" style="stop-color:#050508"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="pulseGlow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="500" height="500" fill="url(#bgGlow)"/>
+
+  <!-- Animated pulse rings -->
+  <circle cx="250" cy="250" r="100" stroke="url(#mainGrad)" stroke-width="1" fill="none" opacity="0">
+    <animate attributeName="r" values="60;180" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="250" cy="250" r="100" stroke="url(#mainGrad)" stroke-width="1" fill="none" opacity="0">
+    <animate attributeName="r" values="60;180" dur="2s" begin="0.7s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0" dur="2s" begin="0.7s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="250" cy="250" r="100" stroke="url(#mainGrad)" stroke-width="1" fill="none" opacity="0">
+    <animate attributeName="r" values="60;180" dur="2s" begin="1.4s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0" dur="2s" begin="1.4s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Rotating outer hexagon -->
+  <g transform-origin="250 250">
+    <animateTransform attributeName="transform" type="rotate" values="0 250 250;360 250 250" dur="20s" repeatCount="indefinite"/>
+    <path d="M250 40L430 145V355L250 460L70 355V145L250 40Z"
+          stroke="url(#mainGrad)" stroke-width="4" fill="none" filter="url(#glow)"/>
+  </g>
+
+  <!-- Counter-rotating middle hexagon -->
+  <g transform-origin="250 250">
+    <animateTransform attributeName="transform" type="rotate" values="0 250 250;-360 250 250" dur="15s" repeatCount="indefinite"/>
+    <path d="M250 80L390 165V335L250 420L110 335V165L250 80Z"
+          stroke="url(#mainGrad)" stroke-width="2.5" fill="url(#fillGrad)"/>
+  </g>
+
+  <!-- Pulsing inner hexagon -->
+  <path d="M250 130L340 185V315L250 370L160 315V185L250 130Z"
+        stroke="url(#mainGrad)" stroke-width="2" fill="rgba(0,240,255,0.1)">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Pulsing core -->
+  <circle cx="250" cy="250" r="55" stroke="url(#mainGrad)" stroke-width="3" fill="none" filter="url(#pulseGlow)">
+    <animate attributeName="r" values="50;58;50" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Glowing center -->
+  <circle cx="250" cy="250" r="22" fill="url(#mainGrad)" filter="url(#glow)">
+    <animate attributeName="r" values="20;25;20" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Animated neural lines -->
+  <g stroke="url(#mainGrad)" stroke-width="1.5">
+    <line x1="250" y1="195" x2="250" y2="80">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0s" repeatCount="indefinite"/>
+    </line>
+    <line x1="298" y1="222" x2="390" y2="165">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0.2s" repeatCount="indefinite"/>
+    </line>
+    <line x1="298" y1="278" x2="390" y2="335">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0.4s" repeatCount="indefinite"/>
+    </line>
+    <line x1="250" y1="305" x2="250" y2="420">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0.6s" repeatCount="indefinite"/>
+    </line>
+    <line x1="202" y1="278" x2="110" y2="335">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="0.8s" repeatCount="indefinite"/>
+    </line>
+    <line x1="202" y1="222" x2="110" y2="165">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin="1s" repeatCount="indefinite"/>
+    </line>
+  </g>
+
+  <!-- Pulsing nodes -->
+  <g fill="url(#mainGrad)">
+    <circle cx="250" cy="80" r="8">
+      <animate attributeName="r" values="6;10;6" dur="1.2s" begin="0s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="390" cy="165" r="8">
+      <animate attributeName="r" values="6;10;6" dur="1.2s" begin="0.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="390" cy="335" r="8">
+      <animate attributeName="r" values="6;10;6" dur="1.2s" begin="0.4s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="250" cy="420" r="8">
+      <animate attributeName="r" values="6;10;6" dur="1.2s" begin="0.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="110" cy="335" r="8">
+      <animate attributeName="r" values="6;10;6" dur="1.2s" begin="0.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="110" cy="165" r="8">
+      <animate attributeName="r" values="6;10;6" dur="1.2s" begin="1s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>
