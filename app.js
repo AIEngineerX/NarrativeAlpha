@@ -1443,29 +1443,24 @@ class LiveDataService {
         // 3. Count urgent signals
         const urgentCount = tokens.filter(t => t.isUrgent === true).length;
 
-        // 4. Find top gainer (best 1h performance - filter out fake/low quality pairs)
+        // 4. Find top gainer (best 5m performance - real-time movers)
         const topGainer = [...tokens]
             .filter(t => {
                 // Skip Meteora pairs - often have fake/wash volume
                 const dex = (t.dexId || '').toLowerCase();
                 if (dex.includes('meteora')) return false;
 
-                // Must have price change data
-                const hasPriceData = t.priceChange1h !== undefined || t.priceChange24h !== undefined;
-                if (!hasPriceData) return false;
+                // Must have 5m price change data for real-time
+                if (t.priceChange5m === undefined) return false;
 
-                // Require meaningful volume (min $5k 1h or $50k 24h)
+                // Require recent volume activity
+                const volume5m = t.volume5m || 0;
                 const volume1h = t.volume1h || 0;
-                const volume24h = t.volume24h || 0;
-                if (volume1h < 5000 && volume24h < 50000) return false;
+                if (volume5m < 500 && volume1h < 3000) return false;
 
-                // Require some liquidity (skip if no liq data or too low)
+                // Require some liquidity
                 const liquidity = t.liquidity || 0;
-                if (liquidity < 5000) return false;
-
-                // Require minimum transactions (proves real activity)
-                const txns = t.txns1h || t.txns24h || 0;
-                if (txns < 10) return false;
+                if (liquidity < 3000) return false;
 
                 // Skip potential scams/honeypots
                 const scamScore = t.scamCheck?.scamScore || 0;
@@ -1474,10 +1469,8 @@ class LiveDataService {
                 return true;
             })
             .sort((a, b) => {
-                // Sort by 1h change if available, else use 24h change
-                const changeA = a.priceChange1h ?? (a.priceChange24h || 0);
-                const changeB = b.priceChange1h ?? (b.priceChange24h || 0);
-                return changeB - changeA;
+                // Sort by 5m change (most recent momentum)
+                return (b.priceChange5m || 0) - (a.priceChange5m || 0);
             })[0];
 
         // Update DOM elements
@@ -1529,10 +1522,9 @@ class LiveDataService {
             topGainerEl.textContent = '---';
         }
         if (topGainerChangeEl && topGainer) {
-            // Use 1h change if available, otherwise use 24h change
-            const change = topGainer.priceChange1h ?? topGainer.priceChange24h ?? 0;
-            const timeframe = topGainer.priceChange1h !== undefined ? '1h' : '24h';
-            topGainerChangeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}% (${timeframe})`;
+            // Use 5m change (real-time)
+            const change = topGainer.priceChange5m ?? 0;
+            topGainerChangeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}% (5m)`;
             topGainerChangeEl.className = `top-gainer-change ${change >= 0 ? 'positive' : 'negative'}`;
         }
 
