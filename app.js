@@ -1272,10 +1272,135 @@ class LiveDataService {
                 this.elements.tokenSearchInput.value = address;
             }
 
+            // Fetch AI narrative analysis (async - doesn't block UI)
+            this.fetchNarrativeIntel(primaryPair, address);
+
         } catch (error) {
             console.error('Error loading token:', error);
             alert(`Could not load token: ${error.message}`);
         }
+    }
+
+    // Fetch AI-powered narrative intelligence
+    async fetchNarrativeIntel(pair, address) {
+        const reasonsEl = document.getElementById('trendingReasons');
+        if (!reasonsEl) return;
+
+        // Show loading state
+        reasonsEl.innerHTML = `
+            <div class="narrative-loading">
+                <div class="loading-spinner small"></div>
+                <span>Analyzing narrative context...</span>
+            </div>
+        `;
+
+        try {
+            // Also try to get PumpFun data for more context
+            let pumpFunData = null;
+            const cachedPumpFun = this.cachedPumpFunTokens.find(t => t.address === address);
+            if (cachedPumpFun) {
+                pumpFunData = cachedPumpFun;
+            }
+
+            const tokenData = {
+                symbol: pair.baseToken?.symbol || 'UNKNOWN',
+                name: pair.baseToken?.name || 'Unknown Token',
+                address: address,
+                price: pair.priceUsd || 0,
+                marketCap: pair.fdv || pair.marketCap || 0,
+                volume24h: pair.volume?.h24 || 0,
+                liquidity: pair.liquidity?.usd || 0,
+                priceChange24h: pair.priceChange?.h24 || 0,
+                priceChange1h: pair.priceChange?.h1 || 0,
+                dexId: pair.dexId,
+                ageHours: pair.pairCreatedAt ? Math.floor((Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60)) : null,
+                description: pumpFunData?.description || '',
+                socials: pumpFunData?.socials || pair.info?.socials || null,
+                replyCount: pumpFunData?.replyCount || null
+            };
+
+            const response = await fetch('/.netlify/functions/token-intel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tokenData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch narrative intel');
+            }
+
+            const intel = await response.json();
+            this.displayNarrativeIntel(intel);
+
+        } catch (error) {
+            console.error('Narrative intel error:', error);
+            // Fall back to basic analysis
+            this.updateTrendingReasons(pair);
+        }
+    }
+
+    // Display AI-generated narrative intelligence
+    displayNarrativeIntel(intel) {
+        const reasonsEl = document.getElementById('trendingReasons');
+        if (!reasonsEl) return;
+
+        const timingClass = intel.timing_read === 'EARLY' ? 'positive' :
+                           intel.timing_read === 'LATE' ? 'negative' : '';
+
+        reasonsEl.innerHTML = `
+            <div class="narrative-intel">
+                <div class="intel-hook">
+                    <span class="intel-label">THE HOOK</span>
+                    <p>${intel.narrative_hook || 'No clear narrative detected'}</p>
+                </div>
+
+                <div class="intel-row">
+                    <div class="intel-item">
+                        <span class="intel-label">ORIGIN</span>
+                        <p>${intel.likely_origin || 'Unknown'}</p>
+                    </div>
+                    <div class="intel-item">
+                        <span class="intel-label">NARRATIVE</span>
+                        <p>${intel.narrative_fit || 'Uncategorized'}</p>
+                    </div>
+                    <div class="intel-item">
+                        <span class="intel-label">TIMING</span>
+                        <p class="${timingClass}">${intel.timing_read || 'UNKNOWN'}</p>
+                    </div>
+                </div>
+
+                ${intel.social_signals?.length > 0 ? `
+                <div class="intel-section">
+                    <span class="intel-label">SOCIAL SIGNALS</span>
+                    <ul>${intel.social_signals.map(s => `<li>${s}</li>`).join('')}</ul>
+                </div>
+                ` : ''}
+
+                <div class="intel-section">
+                    <span class="intel-label">THE PLAY</span>
+                    <p class="the-play">${intel.the_play || 'No clear trade thesis'}</p>
+                </div>
+
+                ${intel.red_flags?.length > 0 ? `
+                <div class="intel-section red-flags">
+                    <span class="intel-label">RED FLAGS</span>
+                    <ul>${intel.red_flags.map(r => `<li>${r}</li>`).join('')}</ul>
+                </div>
+                ` : ''}
+
+                ${intel.similar_plays?.length > 0 ? `
+                <div class="intel-section">
+                    <span class="intel-label">SIMILAR PLAYS</span>
+                    <ul>${intel.similar_plays.map(s => `<li>${s}</li>`).join('')}</ul>
+                </div>
+                ` : ''}
+
+                <div class="intel-section alpha-take">
+                    <span class="intel-label">ALPHA TAKE</span>
+                    <p>${intel.alpha_take || 'Insufficient data for assessment'}</p>
+                </div>
+            </div>
+        `;
     }
 
     updateTokenDisplay(pair, allPairs) {
