@@ -2014,6 +2014,234 @@ body {
     background: rgba(0, 240, 255, 0.1);
 }
 
+/* KOL Watch Leaderboard */
+.kol-leaderboard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.kol-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.kol-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.kol-item.top-trader {
+    background: rgba(255, 215, 0, 0.03);
+    border-color: rgba(255, 215, 0, 0.15);
+}
+
+.kol-item.loading {
+    min-height: 50px;
+}
+
+.kol-loading-shimmer {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0.02) 25%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0.02) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+.kol-rank {
+    min-width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+.kol-rank.gold {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 180, 0, 0.3));
+    color: #FFD700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.kol-rank.silver {
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.2), rgba(169, 169, 169, 0.3));
+    color: #C0C0C0;
+    border: 1px solid rgba(192, 192, 192, 0.3);
+}
+
+.kol-rank.bronze {
+    background: linear-gradient(135deg, rgba(205, 127, 50, 0.2), rgba(184, 115, 51, 0.3));
+    color: #CD7F32;
+    border: 1px solid rgba(205, 127, 50, 0.3);
+}
+
+.kol-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.kol-name {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kol-wallet {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.kol-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+}
+
+.kol-pnl {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.kol-pnl.positive {
+    color: var(--success);
+}
+
+.kol-pnl.negative {
+    color: var(--danger);
+}
+
+.kol-record {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.kol-winrate {
+    min-width: 40px;
+    padding: 0.3rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.kol-winrate.good {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.kol-winrate.low {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+.kol-actions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.kol-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.kol-link:hover {
+    background: rgba(0, 240, 255, 0.1);
+    color: var(--accent-cyan);
+}
+
+.kol-link.solscan:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent-purple);
+}
+
+.kol-link.kolscan:hover {
+    background: rgba(251, 191, 36, 0.15);
+    color: #FFC107;
+}
+
+.kol-item.empty {
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 1.5rem;
+}
+
+/* KOL Footer */
+.kol-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+}
+
+.kol-source {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.kol-more-link {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent-cyan);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.kol-more-link:hover {
+    color: var(--text-primary);
+}
+
+.kol-more-link svg {
+    opacity: 0.7;
+}
+
+.kol-more-link:hover svg {
+    opacity: 1;
+    transform: translateX(2px);
+}
+
 .signals-filters {
     display: flex;
     gap: 0.75rem;

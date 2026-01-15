@@ -551,7 +551,8 @@ class NavigationController {
                 document.querySelectorAll('.pulse-tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.pulse-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
-                const targetId = tab.dataset.tab === 'market' ? 'pulseMarket' : 'pulseSocial';
+                const tabType = tab.dataset.tab;
+                const targetId = tabType === 'market' ? 'pulseMarket' : tabType === 'social' ? 'pulseSocial' : 'pulseKol';
                 document.getElementById(targetId)?.classList.add('active');
             });
         });
@@ -692,6 +693,7 @@ class LiveDataService {
         // Load from PumpFun first (no rate limit issues), then DEX
         this.fetchAllData();
         this.fetchSocialTrends(); // Fetch real social trends
+        this.fetchKolData(); // Fetch KOL leaderboard data
         this.startAutoRefresh();
     }
 
@@ -746,6 +748,11 @@ class LiveDataService {
         this.socialTrendsIntervalId = setInterval(() => {
             this.fetchSocialTrends();
         }, 300000);
+
+        // KOL data refresh every 3 minutes
+        this.kolIntervalId = setInterval(() => {
+            this.fetchKolData();
+        }, 180000);
     }
 
     stopAutoRefresh() {
@@ -1770,6 +1777,94 @@ class LiveDataService {
         const socialTimeEl = document.getElementById('socialUpdateTime');
         if (socialTimeEl) {
             socialTimeEl.textContent = data.cached ? 'Cached' : 'Live';
+        }
+    }
+
+    // Fetch KOL (Key Opinion Leader) data from Netlify function
+    async fetchKolData() {
+        try {
+            const response = await fetch('/.netlify/functions/kol-tracker');
+
+            if (!response.ok) {
+                throw new Error('KOL tracker fetch failed');
+            }
+
+            const data = await response.json();
+            this.displayKolData(data);
+
+            return data;
+        } catch (error) {
+            console.warn('KOL tracker error:', error);
+            // Display fallback message
+            const listEl = document.getElementById('kolLeaderboard');
+            if (listEl) {
+                listEl.innerHTML = '<div class="kol-item empty">Unable to load KOL data</div>';
+            }
+            return null;
+        }
+    }
+
+    // Display KOL leaderboard data
+    displayKolData(data) {
+        const listEl = document.getElementById('kolLeaderboard');
+        if (!listEl) return;
+
+        const traders = data.traders || [];
+
+        if (traders.length === 0) {
+            listEl.innerHTML = '<div class="kol-item empty">No KOL data available</div>';
+            return;
+        }
+
+        const html = traders.slice(0, 7).map((trader, i) => {
+            const pnlClass = trader.pnlSol >= 0 ? 'positive' : 'negative';
+            const pnlSign = trader.pnlSol >= 0 ? '+' : '';
+            const winRate = trader.wins + trader.losses > 0
+                ? ((trader.wins / (trader.wins + trader.losses)) * 100).toFixed(0)
+                : '0';
+            const winRateClass = parseInt(winRate) >= 50 ? 'good' : 'low';
+
+            // Shorten wallet for display
+            const shortWallet = trader.wallet
+                ? `${trader.wallet.slice(0, 4)}...${trader.wallet.slice(-4)}`
+                : '----';
+
+            // Links
+            const solscanUrl = trader.wallet ? `https://solscan.io/account/${trader.wallet}` : '#';
+            const kolscanUrl = trader.wallet ? `https://kolscan.io/wallet/${trader.wallet}` : '#';
+
+            return `
+                <div class="kol-item ${i < 3 ? 'top-trader' : ''}" data-rank="${i + 1}">
+                    <div class="kol-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">
+                        ${i < 3 ? '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' : `#${i + 1}`}
+                    </div>
+                    <div class="kol-info">
+                        <span class="kol-name">${escapeHtml(trader.name)}</span>
+                        <span class="kol-wallet" title="${escapeHtml(trader.wallet)}">${shortWallet}</span>
+                    </div>
+                    <div class="kol-stats">
+                        <span class="kol-pnl ${pnlClass}">${pnlSign}${trader.pnlSol.toFixed(1)} SOL</span>
+                        <span class="kol-record">${trader.wins}W/${trader.losses}L</span>
+                    </div>
+                    <div class="kol-winrate ${winRateClass}">${winRate}%</div>
+                    <div class="kol-actions">
+                        <a href="${solscanUrl}" target="_blank" rel="noopener" class="kol-link solscan" title="View wallet on Solscan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                        </a>
+                        <a href="${kolscanUrl}" target="_blank" rel="noopener" class="kol-link kolscan" title="View on KOLscan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listEl.innerHTML = html;
+
+        // Update timestamp
+        const kolTimeEl = document.getElementById('kolUpdateTime');
+        if (kolTimeEl) {
+            kolTimeEl.textContent = data.cached ? 'Cached' : (data.stale ? 'Stale' : 'Live');
         }
     }
 
