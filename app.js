@@ -200,7 +200,7 @@ class NarrativeAlpha {
     init() {
         this.setupEventListeners();
         this.animateMetrics();
-        this.populateSampleSignals();
+        // Signals are now populated by LiveDataService with real data
     }
 
     setupEventListeners() {
@@ -245,109 +245,6 @@ class NarrativeAlpha {
 
             requestAnimationFrame(animate);
         });
-    }
-
-    populateSampleSignals() {
-        const signals = [
-            {
-                type: 'bullish',
-                title: 'AI Agent Infrastructure narrative gaining momentum',
-                time: '2m ago',
-                confidence: 78,
-                velocity: '3.2x'
-            },
-            {
-                type: 'bullish',
-                title: 'New memecoin meta emerging around viral TikTok trend',
-                time: '15m ago',
-                confidence: 65,
-                velocity: '2.1x'
-            },
-            {
-                type: 'neutral',
-                title: 'DePIN sector showing early rotation signals',
-                time: '32m ago',
-                confidence: 52,
-                velocity: '1.5x'
-            },
-            {
-                type: 'bullish',
-                title: 'CT influencers coordinating on new narrative play',
-                time: '1h ago',
-                confidence: 71,
-                velocity: '2.8x'
-            },
-            {
-                type: 'bullish',
-                title: 'Gaming x Crypto crossover gaining traction on CT',
-                time: '1h 15m ago',
-                confidence: 68,
-                velocity: '2.4x'
-            },
-            {
-                type: 'bearish',
-                title: 'Celebrity token launches showing fatigue signs',
-                time: '2h ago',
-                confidence: 61,
-                velocity: '1.2x'
-            },
-            {
-                type: 'bullish',
-                title: 'RWA tokenization narrative picking up steam',
-                time: '2h 30m ago',
-                confidence: 74,
-                velocity: '3.1x'
-            },
-            {
-                type: 'neutral',
-                title: 'Layer 2 competition heating up - rotation possible',
-                time: '3h ago',
-                confidence: 55,
-                velocity: '1.8x'
-            },
-            {
-                type: 'bullish',
-                title: 'Solana ecosystem tokens showing coordinated momentum',
-                time: '4h ago',
-                confidence: 82,
-                velocity: '4.2x'
-            },
-            {
-                type: 'bearish',
-                title: 'Meme coin sector cooling - potential correction ahead',
-                time: '5h ago',
-                confidence: 58,
-                velocity: '0.8x'
-            },
-            {
-                type: 'bullish',
-                title: 'New pump.fun meta: animal hybrids gaining attention',
-                time: '6h ago',
-                confidence: 63,
-                velocity: '2.6x'
-            },
-            {
-                type: 'neutral',
-                title: 'Cross-chain bridge narrative emerging slowly',
-                time: '8h ago',
-                confidence: 48,
-                velocity: '1.4x'
-            }
-        ];
-
-        this.elements.signalsFeed.innerHTML = signals.map(signal => `
-            <div class="signal-card" data-type="${signal.type}">
-                <div class="signal-header">
-                    <span class="signal-type ${signal.type}">${signal.type.toUpperCase()}</span>
-                    <span class="signal-time">${signal.time}</span>
-                </div>
-                <div class="signal-title">${signal.title}</div>
-                <div class="signal-meta">
-                    <span class="signal-confidence">Confidence: ${signal.confidence}%</span>
-                    <span class="signal-velocity">Velocity: ${signal.velocity}</span>
-                </div>
-            </div>
-        `).join('');
     }
 
     async analyze() {
@@ -896,6 +793,93 @@ class LiveDataService {
         });
     }
 
+    // Generate specific, actionable signal description based on data patterns
+    generateSignalEdge(token) {
+        const { priceChange5m, priceChange1h, priceChange24h, volume24h, volume1h, liquidity, buyRatio, txns24h, marketCap } = token;
+
+        const ageHours = token.createdAt ? (Date.now() - token.createdAt) / (1000 * 60 * 60) : 999;
+        const volumeVelocity = liquidity > 0 ? volume24h / liquidity : 0;
+        const avgTxSize = txns24h > 0 ? volume24h / txns24h : 0;
+
+        // Priority-ordered pattern detection - return first match
+
+        // LAUNCH SIGNALS
+        if (ageHours < 1) {
+            if (priceChange5m > 20) return { edge: `Just launched & pumping ${priceChange5m.toFixed(0)}% in 5m`, tag: 'NEW LAUNCH' };
+            if (liquidity > 50000) return { edge: `Fresh launch with $${this.formatCompact(liquidity)} liquidity`, tag: 'NEW LAUNCH' };
+            return { edge: `Launched ${Math.round(ageHours * 60)}m ago - early discovery`, tag: 'NEW LAUNCH' };
+        }
+
+        if (ageHours < 6 && priceChange1h > 30) {
+            return { edge: `Young token breaking out +${priceChange1h.toFixed(0)}% 1h`, tag: 'EARLY MOVER' };
+        }
+
+        // MOMENTUM SIGNALS
+        if (priceChange5m > 15 && priceChange1h > 20) {
+            return { edge: `Accelerating NOW: +${priceChange5m.toFixed(0)}% 5m, +${priceChange1h.toFixed(0)}% 1h`, tag: 'PUMPING' };
+        }
+
+        if (priceChange1h > 50) {
+            return { edge: `Parabolic move +${priceChange1h.toFixed(0)}% in 1 hour`, tag: 'MOONING' };
+        }
+
+        if (priceChange24h > 100 && priceChange1h > 5) {
+            return { edge: `+${priceChange24h.toFixed(0)}% day, still climbing +${priceChange1h.toFixed(0)}% 1h`, tag: 'RUNNER' };
+        }
+
+        // REVERSAL SIGNALS
+        if (priceChange24h < -25 && priceChange1h > 10 && buyRatio > 0.55) {
+            return { edge: `Reversal: Bouncing +${priceChange1h.toFixed(0)}% off ${priceChange24h.toFixed(0)}% dump`, tag: 'REVERSAL' };
+        }
+
+        if (priceChange24h < -20 && priceChange5m > 5 && buyRatio > 0.6) {
+            return { edge: `Dip buying detected: ${Math.round(buyRatio*100)}% buys after ${priceChange24h.toFixed(0)}% drop`, tag: 'DIP BUY' };
+        }
+
+        // ACCUMULATION SIGNALS
+        if (buyRatio > 0.65 && priceChange1h < 5 && priceChange1h > -5) {
+            return { edge: `Absorption: ${Math.round(buyRatio*100)}% buys but price flat - accumulation`, tag: 'ACCUMULATING' };
+        }
+
+        if (volumeVelocity > 5 && priceChange1h < 10 && priceChange1h > -10) {
+            return { edge: `High rotation ${volumeVelocity.toFixed(1)}x vol/liq, price coiling`, tag: 'COILING' };
+        }
+
+        // VOLUME SIGNALS
+        if (volume1h > 100000 && priceChange1h > 10) {
+            return { edge: `Volume spike $${this.formatCompact(volume1h)} 1h with +${priceChange1h.toFixed(0)}%`, tag: 'VOL SURGE' };
+        }
+
+        if (avgTxSize > 5000 && priceChange1h > 5) {
+            return { edge: `Whale buying: $${this.formatCompact(avgTxSize)} avg tx, price +${priceChange1h.toFixed(0)}%`, tag: 'WHALES' };
+        }
+
+        // WARNING SIGNALS
+        if (priceChange24h > 50 && priceChange1h < -10) {
+            return { edge: `Profit taking: -${Math.abs(priceChange1h).toFixed(0)}% 1h after +${priceChange24h.toFixed(0)}% run`, tag: 'DISTRIBUTION' };
+        }
+
+        if (buyRatio < 0.35 && priceChange1h < -5) {
+            return { edge: `Sell pressure: Only ${Math.round(buyRatio*100)}% buys, down ${Math.abs(priceChange1h).toFixed(0)}%`, tag: 'SELLING' };
+        }
+
+        if (priceChange1h < -15) {
+            return { edge: `Dumping ${priceChange1h.toFixed(0)}% in 1h - capitulation or dead?`, tag: 'DUMPING' };
+        }
+
+        // STABLE/HOLDING SIGNALS
+        if (priceChange24h > 30 && Math.abs(priceChange1h) < 5) {
+            return { edge: `Holding gains: +${priceChange24h.toFixed(0)}% 24h, consolidating`, tag: 'HOLDING' };
+        }
+
+        // DEFAULT - show key metric
+        if (priceChange1h > 0) {
+            return { edge: `+${priceChange1h.toFixed(0)}% 1h | ${Math.round(buyRatio*100)}% buys | $${this.formatCompact(volume24h)} vol`, tag: 'ACTIVE' };
+        } else {
+            return { edge: `${priceChange1h.toFixed(0)}% 1h | ${Math.round(buyRatio*100)}% buys | $${this.formatCompact(volume24h)} vol`, tag: 'WATCHING' };
+        }
+    }
+
     createSignalCard(token) {
         const priceChange24hClass = token.priceChange24h >= 0 ? 'positive' : 'negative';
         const priceChange24hSign = token.priceChange24h >= 0 ? '+' : '';
@@ -908,48 +892,52 @@ class LiveDataService {
                        token.dexId === 'orca' ? 'Orca' :
                        token.dexId === 'meteora' ? 'Meteora' : 'PumpFun';
 
-        // Buy pressure indicator
-        const buyPressure = Math.round(token.buyRatio * 100);
-        const buyPressureClass = buyPressure > 55 ? 'positive' : buyPressure < 45 ? 'negative' : '';
+        // Generate the specific edge/signal description
+        const { edge, tag } = this.generateSignalEdge(token);
+
+        // Determine tag color based on signal type
+        const tagClass = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER'].includes(tag)
+            ? 'positive'
+            : ['DISTRIBUTION', 'SELLING', 'DUMPING'].includes(tag)
+                ? 'negative'
+                : '';
 
         return `
             <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}">
                 <div class="signal-header">
-                    <span class="signal-type ${token.signalType}">${token.signalType.toUpperCase()}</span>
+                    <span class="signal-tag ${tagClass}">${tag}</span>
                     <span class="signal-source">${source}</span>
                     <span class="signal-time">${timeAgo}</span>
                 </div>
-                <div class="signal-title">
-                    <strong>$${token.symbol}</strong> - ${token.name}
+                <div class="signal-token">
+                    <strong>$${token.symbol}</strong>
+                    <span class="token-price">$${this.formatNumber(token.price)}</span>
                 </div>
-                <div class="signal-meta">
-                    <span class="signal-confidence">Confidence: ${token.confidence}%</span>
-                    <span class="signal-velocity">Velocity: ${token.velocity}x</span>
-                </div>
+                <div class="signal-edge">${edge}</div>
                 <div class="signal-stats">
                     <div class="signal-stat">
-                        <span class="signal-stat-value">$${this.formatNumber(token.price)}</span>
-                        <span class="signal-stat-label">Price</span>
-                    </div>
-                    <div class="signal-stat">
                         <span class="signal-stat-value ${priceChange1hClass}">${priceChange1hSign}${token.priceChange1h.toFixed(1)}%</span>
-                        <span class="signal-stat-label">1h Change</span>
+                        <span class="signal-stat-label">1h</span>
                     </div>
                     <div class="signal-stat">
                         <span class="signal-stat-value ${priceChange24hClass}">${priceChange24hSign}${token.priceChange24h.toFixed(1)}%</span>
-                        <span class="signal-stat-label">24h Change</span>
+                        <span class="signal-stat-label">24h</span>
                     </div>
                     <div class="signal-stat">
                         <span class="signal-stat-value">$${this.formatCompact(token.volume24h)}</span>
-                        <span class="signal-stat-label">24h Vol</span>
+                        <span class="signal-stat-label">Vol</span>
                     </div>
                     <div class="signal-stat">
                         <span class="signal-stat-value">$${this.formatCompact(token.liquidity)}</span>
-                        <span class="signal-stat-label">Liquidity</span>
+                        <span class="signal-stat-label">Liq</span>
                     </div>
                     <div class="signal-stat">
-                        <span class="signal-stat-value ${buyPressureClass}">${buyPressure}%</span>
-                        <span class="signal-stat-label">Buy Press</span>
+                        <span class="signal-stat-value">${Math.round(token.buyRatio * 100)}%</span>
+                        <span class="signal-stat-label">Buys</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">${token.velocity}x</span>
+                        <span class="signal-stat-label">Vel</span>
                     </div>
                 </div>
             </div>
@@ -984,28 +972,16 @@ class LiveDataService {
     }
 
     renderFallbackSignals() {
-        // Use cached or sample data when API fails
-        const fallbackSignals = CONFIG.SAMPLE_NARRATIVES || [
-            { type: 'bullish', title: 'AI Agent Infrastructure narrative gaining momentum', time: '2m ago', confidence: 78, velocity: '3.2x' },
-            { type: 'bullish', title: 'New memecoin meta emerging around viral TikTok trend', time: '15m ago', confidence: 65, velocity: '2.1x' },
-            { type: 'neutral', title: 'DePIN sector showing early rotation signals', time: '32m ago', confidence: 52, velocity: '1.5x' },
-            { type: 'bullish', title: 'CT influencers coordinating on new narrative play', time: '1h ago', confidence: 71, velocity: '2.8x' }
-        ];
-
+        // Show error state when API fails - no fake data
         if (this.elements.signalsFeed) {
-            this.elements.signalsFeed.innerHTML = fallbackSignals.map(signal => `
-                <div class="signal-card" data-type="${signal.type}">
-                    <div class="signal-header">
-                        <span class="signal-type ${signal.type}">${signal.type.toUpperCase()}</span>
-                        <span class="signal-time">${signal.time}</span>
-                    </div>
-                    <div class="signal-title">${signal.title}</div>
-                    <div class="signal-meta">
-                        <span class="signal-confidence">Confidence: ${signal.confidence}%</span>
-                        <span class="signal-velocity">Velocity: ${signal.velocity}</span>
-                    </div>
+            this.elements.signalsFeed.innerHTML = `
+                <div class="signals-error">
+                    <div class="error-icon">⚠</div>
+                    <div class="error-title">Unable to fetch live data</div>
+                    <div class="error-message">DEX Screener API may be rate limited or unavailable. Data will auto-refresh in 30 seconds.</div>
+                    <button class="retry-btn" onclick="window.liveDataService?.fetchTrendingTokens()">Retry Now</button>
                 </div>
-            `).join('');
+            `;
         }
     }
 
@@ -1409,6 +1385,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize main application
     new NarrativeAlpha();
 
-    // Initialize live data service
-    new LiveDataService();
+    // Initialize live data service (globally accessible for retry button)
+    window.liveDataService = new LiveDataService();
 });

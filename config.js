@@ -82,66 +82,6 @@ const CONFIG = {
         MAX_CONFIDENCE: 95
     },
 
-    // Sample narratives for display (fallback when API fails)
-    SAMPLE_NARRATIVES: [
-        {
-            type: 'bullish',
-            title: 'AI Agent Infrastructure narrative gaining momentum',
-            time: '2m ago',
-            confidence: 78,
-            velocity: '3.2x'
-        },
-        {
-            type: 'bullish',
-            title: 'New memecoin meta emerging around viral TikTok trend',
-            time: '15m ago',
-            confidence: 65,
-            velocity: '2.1x'
-        },
-        {
-            type: 'neutral',
-            title: 'DePIN sector showing early rotation signals',
-            time: '32m ago',
-            confidence: 52,
-            velocity: '1.5x'
-        },
-        {
-            type: 'bullish',
-            title: 'CT influencers coordinating on new narrative play',
-            time: '1h ago',
-            confidence: 71,
-            velocity: '2.8x'
-        },
-        {
-            type: 'bullish',
-            title: 'Gaming x Crypto crossover gaining traction on CT',
-            time: '1h 15m ago',
-            confidence: 68,
-            velocity: '2.4x'
-        },
-        {
-            type: 'bearish',
-            title: 'Celebrity token launches showing fatigue signs',
-            time: '2h ago',
-            confidence: 61,
-            velocity: '1.2x'
-        },
-        {
-            type: 'bullish',
-            title: 'RWA tokenization narrative picking up steam',
-            time: '2h 30m ago',
-            confidence: 74,
-            velocity: '3.1x'
-        },
-        {
-            type: 'neutral',
-            title: 'Layer 2 competition heating up - rotation possible',
-            time: '3h ago',
-            confidence: 55,
-            velocity: '1.8x'
-        }
-    ],
-
     // Query suggestions
     QUERY_HINTS: [
         {
