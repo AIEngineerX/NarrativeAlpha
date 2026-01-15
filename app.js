@@ -700,26 +700,45 @@ class LiveDataService {
     // Fetch trending tokens from DEX Screener
     async fetchTrendingTokens() {
         try {
-            // Fetch Solana trending tokens
-            const response = await fetch(`${this.dexScreenerBaseUrl}/search?q=solana`);
+            // Use DEX Screener's token boosts/trending endpoint for Solana
+            // This gets the most active pairs on Solana chain
+            const response = await fetch(`${this.dexScreenerBaseUrl}/pairs/solana`);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch from DEX Screener');
             }
 
             const data = await response.json();
+            let allPairs = data.pairs || [];
 
-            // Also fetch specifically popular Solana pairs
-            const solanaResponse = await fetch(`${this.dexScreenerBaseUrl}/tokens/solana`);
-            let solanaPairs = [];
+            // Also fetch from the boosted tokens endpoint for trending tokens
+            try {
+                const boostResponse = await fetch('https://api.dexscreener.com/token-boosts/top/v1');
+                if (boostResponse.ok) {
+                    const boostData = await boostResponse.json();
+                    // Filter for Solana boosted tokens
+                    const solanaBoosts = (boostData || []).filter(t => t.chainId === 'solana');
 
-            if (solanaResponse.ok) {
-                const solanaData = await solanaResponse.json();
-                solanaPairs = solanaData.pairs || [];
+                    // Fetch details for boosted tokens
+                    for (const boost of solanaBoosts.slice(0, 10)) {
+                        try {
+                            const tokenResponse = await fetch(`${this.dexScreenerBaseUrl}/tokens/${boost.tokenAddress}`);
+                            if (tokenResponse.ok) {
+                                const tokenData = await tokenResponse.json();
+                                if (tokenData.pairs) {
+                                    allPairs = [...allPairs, ...tokenData.pairs];
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Failed to fetch boosted token:', e);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Boost endpoint unavailable:', e);
             }
 
-            // Combine and process the data
-            const allPairs = [...(data.pairs || []), ...solanaPairs];
+            // Process and deduplicate
             const processedTokens = this.processTokenData(allPairs);
 
             this.cachedTrendingTokens = processedTokens;
@@ -747,34 +766,78 @@ class LiveDataService {
             seenTokens.add(pair.baseToken.address);
 
             const priceChange24h = parseFloat(pair.priceChange?.h24 || 0);
+            const priceChange6h = parseFloat(pair.priceChange?.h6 || 0);
+            const priceChange1h = parseFloat(pair.priceChange?.h1 || 0);
+            const priceChange5m = parseFloat(pair.priceChange?.m5 || 0);
             const volume24h = parseFloat(pair.volume?.h24 || 0);
+            const volume6h = parseFloat(pair.volume?.h6 || 0);
+            const volume1h = parseFloat(pair.volume?.h1 || 0);
             const liquidity = parseFloat(pair.liquidity?.usd || 0);
             const marketCap = parseFloat(pair.fdv || pair.marketCap || 0);
+            const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+            const buyRatio = pair.txns?.h24?.buys && pair.txns?.h24?.sells
+                ? pair.txns.h24.buys / (pair.txns.h24.buys + pair.txns.h24.sells)
+                : 0.5;
+
+            // Skip tokens with very low liquidity (rug risk) or no volume
+            if (liquidity < 5000 || volume24h < 1000) continue;
 
             // Calculate signal type based on metrics
             let signalType = 'neutral';
             let isUrgent = false;
 
-            if (priceChange24h > 10 && volume24h > 50000) {
+            // Bullish: Price up with good volume and buy pressure
+            if (priceChange24h > 10 && volume24h > 50000 && buyRatio > 0.45) {
                 signalType = 'bullish';
-                if (priceChange24h > 50 || volume24h > 500000) {
+                // Urgent: Massive moves or very high volume with recent momentum
+                if ((priceChange24h > 50 && priceChange1h > 5) || volume24h > 500000 || (priceChange5m > 10 && volume1h > 50000)) {
                     isUrgent = true;
                 }
-            } else if (priceChange24h < -10) {
+            } else if (priceChange24h < -15 || (priceChange24h < -5 && buyRatio < 0.35)) {
                 signalType = 'bearish';
             }
 
-            // Calculate confidence based on liquidity and volume
-            let confidence = 50;
-            if (liquidity > 100000) confidence += 20;
+            // Calculate confidence based on multiple factors
+            let confidence = 45;
+
+            // Liquidity score (safety)
+            if (liquidity > 500000) confidence += 25;
+            else if (liquidity > 100000) confidence += 18;
             else if (liquidity > 50000) confidence += 10;
-            if (volume24h > 100000) confidence += 15;
-            else if (volume24h > 50000) confidence += 8;
-            if (marketCap > 1000000) confidence += 10;
+
+            // Volume score (interest)
+            if (volume24h > 500000) confidence += 15;
+            else if (volume24h > 100000) confidence += 10;
+            else if (volume24h > 50000) confidence += 5;
+
+            // Market cap score (maturity)
+            if (marketCap > 10000000) confidence += 10;
+            else if (marketCap > 1000000) confidence += 5;
+
+            // Transaction count score (real activity)
+            if (txns24h > 5000) confidence += 5;
+            else if (txns24h > 1000) confidence += 3;
+
+            // Buy pressure bonus
+            if (buyRatio > 0.6) confidence += 5;
+
             confidence = Math.min(confidence, 95);
 
-            // Calculate velocity (volume/liquidity ratio as momentum indicator)
-            const velocity = liquidity > 0 ? Math.min((volume24h / liquidity) * 2, 10).toFixed(1) : 1.0;
+            // Calculate velocity (volume/liquidity ratio weighted by recent momentum)
+            const baseVelocity = liquidity > 0 ? volume24h / liquidity : 0;
+            const momentumMultiplier = priceChange1h > 0 ? 1 + (priceChange1h / 100) : 1;
+            const velocity = Math.min(baseVelocity * momentumMultiplier * 2, 10).toFixed(1);
+
+            // Calculate a "heat score" for sorting - prioritizes recent momentum
+            const heatScore = (
+                (Math.abs(priceChange5m) * 5) +
+                (Math.abs(priceChange1h) * 3) +
+                (Math.abs(priceChange6h) * 1.5) +
+                (volume24h / 10000) +
+                (txns24h / 100) +
+                (liquidity > 100000 ? 20 : 0) +
+                (isUrgent ? 50 : 0)
+            );
 
             processed.push({
                 address: pair.baseToken.address,
@@ -782,23 +845,31 @@ class LiveDataService {
                 symbol: pair.baseToken.symbol || '???',
                 price: parseFloat(pair.priceUsd || 0),
                 priceChange24h,
+                priceChange6h,
+                priceChange1h,
+                priceChange5m,
                 volume24h,
+                volume6h,
+                volume1h,
                 liquidity,
                 marketCap,
+                txns24h,
+                buyRatio,
                 pairAddress: pair.pairAddress,
                 dexId: pair.dexId,
                 signalType,
                 isUrgent,
                 confidence,
                 velocity,
+                heatScore,
                 createdAt: pair.pairCreatedAt,
                 url: pair.url,
                 info: pair.info || {}
             });
         }
 
-        // Sort by volume (most active first)
-        return processed.sort((a, b) => b.volume24h - a.volume24h).slice(0, 50);
+        // Sort by heat score (most momentum first) - this prioritizes active pumps
+        return processed.sort((a, b) => b.heatScore - a.heatScore).slice(0, 50);
     }
 
     renderSignalsFeed(tokens) {
@@ -826,14 +897,20 @@ class LiveDataService {
     }
 
     createSignalCard(token) {
-        const priceChangeClass = token.priceChange24h >= 0 ? 'positive' : 'negative';
-        const priceChangeSign = token.priceChange24h >= 0 ? '+' : '';
+        const priceChange24hClass = token.priceChange24h >= 0 ? 'positive' : 'negative';
+        const priceChange24hSign = token.priceChange24h >= 0 ? '+' : '';
+        const priceChange1hClass = token.priceChange1h >= 0 ? 'positive' : 'negative';
+        const priceChange1hSign = token.priceChange1h >= 0 ? '+' : '';
         const urgentClass = token.isUrgent ? 'urgent' : '';
 
-        const timeAgo = token.createdAt ? this.getTimeAgo(token.createdAt) : 'Unknown';
+        const timeAgo = token.createdAt ? this.getTimeAgo(token.createdAt) : 'Active';
         const source = token.dexId === 'raydium' ? 'Raydium' :
                        token.dexId === 'orca' ? 'Orca' :
                        token.dexId === 'meteora' ? 'Meteora' : 'PumpFun';
+
+        // Buy pressure indicator
+        const buyPressure = Math.round(token.buyRatio * 100);
+        const buyPressureClass = buyPressure > 55 ? 'positive' : buyPressure < 45 ? 'negative' : '';
 
         return `
             <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}">
@@ -855,12 +932,24 @@ class LiveDataService {
                         <span class="signal-stat-label">Price</span>
                     </div>
                     <div class="signal-stat">
-                        <span class="signal-stat-value ${priceChangeClass}">${priceChangeSign}${token.priceChange24h.toFixed(1)}%</span>
+                        <span class="signal-stat-value ${priceChange1hClass}">${priceChange1hSign}${token.priceChange1h.toFixed(1)}%</span>
+                        <span class="signal-stat-label">1h Change</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value ${priceChange24hClass}">${priceChange24hSign}${token.priceChange24h.toFixed(1)}%</span>
                         <span class="signal-stat-label">24h Change</span>
                     </div>
                     <div class="signal-stat">
                         <span class="signal-stat-value">$${this.formatCompact(token.volume24h)}</span>
-                        <span class="signal-stat-label">Volume</span>
+                        <span class="signal-stat-label">24h Vol</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value">$${this.formatCompact(token.liquidity)}</span>
+                        <span class="signal-stat-label">Liquidity</span>
+                    </div>
+                    <div class="signal-stat">
+                        <span class="signal-stat-value ${buyPressureClass}">${buyPressure}%</span>
+                        <span class="signal-stat-label">Buy Press</span>
                     </div>
                 </div>
             </div>
@@ -1003,37 +1092,63 @@ class LiveDataService {
         if (nameEl) nameEl.textContent = pair.baseToken?.name || 'Unknown Token';
         if (symbolEl) symbolEl.textContent = `$${pair.baseToken?.symbol || '???'}`;
 
-        // Price
+        // Price with multi-timeframe changes
         const priceEl = document.getElementById('tokenPrice');
         const priceChangeEl = document.getElementById('tokenPriceChange');
         const price = parseFloat(pair.priceUsd || 0);
-        const priceChange = parseFloat(pair.priceChange?.h24 || 0);
+        const priceChange24h = parseFloat(pair.priceChange?.h24 || 0);
+        const priceChange1h = parseFloat(pair.priceChange?.h1 || 0);
+        const priceChange5m = parseFloat(pair.priceChange?.m5 || 0);
 
         if (priceEl) priceEl.textContent = `$${this.formatNumber(price)}`;
         if (priceChangeEl) {
-            const sign = priceChange >= 0 ? '+' : '';
-            priceChangeEl.textContent = `${sign}${priceChange.toFixed(2)}%`;
-            priceChangeEl.className = `token-price-change ${priceChange >= 0 ? 'positive' : 'negative'}`;
+            const sign24h = priceChange24h >= 0 ? '+' : '';
+            const sign1h = priceChange1h >= 0 ? '+' : '';
+            const sign5m = priceChange5m >= 0 ? '+' : '';
+            priceChangeEl.innerHTML = `
+                <span class="${priceChange5m >= 0 ? 'positive' : 'negative'}">${sign5m}${priceChange5m.toFixed(1)}% 5m</span>
+                <span class="${priceChange1h >= 0 ? 'positive' : 'negative'}">${sign1h}${priceChange1h.toFixed(1)}% 1h</span>
+                <span class="${priceChange24h >= 0 ? 'positive' : 'negative'}">${sign24h}${priceChange24h.toFixed(1)}% 24h</span>
+            `;
         }
 
         // Metrics
         const mcap = parseFloat(pair.fdv || pair.marketCap || 0);
-        const volume = parseFloat(pair.volume?.h24 || 0);
+        const volume24h = parseFloat(pair.volume?.h24 || 0);
+        const volume1h = parseFloat(pair.volume?.h1 || 0);
         const liquidity = parseFloat(pair.liquidity?.usd || 0);
+        const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+        const buys24h = pair.txns?.h24?.buys || 0;
+        const sells24h = pair.txns?.h24?.sells || 0;
+        const buyRatio = txns24h > 0 ? Math.round((buys24h / txns24h) * 100) : 50;
 
         document.getElementById('tokenMcap').textContent = `$${this.formatCompact(mcap)}`;
-        document.getElementById('tokenVolume').textContent = `$${this.formatCompact(volume)}`;
+        document.getElementById('tokenVolume').textContent = `$${this.formatCompact(volume24h)}`;
         document.getElementById('tokenLiquidity').textContent = `$${this.formatCompact(liquidity)}`;
 
-        // These would require additional API calls (placeholder for now)
-        document.getElementById('tokenHolders').textContent = 'N/A';
-        document.getElementById('tokenTopHolders').textContent = 'N/A';
+        // Buy/Sell ratio and transaction count
+        const holdersEl = document.getElementById('tokenHolders');
+        const topHoldersEl = document.getElementById('tokenTopHolders');
 
-        // Created date
+        if (holdersEl) {
+            holdersEl.innerHTML = `<span class="${buyRatio > 55 ? 'positive' : buyRatio < 45 ? 'negative' : ''}">${buyRatio}% buys</span>`;
+        }
+        if (topHoldersEl) {
+            topHoldersEl.textContent = `${this.formatCompact(txns24h)} txns`;
+        }
+
+        // Created date / pair age
         const createdEl = document.getElementById('tokenCreated');
         if (pair.pairCreatedAt) {
-            const date = new Date(pair.pairCreatedAt);
-            createdEl.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const ageMs = Date.now() - pair.pairCreatedAt;
+            const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+            const ageDays = Math.floor(ageHours / 24);
+
+            if (ageDays > 0) {
+                createdEl.textContent = `${ageDays}d ${ageHours % 24}h old`;
+            } else {
+                createdEl.textContent = `${ageHours}h old`;
+            }
         } else {
             createdEl.textContent = 'Unknown';
         }
@@ -1054,48 +1169,104 @@ class LiveDataService {
         if (!reasonsEl) return;
 
         const reasons = [];
-        const priceChange = parseFloat(pair.priceChange?.h24 || 0);
-        const volume = parseFloat(pair.volume?.h24 || 0);
+        const priceChange24h = parseFloat(pair.priceChange?.h24 || 0);
+        const priceChange1h = parseFloat(pair.priceChange?.h1 || 0);
+        const priceChange5m = parseFloat(pair.priceChange?.m5 || 0);
+        const volume24h = parseFloat(pair.volume?.h24 || 0);
+        const volume1h = parseFloat(pair.volume?.h1 || 0);
         const liquidity = parseFloat(pair.liquidity?.usd || 0);
-        const volumeLiqRatio = liquidity > 0 ? volume / liquidity : 0;
+        const mcap = parseFloat(pair.fdv || pair.marketCap || 0);
+        const volumeLiqRatio = liquidity > 0 ? volume24h / liquidity : 0;
+        const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+        const buys24h = pair.txns?.h24?.buys || 0;
+        const sells24h = pair.txns?.h24?.sells || 0;
+        const buyRatio = txns24h > 0 ? buys24h / txns24h : 0.5;
 
-        if (priceChange > 50) {
-            reasons.push(`Massive price surge: +${priceChange.toFixed(0)}% in 24 hours`);
-        } else if (priceChange > 20) {
-            reasons.push(`Strong upward momentum: +${priceChange.toFixed(0)}% in 24h`);
-        } else if (priceChange < -30) {
-            reasons.push(`Sharp decline: ${priceChange.toFixed(0)}% - potential dip buy opportunity`);
+        // Recent momentum signals (most important for degens)
+        if (priceChange5m > 15) {
+            reasons.push(`<span class="positive">PUMPING NOW:</span> +${priceChange5m.toFixed(0)}% in last 5 minutes`);
+        } else if (priceChange5m < -15) {
+            reasons.push(`<span class="negative">DUMPING NOW:</span> ${priceChange5m.toFixed(0)}% in last 5 minutes`);
         }
 
-        if (volume > 1000000) {
-            reasons.push(`High trading activity: $${this.formatCompact(volume)} 24h volume`);
-        } else if (volume > 100000) {
-            reasons.push(`Elevated volume: $${this.formatCompact(volume)} traded in 24h`);
+        if (priceChange1h > 30) {
+            reasons.push(`<span class="positive">Strong 1h momentum:</span> +${priceChange1h.toFixed(0)}% - could be early`);
+        } else if (priceChange1h > 10 && priceChange5m > 0) {
+            reasons.push(`Steady climb: +${priceChange1h.toFixed(0)}% 1h with continued buying`);
         }
 
-        if (volumeLiqRatio > 5) {
-            reasons.push(`Extremely high velocity: ${volumeLiqRatio.toFixed(1)}x volume/liquidity ratio`);
-        } else if (volumeLiqRatio > 2) {
-            reasons.push(`Strong velocity: ${volumeLiqRatio.toFixed(1)}x volume relative to liquidity`);
+        // 24h performance context
+        if (priceChange24h > 100) {
+            reasons.push(`<span class="positive">MOON ALERT:</span> +${priceChange24h.toFixed(0)}% in 24h - potential multibagger`);
+        } else if (priceChange24h > 50) {
+            reasons.push(`Major pump: +${priceChange24h.toFixed(0)}% in 24h - watch for continuation or pullback`);
+        } else if (priceChange24h < -40) {
+            reasons.push(`<span class="negative">Heavy dump:</span> ${priceChange24h.toFixed(0)}% - dip or dead cat?`);
+        } else if (priceChange24h < -20 && priceChange1h > 5) {
+            reasons.push(`Potential reversal: Recovering after ${priceChange24h.toFixed(0)}% dump`);
         }
 
-        if (liquidity > 500000) {
-            reasons.push(`Deep liquidity: $${this.formatCompact(liquidity)} available`);
+        // Volume analysis
+        if (volume1h > 100000) {
+            reasons.push(`<span class="positive">High 1h volume:</span> $${this.formatCompact(volume1h)} - active trading`);
+        }
+        if (volume24h > 1000000) {
+            reasons.push(`Whale activity: $${this.formatCompact(volume24h)} 24h volume`);
+        }
+
+        // Velocity (key degen metric)
+        if (volumeLiqRatio > 10) {
+            reasons.push(`<span class="positive">EXTREME velocity:</span> ${volumeLiqRatio.toFixed(1)}x vol/liq - heavy rotation`);
+        } else if (volumeLiqRatio > 5) {
+            reasons.push(`High velocity: ${volumeLiqRatio.toFixed(1)}x volume to liquidity ratio`);
+        }
+
+        // Buy pressure
+        if (buyRatio > 0.65) {
+            reasons.push(`<span class="positive">Strong buy pressure:</span> ${Math.round(buyRatio * 100)}% buys vs sells`);
+        } else if (buyRatio < 0.35) {
+            reasons.push(`<span class="negative">Sell pressure:</span> Only ${Math.round(buyRatio * 100)}% buys - distribution phase?`);
+        }
+
+        // Liquidity warnings
+        if (liquidity < 20000) {
+            reasons.push(`<span class="negative">DANGER:</span> Only $${this.formatCompact(liquidity)} liquidity - extreme slippage`);
         } else if (liquidity < 50000) {
-            reasons.push(`Low liquidity warning: Only $${this.formatCompact(liquidity)} - high slippage risk`);
+            reasons.push(`<span class="negative">Low liquidity:</span> $${this.formatCompact(liquidity)} - caution with size`);
+        } else if (liquidity > 500000) {
+            reasons.push(`Deep liquidity: $${this.formatCompact(liquidity)} - can handle larger trades`);
         }
 
+        // Market cap context
+        if (mcap > 0 && mcap < 100000) {
+            reasons.push(`Micro cap: $${this.formatCompact(mcap)} FDV - high risk/reward`);
+        } else if (mcap > 0 && mcap < 1000000) {
+            reasons.push(`Low cap gem: $${this.formatCompact(mcap)} FDV - room to run?`);
+        }
+
+        // Age indicator
         if (pair.pairCreatedAt) {
             const ageHours = (Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60);
-            if (ageHours < 24) {
-                reasons.push(`Newly launched: Token is less than 24 hours old`);
-            } else if (ageHours < 72) {
-                reasons.push(`Fresh token: Created ${Math.floor(ageHours / 24)} days ago`);
+            if (ageHours < 1) {
+                reasons.push(`<span class="positive">JUST LAUNCHED:</span> Less than 1 hour old`);
+            } else if (ageHours < 6) {
+                reasons.push(`Fresh launch: ${ageHours.toFixed(0)} hours old - early entry window`);
+            } else if (ageHours < 24) {
+                reasons.push(`New token: ${ageHours.toFixed(0)} hours since launch`);
             }
         }
 
+        // Transaction activity
+        if (txns24h > 10000) {
+            reasons.push(`Viral activity: ${this.formatCompact(txns24h)} transactions in 24h`);
+        } else if (txns24h > 5000) {
+            reasons.push(`High engagement: ${this.formatCompact(txns24h)} transactions`);
+        } else if (txns24h < 100 && volume24h > 50000) {
+            reasons.push(`<span class="negative">Low txn count:</span> Possible whale manipulation`);
+        }
+
         if (reasons.length === 0) {
-            reasons.push('Moderate activity - no significant signals detected');
+            reasons.push('Moderate activity - no significant alpha signals detected');
         }
 
         reasonsEl.innerHTML = '<ul>' + reasons.map(r => `<li>${r}</li>`).join('') + '</ul>';
