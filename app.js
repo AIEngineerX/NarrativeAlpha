@@ -1773,7 +1773,7 @@ class LiveDataService {
                     ? `${item.change >= 0 ? '+' : ''}${item.change.toFixed(1)}%`
                     : `#${item.rank}`;
                 const searchUrl = `https://dexscreener.com/solana?q=${encodeURIComponent(item.symbol)}`;
-                const twitterUrl = `https://twitter.com/search?q=%24${encodeURIComponent(item.symbol)}&src=typed_query&f=live`;
+                const twitterUrl = `https://x.com/search?q=%24${encodeURIComponent(item.symbol)}&src=typed_query&f=live`;
 
                 return `
                     <div class="trend-item ${item.hot ? 'hot' : ''}" data-symbol="${escapeHtml(item.symbol)}">
@@ -2018,7 +2018,9 @@ class LiveDataService {
         const labelInput = document.getElementById('walletLabelInput');
 
         if (addBtn && inputSection) {
-            addBtn.addEventListener('click', () => {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 inputSection.classList.toggle('hidden');
                 if (!inputSection.classList.contains('hidden')) {
                     addressInput?.focus();
@@ -2026,17 +2028,33 @@ class LiveDataService {
             });
         }
 
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => {
-                const address = addressInput?.value?.trim();
+        if (saveBtn && addressInput) {
+            saveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const address = addressInput.value?.trim();
                 const label = labelInput?.value?.trim() || 'Wallet';
-                if (address && isValidSolanaAddress(address)) {
-                    this.addTrackedWallet(address, label);
-                    if (addressInput) addressInput.value = '';
-                    if (labelInput) labelInput.value = '';
-                    inputSection?.classList.add('hidden');
-                } else {
-                    this.showNotification('Invalid Solana address', 'error');
+
+                if (!address) {
+                    this.showNotification('Please enter a wallet address', 'warning');
+                    return;
+                }
+
+                if (!isValidSolanaAddress(address)) {
+                    this.showNotification('Invalid Solana address format', 'error');
+                    return;
+                }
+
+                this.addTrackedWallet(address, label);
+                addressInput.value = '';
+                if (labelInput) labelInput.value = '';
+                inputSection?.classList.add('hidden');
+            });
+
+            // Also allow Enter key to save
+            addressInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveBtn.click();
                 }
             });
         }
@@ -2122,44 +2140,85 @@ class LiveDataService {
         if (!activityEl) return;
 
         try {
-            // Use Solscan public API for recent transactions
-            const response = await fetch(`https://public-api.solscan.io/account/transactions?account=${address}&limit=10`);
+            // Try Solscan API for account info
+            const response = await fetch(`https://api.solscan.io/account?address=${address}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
 
-            if (!response.ok) throw new Error('Failed to fetch');
-
-            const txns = await response.json();
-            this.displayWalletActivity(txns, address);
+            if (response.ok) {
+                const data = await response.json();
+                this.displayWalletActivity(data, address);
+            } else {
+                // Fallback: just show links to view on Solscan
+                this.displayWalletFallback(address);
+            }
         } catch (error) {
             console.warn('Wallet activity fetch failed:', error);
+            this.displayWalletFallback(address);
         }
     }
 
-    displayWalletActivity(txns, address) {
+    displayWalletFallback(address) {
         const activityEl = document.getElementById('walletActivity');
-        if (!activityEl || !txns || txns.length === 0) return;
+        if (!activityEl) return;
 
         const wallet = this.trackedWallets.find(w => w.address === address);
         const label = wallet?.label || 'Wallet';
 
-        const html = `
+        activityEl.innerHTML = `
             <div class="wallet-activity-section">
-                <h4>Recent Activity - ${escapeHtml(label)}</h4>
-                <div class="activity-list">
-                    ${txns.slice(0, 5).map(tx => {
-                        const time = new Date(tx.blockTime * 1000).toLocaleTimeString();
-                        return `
-                            <div class="activity-item">
-                                <span class="activity-time">${time}</span>
-                                <span class="activity-sig">${tx.txHash?.slice(0, 8)}...</span>
-                                <a href="https://solscan.io/tx/${tx.txHash}" target="_blank" class="activity-link">View</a>
-                            </div>
-                        `;
-                    }).join('')}
+                <h4>Quick Links - ${escapeHtml(label)}</h4>
+                <div class="wallet-quick-links">
+                    <a href="https://solscan.io/account/${address}" target="_blank" class="wallet-quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                        View on Solscan
+                    </a>
+                    <a href="https://birdeye.so/profile/${address}" target="_blank" class="wallet-quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        View on Birdeye
+                    </a>
                 </div>
             </div>
         `;
+    }
 
-        activityEl.innerHTML = html;
+    displayWalletActivity(data, address) {
+        const activityEl = document.getElementById('walletActivity');
+        if (!activityEl) return;
+
+        const wallet = this.trackedWallets.find(w => w.address === address);
+        const label = wallet?.label || 'Wallet';
+
+        // Check if we have valid data
+        if (!data || !data.data) {
+            this.displayWalletFallback(address);
+            return;
+        }
+
+        const accountData = data.data;
+        const solBalance = accountData.lamports ? (accountData.lamports / 1e9).toFixed(4) : '0';
+
+        activityEl.innerHTML = `
+            <div class="wallet-activity-section">
+                <h4>Wallet Info - ${escapeHtml(label)}</h4>
+                <div class="wallet-balance">
+                    <span class="balance-label">SOL Balance</span>
+                    <span class="balance-value">${solBalance} SOL</span>
+                </div>
+                <div class="wallet-quick-links">
+                    <a href="https://solscan.io/account/${address}" target="_blank" class="wallet-quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                        View Transactions
+                    </a>
+                    <a href="https://birdeye.so/profile/${address}" target="_blank" class="wallet-quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        View Portfolio
+                    </a>
+                </div>
+            </div>
+        `;
     }
 
     async refreshWalletActivity() {

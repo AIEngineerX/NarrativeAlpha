@@ -2187,6 +2187,10 @@ body {
     background: var(--bg-tertiary);
     color: var(--text-muted);
     transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    text-decoration: none;
 }
 
 .kol-link:hover {
@@ -4919,6 +4923,61 @@ span.negative,
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
+}
+
+.wallet-activity-section h4 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.wallet-balance {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(0, 240, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+}
+
+.balance-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.balance-value {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent-cyan);
+}
+
+.wallet-quick-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.wallet-quick-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.wallet-quick-link:hover {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.3);
+    color: var(--accent-cyan);
 }
 
 .wallet-activity-title {

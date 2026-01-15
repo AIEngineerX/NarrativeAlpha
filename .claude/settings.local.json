@@ -13,7 +13,16 @@
       "WebFetch(domain:docs.dexscreener.com)",
       "WebFetch(domain:frontend-api.pump.fun)",
       "WebSearch",
-      "WebFetch(domain:axiom.trade)"
+      "WebFetch(domain:axiom.trade)",
+      "Bash(node --check:*)",
+      "WebFetch(domain:docs.bags.fm)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:bonk.fun)",
+      "WebFetch(domain:api.dexscreener.com)",
+      "WebFetch(domain:api.coingecko.com)",
+      "WebFetch(domain:kolscan.io)",
+      "WebFetch(domain:api.kolscan.io)",
+      "Bash(taskkill:*)"
     ]
   }
 }

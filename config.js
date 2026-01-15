@@ -82,18 +82,18 @@ const CONFIG = {
         MAX_CONFIDENCE: 95
     },
 
-    // Dead Token & Scam Detection Thresholds
+    // Dead Token & Scam Detection Thresholds (tuned for memecoins)
     VALIDATION: {
-        MIN_VOLUME_1H: 1000,          // Min $1k 1h volume for PUMPING tag
-        MIN_TXNS_1H: 10,              // Min transactions in last hour
-        MIN_CONFIDENCE: 40,           // Min confidence for positive tags
-        DEAD_VOLUME_THRESHOLD: 500,   // Below this = DEAD token
-        DEAD_TXNS_THRESHOLD: 5,       // Below this txns/hour = DEAD
-        MCAP_LIQ_WARNING: 50,         // MC/Liq ratio warning threshold
-        MCAP_LIQ_CRITICAL: 100,       // MC/Liq ratio critical threshold
-        HONEYPOT_BUY_RATIO: 0.95,     // Above this with no price move = honeypot
-        SCAM_SCORE_FILTER: 70,        // Score above this = filter from feed
-        SCAM_SCORE_HIGH_RISK: 40      // Score above this = high risk badge
+        MIN_VOLUME_1H: 500,           // Min $500 1h volume for PUMPING tag (lowered for new tokens)
+        MIN_TXNS_1H: 5,               // Min transactions in last hour
+        MIN_CONFIDENCE: 30,           // Min confidence for positive tags (lowered)
+        DEAD_VOLUME_THRESHOLD: 100,   // Below this = DEAD token (very low)
+        DEAD_TXNS_THRESHOLD: 2,       // Below this txns/hour = DEAD (only truly dead)
+        MCAP_LIQ_WARNING: 75,         // MC/Liq ratio warning threshold (raised - normal for memecoins)
+        MCAP_LIQ_CRITICAL: 150,       // MC/Liq ratio critical threshold (raised)
+        HONEYPOT_BUY_RATIO: 0.98,     // Above this with no price move = honeypot (raised)
+        SCAM_SCORE_FILTER: 80,        // Score above this = filter from feed (raised)
+        SCAM_SCORE_HIGH_RISK: 50      // Score above this = high risk badge (raised)
     },
 
     // Query suggestions
