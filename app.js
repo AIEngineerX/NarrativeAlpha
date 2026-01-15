@@ -1443,14 +1443,35 @@ class LiveDataService {
         // 3. Count urgent signals
         const urgentCount = tokens.filter(t => t.isUrgent === true).length;
 
-        // 4. Find top gainer (best 1h performance with fallback to 24h)
+        // 4. Find top gainer (best 1h performance - filter out fake/low quality pairs)
         const topGainer = [...tokens]
             .filter(t => {
-                // Must have some price change data
+                // Skip Meteora pairs - often have fake/wash volume
+                const dex = (t.dexId || '').toLowerCase();
+                if (dex.includes('meteora')) return false;
+
+                // Must have price change data
                 const hasPriceData = t.priceChange1h !== undefined || t.priceChange24h !== undefined;
-                // Must have some volume (use 1h if available, else 24h/24)
-                const volume = t.volume1h || (t.volume24h ? t.volume24h / 24 : 0);
-                return hasPriceData && volume > 100;
+                if (!hasPriceData) return false;
+
+                // Require meaningful volume (min $5k 1h or $50k 24h)
+                const volume1h = t.volume1h || 0;
+                const volume24h = t.volume24h || 0;
+                if (volume1h < 5000 && volume24h < 50000) return false;
+
+                // Require some liquidity (skip if no liq data or too low)
+                const liquidity = t.liquidity || 0;
+                if (liquidity < 5000) return false;
+
+                // Require minimum transactions (proves real activity)
+                const txns = t.txns1h || t.txns24h || 0;
+                if (txns < 10) return false;
+
+                // Skip potential scams/honeypots
+                const scamScore = t.scamCheck?.scamScore || 0;
+                if (scamScore >= 50 || t.scamCheck?.isPotentialHoneypot) return false;
+
+                return true;
             })
             .sort((a, b) => {
                 // Sort by 1h change if available, else use 24h change
