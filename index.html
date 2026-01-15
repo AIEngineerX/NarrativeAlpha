@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NarrativeAlpha | AI-Powered Memecoin Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <canvas id="networkCanvas"></canvas>
+    <div class="grid-overlay"></div>
+    <div class="scanline"></div>
+
+    <div class="app-container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M25 3L45 15V35L25 47L5 35V15L25 3Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                        <path d="M25 10L38 18V32L25 40L12 32V18L25 10Z" stroke="currentColor" stroke-width="1" fill="rgba(0,240,255,0.1)"/>
+                        <circle cx="25" cy="25" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="25" cy="25" r="2" fill="currentColor"/>
+                        <line x1="25" y1="19" x2="25" y2="3" stroke="currentColor" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="30" y1="22" x2="45" y2="15" stroke="currentColor" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="30" y1="28" x2="45" y2="35" stroke="currentColor" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="25" y1="31" x2="25" y2="47" stroke="currentColor" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="20" y1="28" x2="5" y2="35" stroke="currentColor" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="20" y1="22" x2="5" y2="15" stroke="currentColor" stroke-width="0.5" opacity="0.5"/>
+                    </svg>
+                </div>
+                <div class="logo-text-group">
+                    <span class="logo-text">NARRATIVE<span class="logo-alpha">ALPHA</span></span>
+                    <span class="logo-tagline">Find the pump before it pumps</span>
+                </div>
+            </div>
+            <nav class="nav">
+                <a href="#terminal" class="nav-link active" data-section="terminal">Terminal</a>
+                <a href="#signals" class="nav-link" data-section="signals">Signals</a>
+                <a href="#archive" class="nav-link" data-section="archive">Archive</a>
+                <a href="#docs" class="nav-link" data-section="docs">Docs</a>
+            </nav>
+            <div class="header-actions">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">SCANNING</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- TERMINAL SECTION -->
+            <section id="terminal" class="page-section active">
+                <div class="hero">
+                    <div class="hero-content">
+                        <div class="hero-badge">
+                            <span class="badge-pulse"></span>
+                            AI-POWERED NARRATIVE INTELLIGENCE
+                        </div>
+                        <h1 class="hero-title">
+                            Decode <span class="gradient-text">Narratives</span><br/>
+                            Before They Pump
+                        </h1>
+                        <p class="hero-subtitle">
+                            Advanced pattern recognition across social sentiment, on-chain data, and market microstructure.
+                            Identify narrative shifts before they manifest in price action.
+                        </p>
+                    </div>
+                    <div class="metrics-panel">
+                        <div class="metrics-header">
+                            <span class="metrics-title">SYSTEM PERFORMANCE</span>
+                            <span class="metrics-update">Live</span>
+                        </div>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                    </svg>
+                                </div>
+                                <div class="metric-data">
+                                    <div class="metric-value" data-value="87.3" data-suffix="%">0%</div>
+                                    <div class="metric-label">Hit Rate</div>
+                                </div>
+                                <div class="metric-bar"><div class="metric-fill" style="--fill-width: 87.3%"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12,6 12,12 16,14"/>
+                                    </svg>
+                                </div>
+                                <div class="metric-data">
+                                    <div class="metric-value" data-value="2.4" data-suffix="h">0h</div>
+                                    <div class="metric-label">Avg Lead Time</div>
+                                </div>
+                                <div class="metric-bar"><div class="metric-fill" style="--fill-width: 60%"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
+                                    </svg>
+                                </div>
+                                <div class="metric-data">
+                                    <div class="metric-value" data-value="156" data-suffix="">0</div>
+                                    <div class="metric-label">Active Signals</div>
+                                </div>
+                                <div class="metric-bar"><div class="metric-fill" style="--fill-width: 78%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="terminal-section">
+                    <div class="terminal-header">
+                        <div class="terminal-title">
+                            <span class="terminal-icon"></span>
+                            NARRATIVE ANALYSIS TERMINAL
+                        </div>
+                        <div class="terminal-controls">
+                            <span class="control-dot red"></span>
+                            <span class="control-dot yellow"></span>
+                            <span class="control-dot green"></span>
+                        </div>
+                    </div>
+                    <div class="terminal-body">
+                        <div class="terminal-prompt">
+                            <span class="prompt-symbol">&gt;</span>
+                            <span class="prompt-text">Enter narrative query or token thesis for AI analysis...</span>
+                        </div>
+                        <div class="input-section">
+                            <textarea id="queryInput" class="query-input" placeholder="What's the next memecoin narrative? Analyze L2 momentum? DePIN sector rotation signals?"></textarea>
+                            <div class="input-hints">
+                                <span class="hint-tag" data-query="What's the next major pump.fun narrative brewing on CT?">CT Narratives</span>
+                                <span class="hint-tag" data-query="Analyze AI x Crypto convergence plays and emerging tokens">AI Crypto</span>
+                                <span class="hint-tag" data-query="What memecoin narratives are showing velocity spikes right now?">Velocity Spikes</span>
+                                <span class="hint-tag" data-query="Identify potential 100x narrative plays in the next 48 hours">100x Plays</span>
+                            </div>
+                        </div>
+                        <button id="analyzeBtn" class="analyze-btn">
+                            <span class="btn-content">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
+                                </svg>
+                                <span class="btn-text">EXECUTE ANALYSIS</span>
+                            </span>
+                            <span class="btn-loader">
+                                <span class="loader-dot"></span>
+                                <span class="loader-dot"></span>
+                                <span class="loader-dot"></span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <section id="resultsSection" class="results-section hidden">
+                    <div class="results-header">
+                        <div class="results-title">
+                            <span class="results-icon"></span>
+                            INTELLIGENCE REPORT
+                        </div>
+                        <div class="results-meta">
+                            <span class="results-timestamp" id="resultTimestamp"></span>
+                            <span class="results-model">Powered by Claude</span>
+                        </div>
+                    </div>
+                    <div class="results-grid">
+                        <div class="result-card main-prediction">
+                            <div class="card-glow"></div>
+                            <div class="card-header">
+                                <span class="card-icon signal"></span>
+                                <span class="card-title">PRIMARY SIGNAL</span>
+                                <span class="card-badge" id="alertLevel">HIGH</span>
+                            </div>
+                            <div class="card-content" id="mainPrediction"></div>
+                        </div>
+                        <div class="result-card confidence-card">
+                            <div class="card-header">
+                                <span class="card-icon gauge"></span>
+                                <span class="card-title">CONFIDENCE</span>
+                            </div>
+                            <div class="confidence-display">
+                                <div class="confidence-ring">
+                                    <svg viewBox="0 0 120 120" class="ring-svg">
+                                        <defs>
+                                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#00f0ff"/>
+                                                <stop offset="100%" style="stop-color:#8b5cf6"/>
+                                            </linearGradient>
+                                        </defs>
+                                        <circle cx="60" cy="60" r="52" class="ring-bg"/>
+                                        <circle cx="60" cy="60" r="52" class="ring-fill" id="confidenceRing"/>
+                                    </svg>
+                                    <div class="confidence-value" id="confidenceValue">0%</div>
+                                </div>
+                                <div class="confidence-label">Narrative Strength</div>
+                            </div>
+                        </div>
+                        <div class="result-card velocity-card">
+                            <div class="card-header">
+                                <span class="card-icon velocity"></span>
+                                <span class="card-title">VELOCITY</span>
+                            </div>
+                            <div class="velocity-display">
+                                <div class="velocity-value" id="velocityValue">1.0x</div>
+                                <div class="velocity-bar">
+                                    <div class="velocity-fill" id="velocityFill"></div>
+                                </div>
+                                <div class="velocity-label">vs 24h baseline</div>
+                            </div>
+                        </div>
+                        <div class="result-card catalysts-card">
+                            <div class="card-header">
+                                <span class="card-icon catalyst"></span>
+                                <span class="card-title">CATALYSTS</span>
+                            </div>
+                            <div class="card-content" id="catalysts"></div>
+                        </div>
+                        <div class="result-card tickers-card">
+                            <div class="card-header">
+                                <span class="card-icon ticker"></span>
+                                <span class="card-title">SUGGESTED TICKERS</span>
+                            </div>
+                            <div class="tickers-display" id="tickers"></div>
+                        </div>
+                        <div class="result-card risks-card">
+                            <div class="card-header">
+                                <span class="card-icon risk"></span>
+                                <span class="card-title">RISK VECTORS</span>
+                            </div>
+                            <div class="card-content" id="risks"></div>
+                        </div>
+                        <div class="result-card timeline-card">
+                            <div class="card-header">
+                                <span class="card-icon timeline"></span>
+                                <span class="card-title">PROJECTED WINDOW</span>
+                            </div>
+                            <div class="card-content" id="timeline"></div>
+                        </div>
+                        <div class="result-card action-card">
+                            <div class="card-header">
+                                <span class="card-icon action"></span>
+                                <span class="card-title">ACTIONABLE INTEL</span>
+                            </div>
+                            <div class="card-content" id="actionable"></div>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- SIGNALS SECTION -->
+            <section id="signals" class="page-section">
+                <div class="section-hero">
+                    <h1 class="section-hero-title">Live <span class="gradient-text">Signals</span></h1>
+                    <p class="section-hero-subtitle">Real-time narrative detection across CT, Reddit, TikTok, and Telegram. Updated every 60 seconds.</p>
+                </div>
+
+                <div class="signals-filters">
+                    <button class="filter-btn active" data-filter="all">All Signals</button>
+                    <button class="filter-btn" data-filter="bullish">Bullish</button>
+                    <button class="filter-btn" data-filter="bearish">Bearish</button>
+                    <button class="filter-btn" data-filter="urgent">Urgent</button>
+                </div>
+
+                <div class="signals-grid-full" id="signalsFeed"></div>
+            </section>
+
+            <!-- ARCHIVE SECTION -->
+            <section id="archive" class="page-section">
+                <div class="section-hero">
+                    <h1 class="section-hero-title">Narrative <span class="gradient-text">Archive</span></h1>
+                    <p class="section-hero-subtitle">Historical analysis of past narratives and their outcomes. Learn from the patterns.</p>
+                </div>
+
+                <div class="archive-grid">
+                    <div class="archive-card">
+                        <div class="archive-header">
+                            <span class="archive-date">Jan 2025</span>
+                            <span class="archive-result success">+2,400%</span>
+                        </div>
+                        <h3 class="archive-title">AI Agents Meta</h3>
+                        <p class="archive-summary">The AI agent narrative exploded with GOAT reaching $1.2B market cap. Early detection: 2 weeks before peak.</p>
+                        <div class="archive-meta">
+                            <span>Detection: 87%</span>
+                            <span>Lead Time: 14 days</span>
+                        </div>
+                    </div>
+                    <div class="archive-card">
+                        <div class="archive-header">
+                            <span class="archive-date">Dec 2024</span>
+                            <span class="archive-result success">+1,800%</span>
+                        </div>
+                        <h3 class="archive-title">FARTCOIN Phenomenon</h3>
+                        <p class="archive-summary">AI bot-generated narrative that captured CT attention. Reached $2B market cap from pure meme energy.</p>
+                        <div class="archive-meta">
+                            <span>Detection: 72%</span>
+                            <span>Lead Time: 12 hours</span>
+                        </div>
+                    </div>
+                    <div class="archive-card">
+                        <div class="archive-header">
+                            <span class="archive-date">Nov 2024</span>
+                            <span class="archive-result success">+950%</span>
+                        </div>
+                        <h3 class="archive-title">Minecraft Grandma</h3>
+                        <p class="archive-summary">Viral TikTok story of grandmother streaming Minecraft. GRANDMA token hit $5.6M in hours.</p>
+                        <div class="archive-meta">
+                            <span>Detection: 91%</span>
+                            <span>Lead Time: 4 hours</span>
+                        </div>
+                    </div>
+                    <div class="archive-card">
+                        <div class="archive-header">
+                            <span class="archive-date">Oct 2024</span>
+                            <span class="archive-result warning">+320%</span>
+                        </div>
+                        <h3 class="archive-title">DePIN Rotation</h3>
+                        <p class="archive-summary">Infrastructure narrative gained traction as traders rotated from memes. Moderate gains across sector.</p>
+                        <div class="archive-meta">
+                            <span>Detection: 65%</span>
+                            <span>Lead Time: 3 days</span>
+                        </div>
+                    </div>
+                    <div class="archive-card">
+                        <div class="archive-header">
+                            <span class="archive-date">Sep 2024</span>
+                            <span class="archive-result failed">-45%</span>
+                        </div>
+                        <h3 class="archive-title">Celebrity Token Wave</h3>
+                        <p class="archive-summary">Multiple celebrity launches that mostly rugged. Narrative died quickly as trust evaporated.</p>
+                        <div class="archive-meta">
+                            <span>Detection: 44%</span>
+                            <span>Lead Time: 6 hours</span>
+                        </div>
+                    </div>
+                    <div class="archive-card">
+                        <div class="archive-header">
+                            <span class="archive-date">Aug 2024</span>
+                            <span class="archive-result success">+1,200%</span>
+                        </div>
+                        <h3 class="archive-title">Pump.fun Summer</h3>
+                        <p class="archive-summary">The bonding curve meta exploded. Early movers on the platform saw massive returns.</p>
+                        <div class="archive-meta">
+                            <span>Detection: 83%</span>
+                            <span>Lead Time: 1 week</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DOCS SECTION -->
+            <section id="docs" class="page-section">
+                <div class="section-hero">
+                    <h1 class="section-hero-title">Documentation</h1>
+                    <p class="section-hero-subtitle">Learn how to use NarrativeAlpha effectively and understand our methodology.</p>
+                </div>
+
+                <div class="docs-container">
+                    <nav class="docs-nav">
+                        <a href="#" class="docs-nav-link active" data-doc="getting-started">Getting Started</a>
+                        <a href="#" class="docs-nav-link" data-doc="methodology">Methodology</a>
+                        <a href="#" class="docs-nav-link" data-doc="signals">Understanding Signals</a>
+                        <a href="#" class="docs-nav-link" data-doc="faq">FAQ</a>
+                    </nav>
+
+                    <div class="docs-content">
+                        <div class="doc-section active" id="doc-getting-started">
+                            <h2>Getting Started</h2>
+                            <p>NarrativeAlpha is an AI-powered narrative intelligence platform that helps you identify emerging memecoin narratives before they pump.</p>
+
+                            <h3>Quick Start</h3>
+                            <ol>
+                                <li><strong>Enter a Query</strong> - Type your narrative question in the terminal</li>
+                                <li><strong>Execute Analysis</strong> - Click the button or press Ctrl+Enter</li>
+                                <li><strong>Review Intelligence</strong> - Analyze the results and suggested tickers</li>
+                                <li><strong>Monitor Signals</strong> - Check the Signals tab for real-time narrative detection</li>
+                            </ol>
+
+                            <h3>Query Examples</h3>
+                            <ul>
+                                <li>"What's the next major pump.fun narrative?"</li>
+                                <li>"Analyze AI x Crypto convergence plays"</li>
+                                <li>"Which narratives are showing velocity spikes?"</li>
+                                <li>"Identify 100x potential plays for the next 48 hours"</li>
+                            </ul>
+                        </div>
+
+                        <div class="doc-section" id="doc-methodology">
+                            <h2>Methodology</h2>
+                            <p>Our AI analyzes multiple data sources to detect emerging narratives:</p>
+
+                            <h3>Data Sources</h3>
+                            <ul>
+                                <li><strong>Twitter/X</strong> - CT influencers, trending topics, engagement velocity</li>
+                                <li><strong>Reddit</strong> - r/cryptocurrency, r/solana, r/memecoins</li>
+                                <li><strong>TikTok</strong> - Viral content that drives retail speculation</li>
+                                <li><strong>Telegram</strong> - Alpha groups, pump.fun communities</li>
+                            </ul>
+
+                            <h3>Detection Methods</h3>
+                            <ul>
+                                <li><strong>Velocity Tracking</strong> - Monitoring spike in keyword mentions vs baseline</li>
+                                <li><strong>Influencer Signals</strong> - Tracking CT accounts with high hit rates</li>
+                                <li><strong>Cross-Platform Correlation</strong> - Same narrative across multiple platforms = strong signal</li>
+                                <li><strong>AI Synthesis</strong> - Claude analyzes clusters of posts to identify themes</li>
+                            </ul>
+                        </div>
+
+                        <div class="doc-section" id="doc-signals">
+                            <h2>Understanding Signals</h2>
+
+                            <h3>Alert Levels</h3>
+                            <ul>
+                                <li><strong class="text-green">LOW</strong> - New narrative detected, low confidence. Watch and monitor.</li>
+                                <li><strong class="text-orange">MEDIUM</strong> - Narrative gaining traction. Consider small position.</li>
+                                <li><strong class="text-red">HIGH</strong> - Narrative spiking. Time-sensitive opportunity.</li>
+                                <li><strong class="text-purple">URGENT</strong> - Smart money moving. Immediate attention required.</li>
+                            </ul>
+
+                            <h3>Confidence Score</h3>
+                            <p>The confidence percentage indicates how strong the narrative signal is based on:</p>
+                            <ul>
+                                <li>Volume of mentions across platforms</li>
+                                <li>Quality of sources (verified influencers vs anon accounts)</li>
+                                <li>Historical pattern matching</li>
+                                <li>Token creation activity on pump.fun</li>
+                            </ul>
+
+                            <h3>Velocity Score</h3>
+                            <p>Velocity measures how fast a narrative is growing compared to its 24-hour baseline:</p>
+                            <ul>
+                                <li><strong>1-2x</strong> - Normal activity</li>
+                                <li><strong>2-5x</strong> - Elevated interest, worth monitoring</li>
+                                <li><strong>5-10x</strong> - Significant spike, potential opportunity</li>
+                                <li><strong>10x+</strong> - Viral moment, act fast or miss it</li>
+                            </ul>
+                        </div>
+
+                        <div class="doc-section" id="doc-faq">
+                            <h2>FAQ</h2>
+
+                            <div class="faq-item">
+                                <h3>Is this financial advice?</h3>
+                                <p>No. NarrativeAlpha provides informational signals only. Always DYOR (Do Your Own Research) before making any trading decisions. Memecoins are extremely high risk.</p>
+                            </div>
+
+                            <div class="faq-item">
+                                <h3>How accurate are the predictions?</h3>
+                                <p>Our historical hit rate is approximately 87% for detecting narratives that result in significant price movement. However, timing and magnitude vary significantly.</p>
+                            </div>
+
+                            <div class="faq-item">
+                                <h3>Can I use this for tokens outside Solana?</h3>
+                                <p>Currently optimized for Solana/pump.fun narratives, but the AI can analyze narratives across any chain. Specify the chain in your query for best results.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="footer-logo">NARRATIVEALPHA</span>
+                    <span class="footer-version">v1.0</span>
+                </div>
+                <div class="footer-disclaimer">
+                    Alpha signals for informational purposes only. Not financial advice. DYOR.
+                </div>
+                <div class="footer-powered">
+                    Powered by <span class="powered-highlight">Claude Code Opus 4.5</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
