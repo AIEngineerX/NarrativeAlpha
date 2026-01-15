@@ -96,10 +96,6 @@ const CONFIG = {
             label: 'Velocity Spikes',
             query: 'What memecoin narratives are showing velocity spikes right now?'
         },
-        {
-            label: '100x Plays',
-            query: 'Identify potential 100x narrative plays in the next 48 hours'
-        }
     ],
 
     // External Links Templates

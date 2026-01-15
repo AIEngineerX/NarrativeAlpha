@@ -82,10 +82,10 @@
                                     </svg>
                                 </div>
                                 <div class="metric-data">
-                                    <div class="metric-value" data-value="87.3" data-suffix="%">0%</div>
-                                    <div class="metric-label">Hit Rate</div>
+                                    <div id="statsBullishRate" class="metric-value" data-value="0" data-suffix="%">0%</div>
+                                    <div class="metric-label">Bullish Signals</div>
                                 </div>
-                                <div class="metric-bar"><div class="metric-fill" style="--fill-width: 87.3%"></div></div>
+                                <div class="metric-bar"><div id="statsBullishBar" class="metric-fill" style="--fill-width: 0%"></div></div>
                             </div>
                             <div class="metric-card">
                                 <div class="metric-icon">
@@ -95,10 +95,10 @@
                                     </svg>
                                 </div>
                                 <div class="metric-data">
-                                    <div class="metric-value" data-value="2.4" data-suffix="h">0h</div>
-                                    <div class="metric-label">Avg Lead Time</div>
+                                    <div id="statsAvgAge" class="metric-value" data-value="0" data-suffix="h">0h</div>
+                                    <div class="metric-label">Avg Token Age</div>
                                 </div>
-                                <div class="metric-bar"><div class="metric-fill" style="--fill-width: 60%"></div></div>
+                                <div class="metric-bar"><div id="statsAgeBar" class="metric-fill" style="--fill-width: 0%"></div></div>
                             </div>
                             <div class="metric-card">
                                 <div class="metric-icon">
@@ -107,10 +107,10 @@
                                     </svg>
                                 </div>
                                 <div class="metric-data">
-                                    <div class="metric-value" data-value="156" data-suffix="">0</div>
+                                    <div id="statsActiveSignals" class="metric-value" data-value="0" data-suffix="">0</div>
                                     <div class="metric-label">Active Signals</div>
                                 </div>
-                                <div class="metric-bar"><div class="metric-fill" style="--fill-width: 78%"></div></div>
+                                <div class="metric-bar"><div id="statsSignalsBar" class="metric-fill" style="--fill-width: 0%"></div></div>
                             </div>
                         </div>
                     </div>
@@ -139,7 +139,6 @@
                                 <span class="hint-tag" data-query="What's the next major pump.fun narrative brewing on CT?">CT Narratives</span>
                                 <span class="hint-tag" data-query="Analyze AI x Crypto convergence plays and emerging tokens">AI Crypto</span>
                                 <span class="hint-tag" data-query="What memecoin narratives are showing velocity spikes right now?">Velocity Spikes</span>
-                                <span class="hint-tag" data-query="Identify potential 100x narrative plays in the next 48 hours">100x Plays</span>
                             </div>
                         </div>
                         <button id="analyzeBtn" class="analyze-btn">
@@ -317,6 +316,10 @@
                                 <div class="token-names">
                                     <h2 id="tokenName" class="token-name">Select a Token</h2>
                                     <span id="tokenSymbol" class="token-symbol">---</span>
+                                    <span id="tokenBoostBadge" class="boost-badge hidden" title="This token is paying for DEX promotion">
+                                        <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z"/></svg>
+                                        DEX PAID
+                                    </span>
                                 </div>
                             </div>
                             <div class="token-price-display">
@@ -549,7 +552,6 @@
                                 <li>"What's the next major pump.fun narrative?"</li>
                                 <li>"Analyze AI x Crypto convergence plays"</li>
                                 <li>"Which narratives are showing velocity spikes?"</li>
-                                <li>"Identify 100x potential plays for the next 48 hours"</li>
                             </ul>
                         </div>
 

@@ -1054,6 +1054,68 @@ class LiveDataService {
                 }
             });
         });
+
+        // Update system stats with real data
+        this.updateSystemStats(tokens);
+    }
+
+    // Update the hero section system stats with real data
+    updateSystemStats(tokens) {
+        if (!tokens || tokens.length === 0) return;
+
+        // Calculate bullish signal percentage
+        const bullishCount = tokens.filter(t => t.signalType === 'bullish').length;
+        const bullishRate = Math.round((bullishCount / tokens.length) * 100);
+
+        // Calculate average token age (for tokens with createdAt)
+        const tokensWithAge = tokens.filter(t => t.createdAt);
+        let avgAge = 0;
+        if (tokensWithAge.length > 0) {
+            const totalAgeHours = tokensWithAge.reduce((sum, t) => {
+                return sum + (Date.now() - t.createdAt) / (1000 * 60 * 60);
+            }, 0);
+            avgAge = totalAgeHours / tokensWithAge.length;
+        }
+
+        // Update DOM elements
+        const bullishEl = document.getElementById('statsBullishRate');
+        const bullishBar = document.getElementById('statsBullishBar');
+        const ageEl = document.getElementById('statsAvgAge');
+        const ageBar = document.getElementById('statsAgeBar');
+        const signalsEl = document.getElementById('statsActiveSignals');
+        const signalsBar = document.getElementById('statsSignalsBar');
+
+        // Bullish rate
+        if (bullishEl) {
+            bullishEl.textContent = `${bullishRate}%`;
+            bullishEl.dataset.value = bullishRate;
+        }
+        if (bullishBar) {
+            bullishBar.style.setProperty('--fill-width', `${bullishRate}%`);
+        }
+
+        // Average age (cap display at 168h = 1 week for bar visualization)
+        const ageDisplay = avgAge < 1 ? `${Math.round(avgAge * 60)}m` : `${avgAge.toFixed(1)}h`;
+        if (ageEl) {
+            ageEl.textContent = ageDisplay;
+            ageEl.dataset.value = avgAge.toFixed(1);
+        }
+        if (ageBar) {
+            // Lower age = better (fresher tokens), so invert for bar
+            const freshness = Math.max(0, 100 - (avgAge / 168 * 100));
+            ageBar.style.setProperty('--fill-width', `${freshness}%`);
+        }
+
+        // Active signals count
+        if (signalsEl) {
+            signalsEl.textContent = tokens.length;
+            signalsEl.dataset.value = tokens.length;
+        }
+        if (signalsBar) {
+            // Percentage based on max 50 signals
+            const signalPercent = Math.min(100, (tokens.length / 50) * 100);
+            signalsBar.style.setProperty('--fill-width', `${signalPercent}%`);
+        }
     }
 
     // Generate specific, actionable signal description based on data patterns
@@ -1367,7 +1429,10 @@ class LiveDataService {
                 (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
             )[0];
 
-            this.updateTokenDisplay(primaryPair, pairs);
+            // Check if token is boosted/paid on DEX Screener
+            const boostInfo = await this.checkTokenBoost(address);
+
+            this.updateTokenDisplay(primaryPair, pairs, boostInfo);
             this.updateChartEmbed(address, primaryPair.pairAddress);
             this.updateExternalLinks(address, primaryPair);
 
@@ -1377,7 +1442,24 @@ class LiveDataService {
             }
 
             // Fetch AI narrative analysis (async - doesn't block UI)
-            this.fetchNarrativeIntel(primaryPair, address);
+            this.fetchNarrativeIntel(primaryPair, address, boostInfo);
+
+            // Track this token in the archive
+            if (window.archiveManager) {
+                const priceChange24h = parseFloat(primaryPair.priceChange?.h24 || 0);
+                window.archiveManager.trackToken({
+                    address: address,
+                    symbol: primaryPair.baseToken?.symbol || '???',
+                    name: primaryPair.baseToken?.name || 'Unknown Token',
+                    price: parseFloat(primaryPair.priceUsd || 0),
+                    marketCap: parseFloat(primaryPair.fdv || primaryPair.marketCap || 0),
+                    priceChange24h: priceChange24h,
+                    liquidity: parseFloat(primaryPair.liquidity?.usd || 0),
+                    signalType: priceChange24h > 10 ? 'bullish' : priceChange24h < -10 ? 'bearish' : 'neutral',
+                    dexId: primaryPair.dexId,
+                    narrativeFit: '' // Will be updated by AI analysis
+                });
+            }
 
         } catch (error) {
             console.error('Error loading token:', error);
@@ -1385,8 +1467,37 @@ class LiveDataService {
         }
     }
 
+    // Check if token is boosted/paid on DEX Screener
+    async checkTokenBoost(address) {
+        try {
+            // Check orders endpoint for paid promotions
+            const response = await fetch(`${this.dexScreenerBaseUrl}/orders/v1/solana/${address}`);
+            if (!response.ok) return null;
+
+            const orders = await response.json();
+
+            if (orders && orders.length > 0) {
+                // Token has active paid orders
+                const activeOrders = orders.filter(o => o.status === 'active' || o.status === 'processing');
+                const totalAmount = orders.reduce((sum, o) => sum + (o.amount || 0), 0);
+
+                return {
+                    isPaid: true,
+                    activeOrders: activeOrders.length,
+                    totalOrders: orders.length,
+                    totalSpent: totalAmount,
+                    type: orders[0]?.type || 'boost' // tokenProfile, communityTakeover, or boost
+                };
+            }
+            return { isPaid: false };
+        } catch (error) {
+            console.warn('Boost check failed:', error.message);
+            return null;
+        }
+    }
+
     // Fetch AI-powered narrative intelligence
-    async fetchNarrativeIntel(pair, address) {
+    async fetchNarrativeIntel(pair, address, boostInfo) {
         const reasonsEl = document.getElementById('trendingReasons');
         if (!reasonsEl) return;
 
@@ -1418,9 +1529,10 @@ class LiveDataService {
                 priceChange1h: pair.priceChange?.h1 || 0,
                 dexId: pair.dexId,
                 ageHours: pair.pairCreatedAt ? Math.floor((Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60)) : null,
-                description: pumpFunData?.description || '',
+                description: pumpFunData?.description || pair.info?.description || '',
                 socials: pumpFunData?.socials || pair.info?.socials || null,
-                replyCount: pumpFunData?.replyCount || null
+                replyCount: pumpFunData?.replyCount || null,
+                boostInfo: boostInfo || null
             };
 
             const response = await fetch('/.netlify/functions/token-intel', {
@@ -1507,11 +1619,12 @@ class LiveDataService {
         `;
     }
 
-    updateTokenDisplay(pair, allPairs) {
+    updateTokenDisplay(pair, allPairs, boostInfo) {
         // Token identity
         const logoEl = document.getElementById('tokenLogo');
         const nameEl = document.getElementById('tokenName');
         const symbolEl = document.getElementById('tokenSymbol');
+        const boostBadgeEl = document.getElementById('tokenBoostBadge');
 
         if (logoEl) {
             logoEl.src = pair.info?.imageUrl || '';
@@ -1519,6 +1632,22 @@ class LiveDataService {
         }
         if (nameEl) nameEl.textContent = pair.baseToken?.name || 'Unknown Token';
         if (symbolEl) symbolEl.textContent = `$${pair.baseToken?.symbol || '???'}`;
+
+        // Show/hide DEX paid badge
+        if (boostBadgeEl) {
+            if (boostInfo?.isPaid) {
+                boostBadgeEl.classList.remove('hidden');
+                const boostType = boostInfo.type === 'tokenProfile' ? 'PROMOTED' :
+                                  boostInfo.type === 'communityTakeover' ? 'CTO' : 'DEX PAID';
+                boostBadgeEl.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z"/></svg>
+                    ${boostType}
+                `;
+                boostBadgeEl.title = `This token has ${boostInfo.totalOrders} paid order(s) on DEX Screener`;
+            } else {
+                boostBadgeEl.classList.add('hidden');
+            }
+        }
 
         // Price with multi-timeframe changes
         const priceEl = document.getElementById('tokenPrice');
@@ -1821,6 +1950,231 @@ class LiveDataService {
 
 
 // ============================================
+// ARCHIVE MANAGER - Track analyzed tokens and outcomes
+// ============================================
+
+class ArchiveManager {
+    constructor() {
+        this.storageKey = 'narrativeAlpha_archive';
+        this.maxArchiveItems = 50;
+        this.archiveGridEl = document.querySelector('.archive-grid');
+
+        this.init();
+    }
+
+    init() {
+        // Load and display archive on page load
+        this.renderArchive();
+
+        // Add tracking to token loads (will be called by LiveDataService)
+        this.setupTracking();
+    }
+
+    setupTracking() {
+        // This will be called when a token is analyzed
+    }
+
+    // Track when a token is analyzed
+    trackToken(tokenData) {
+        const archive = this.getArchive();
+
+        // Check if we already have this token
+        const existingIndex = archive.findIndex(t => t.address === tokenData.address);
+
+        const entry = {
+            address: tokenData.address,
+            symbol: tokenData.symbol,
+            name: tokenData.name,
+            narrativeFit: tokenData.narrativeFit || 'Unknown',
+            entryPrice: tokenData.price,
+            entryMcap: tokenData.marketCap,
+            entryDate: Date.now(),
+            priceChange24h: tokenData.priceChange24h,
+            liquidity: tokenData.liquidity,
+            signalType: tokenData.signalType || 'neutral',
+            dexId: tokenData.dexId
+        };
+
+        if (existingIndex >= 0) {
+            // Update existing entry's current price tracking
+            archive[existingIndex].lastChecked = Date.now();
+        } else {
+            // Add new entry
+            archive.unshift(entry);
+        }
+
+        // Keep only the most recent entries
+        const trimmed = archive.slice(0, this.maxArchiveItems);
+
+        localStorage.setItem(this.storageKey, JSON.stringify(trimmed));
+        this.renderArchive();
+    }
+
+    // Get archive from localStorage
+    getArchive() {
+        try {
+            const stored = localStorage.getItem(this.storageKey);
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // Update prices for archived tokens
+    async updateArchivePrices() {
+        const archive = this.getArchive();
+        if (archive.length === 0) return;
+
+        // Get unique addresses (up to 30 for batch request)
+        const addresses = [...new Set(archive.map(t => t.address))].slice(0, 30);
+
+        try {
+            const response = await fetch(
+                `https://api.dexscreener.com/tokens/v1/solana/${addresses.join(',')}`
+            );
+
+            if (!response.ok) return;
+
+            const pairs = await response.json();
+
+            // Update archive with current prices
+            const priceMap = new Map();
+            (Array.isArray(pairs) ? pairs : []).forEach(pair => {
+                if (pair.baseToken?.address) {
+                    priceMap.set(pair.baseToken.address, {
+                        price: parseFloat(pair.priceUsd || 0),
+                        mcap: parseFloat(pair.fdv || pair.marketCap || 0),
+                        priceChange24h: parseFloat(pair.priceChange?.h24 || 0)
+                    });
+                }
+            });
+
+            // Update each archived token
+            archive.forEach(token => {
+                const current = priceMap.get(token.address);
+                if (current) {
+                    token.currentPrice = current.price;
+                    token.currentMcap = current.mcap;
+                    token.currentPriceChange24h = current.priceChange24h;
+                    token.lastChecked = Date.now();
+
+                    // Calculate return since entry
+                    if (token.entryPrice && token.entryPrice > 0) {
+                        token.returnSinceEntry = ((current.price - token.entryPrice) / token.entryPrice) * 100;
+                    }
+                }
+            });
+
+            localStorage.setItem(this.storageKey, JSON.stringify(archive));
+            this.renderArchive();
+
+        } catch (error) {
+            console.warn('Failed to update archive prices:', error);
+        }
+    }
+
+    // Render archive to the page
+    renderArchive() {
+        if (!this.archiveGridEl) return;
+
+        const archive = this.getArchive();
+
+        if (archive.length === 0) {
+            // Show placeholder if no tracked tokens
+            this.archiveGridEl.innerHTML = `
+                <div class="archive-empty">
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                            <polyline points="17,21 17,13 7,13 7,21"/>
+                            <polyline points="7,3 7,8 15,8"/>
+                        </svg>
+                    </div>
+                    <h3>No Archived Narratives Yet</h3>
+                    <p>Tokens you analyze in the Chart section will be tracked here with their outcomes over time.</p>
+                    <p class="tip">Go to Signals and click on a token to start tracking!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort by most recent
+        archive.sort((a, b) => b.entryDate - a.entryDate);
+
+        const html = archive.slice(0, 12).map(token => this.createArchiveCard(token)).join('');
+        this.archiveGridEl.innerHTML = html;
+
+        // Add click handlers
+        this.archiveGridEl.querySelectorAll('.archive-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const address = card.dataset.address;
+                if (address && window.liveDataService) {
+                    window.liveDataService.loadTokenDetails(address);
+                    document.querySelector('.nav-link[data-section="chart"]')?.click();
+                }
+            });
+        });
+    }
+
+    createArchiveCard(token) {
+        const returnValue = token.returnSinceEntry || 0;
+        const returnClass = returnValue >= 100 ? 'success' :
+                           returnValue >= 20 ? 'success' :
+                           returnValue >= 0 ? 'neutral' :
+                           returnValue > -30 ? 'warning' : 'failed';
+
+        const returnSign = returnValue >= 0 ? '+' : '';
+        const dateStr = new Date(token.entryDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+        const daysAgo = Math.floor((Date.now() - token.entryDate) / (1000 * 60 * 60 * 24));
+        const timeDisplay = daysAgo === 0 ? 'Today' :
+                           daysAgo === 1 ? '1 day ago' :
+                           daysAgo < 7 ? `${daysAgo} days ago` :
+                           daysAgo < 30 ? `${Math.floor(daysAgo / 7)} weeks ago` :
+                           dateStr;
+
+        return `
+            <div class="archive-card" data-address="${token.address}">
+                <div class="archive-header">
+                    <span class="archive-date">${timeDisplay}</span>
+                    <span class="archive-result ${returnClass}">${returnSign}${returnValue.toFixed(0)}%</span>
+                </div>
+                <h3 class="archive-title">$${token.symbol}</h3>
+                <p class="archive-summary">${token.name} - ${token.narrativeFit || 'Memecoin narrative'}. Entry at $${this.formatPrice(token.entryPrice)} (MC: $${this.formatCompact(token.entryMcap)})</p>
+                <div class="archive-meta">
+                    <span>Entry: $${this.formatPrice(token.entryPrice)}</span>
+                    <span>${token.currentPrice ? `Now: $${this.formatPrice(token.currentPrice)}` : 'Tracking...'}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    formatPrice(num) {
+        if (!num || num === 0) return '0';
+        if (num < 0.000001) return num.toExponential(2);
+        if (num < 0.01) return num.toFixed(6);
+        if (num < 1) return num.toFixed(4);
+        if (num < 100) return num.toFixed(2);
+        return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    formatCompact(num) {
+        if (!num) return '0';
+        if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+        return num.toFixed(0);
+    }
+
+    // Clear archive (for testing/reset)
+    clearArchive() {
+        localStorage.removeItem(this.storageKey);
+        this.renderArchive();
+    }
+}
+
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -1839,4 +2193,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize live data service (globally accessible for retry button)
     window.liveDataService = new LiveDataService();
+
+    // Initialize archive manager
+    window.archiveManager = new ArchiveManager();
+
+    // Update archive prices periodically (every 5 minutes)
+    setInterval(() => {
+        if (window.archiveManager) {
+            window.archiveManager.updateArchivePrices();
+        }
+    }, 300000);
 });
