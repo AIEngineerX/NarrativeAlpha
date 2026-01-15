@@ -1290,15 +1290,17 @@ class LiveDataService {
                 (isUrgent ? 50 : 0)
             );
 
-            // Detect if this is likely a PumpFun token
-            // PumpFun tokens migrate to Raydium, so check: new token + Raydium + low liquidity
+            // Detect if this is a PumpFun token
+            // Direct PumpFun tokens have dexId: 'pumpfun'
+            // Graduated tokens migrate to Raydium but are new + low liquidity
             const ageMs = pair.pairCreatedAt ? (Date.now() - pair.pairCreatedAt) : Infinity;
             const ageHours = ageMs / (1000 * 60 * 60);
+            const dexIdLower = (pair.dexId || '').toLowerCase();
             const isPumpFunStyle = (
-                (pair.dexId || '').toLowerCase() === 'raydium' &&
-                ageHours < 168 && // Less than 7 days old
-                liquidity < 500000 // Under $500k liquidity (typical for PumpFun graduates)
-            ) || (pair.url || '').toLowerCase().includes('pump.fun');
+                dexIdLower === 'pumpfun' || // Direct PumpFun listing
+                (pair.url || '').toLowerCase().includes('pump.fun') ||
+                (dexIdLower === 'raydium' && ageHours < 168 && liquidity < 500000) // Graduated from PumpFun
+            );
 
             const tokenData = {
                 address: pair.baseToken.address,
@@ -1959,25 +1961,29 @@ class LiveDataService {
                 return '';
             }).join('');
 
-            // Build search URLs based on source
-            const searchText = narrative.text?.replace(/^\$/, '').replace(/#/g, '') || '';
-            const searchTerm = encodeURIComponent(searchText);
-            const symbol = narrative.symbol || searchText.split(' ')[0].replace('$', '');
+            // Extract symbol for search - prefer explicit symbol, fallback to parsing from text
+            const symbol = narrative.symbol ||
+                (narrative.text?.match(/\$([A-Za-z0-9]+)/)?.[1]) ||
+                (narrative.text?.split(' - ')[0]?.replace(/^\$/, '')) ||
+                narrative.text?.split(' ')[0]?.replace(/[^A-Za-z0-9]/g, '') || '';
+
+            // For X search, use symbol with $ prefix
+            const xSymbolSearch = symbol ? `$${symbol}` : narrative.text?.slice(0, 30) || '';
 
             // Primary link based on source
             let primaryUrl, primaryTitle, primaryIcon;
             const mainSource = narrative.source || sources[0];
 
             if (mainSource === 'pumpfun') {
-                // Link to DEX Screener for the token (or PumpFun if we have address)
+                // Link to DEX Screener for the token, or PumpFun board
                 primaryUrl = narrative.dexUrl || (narrative.address
                     ? `https://dexscreener.com/solana/${narrative.address}`
                     : `https://pump.fun/board`);
                 primaryTitle = 'View on DEX';
                 primaryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>';
             } else if (mainSource === 'twitter') {
-                // Link to X search with the full phrase
-                primaryUrl = `https://x.com/search?q=${searchTerm}&src=typed_query&f=live`;
+                // Link to X search with the symbol (better results than full text)
+                primaryUrl = narrative.twitterUrl || `https://x.com/search?q=${encodeURIComponent(xSymbolSearch)}&src=typed_query&f=live`;
                 primaryTitle = 'Search on X';
                 primaryIcon = '<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
             } else {
@@ -1989,8 +1995,8 @@ class LiveDataService {
                 primaryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
             }
 
-            // Secondary X search link
-            const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(symbol.startsWith('$') ? symbol : '$' + symbol)}&src=typed_query&f=live`;
+            // Secondary X search link - always search for the symbol
+            const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(xSymbolSearch)}&src=typed_query&f=live`;
 
             // Token status
             const tokenStatus = narrative.tokenExists ?
