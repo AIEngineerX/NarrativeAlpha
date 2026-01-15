@@ -1,30 +1,20 @@
 // Netlify Serverless Function for Early Narrative Detection
-// Aggregates emerging trends from X/Twitter and TikTok before tokens exist
+// Uses reliable APIs: CoinGecko, Reddit JSON, DEX Screener
 
 let cache = {
     data: null,
     timestamp: 0,
-    ttl: 120000 // 2 minute cache for faster updates
+    ttl: 120000 // 2 minute cache
 };
-
-// Crypto-related keywords to filter for
-const CRYPTO_KEYWORDS = [
-    'crypto', 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'memecoin', 'meme coin',
-    'nft', 'web3', 'defi', 'degen', 'ape', 'moon', 'pump', 'token', 'airdrop', 'presale',
-    'ai agent', 'artificial intelligence', 'gpt', 'chatgpt', 'elon', 'musk', 'trump',
-    'doge', 'pepe', 'wojak', 'frog', 'dog coin', 'cat coin', 'animal coin',
-    'metaverse', 'gaming', 'play to earn', 'p2e', 'gamefi',
-    'viral', 'trending', 'breaking', 'just in'
-];
 
 // Narrative categories for classification
 const NARRATIVE_CATEGORIES = {
-    'AI_TECH': ['ai', 'artificial intelligence', 'gpt', 'chatgpt', 'agent', 'bot', 'llm', 'machine learning'],
-    'POLITICAL': ['trump', 'biden', 'election', 'politics', 'government', 'congress', 'senate', 'vote'],
+    'AI_TECH': ['ai', 'artificial intelligence', 'gpt', 'chatgpt', 'agent', 'bot', 'llm', 'machine learning', 'virtual'],
+    'POLITICAL': ['trump', 'biden', 'election', 'politics', 'government', 'maga', 'vote', 'president'],
     'CELEBRITY': ['elon', 'musk', 'kanye', 'drake', 'celebrity', 'famous', 'influencer'],
-    'MEME_CULTURE': ['meme', 'viral', 'funny', 'lol', 'based', 'cope', 'wojak', 'pepe', 'npc'],
-    'ANIMAL': ['dog', 'cat', 'frog', 'shiba', 'doge', 'pepe', 'animal', 'pet'],
-    'GAMING': ['game', 'gaming', 'esports', 'twitch', 'streamer', 'play'],
+    'MEME_CULTURE': ['meme', 'viral', 'funny', 'lol', 'based', 'cope', 'wojak', 'pepe', 'npc', 'degen'],
+    'ANIMAL': ['dog', 'cat', 'frog', 'shiba', 'doge', 'pepe', 'animal', 'pet', 'inu', 'wif', 'bonk'],
+    'GAMING': ['game', 'gaming', 'esports', 'twitch', 'streamer', 'play', 'nft'],
     'NEWS_EVENT': ['breaking', 'just in', 'happening', 'news', 'announcement', 'revealed']
 };
 
@@ -49,35 +39,41 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Fetch from multiple sources in parallel
-        const [twitterTrends, tiktokTrends, redditBuzz] = await Promise.all([
-            fetchTwitterTrends(),
-            fetchTikTokTrends(),
-            fetchRedditBuzz()
+        // Fetch from multiple RELIABLE sources in parallel
+        const [coinGeckoTrending, redditTrends, dexScreenerTrending] = await Promise.allSettled([
+            fetchCoinGeckoTrending(),
+            fetchRedditTrends(),
+            fetchDexScreenerTrending()
         ]);
 
-        // Combine and deduplicate trends
-        const allTrends = [
-            ...twitterTrends,
-            ...tiktokTrends,
-            ...redditBuzz
-        ];
+        // Combine all trends
+        const allTrends = [];
+
+        if (coinGeckoTrending.status === 'fulfilled' && coinGeckoTrending.value) {
+            allTrends.push(...coinGeckoTrending.value);
+        }
+        if (redditTrends.status === 'fulfilled' && redditTrends.value) {
+            allTrends.push(...redditTrends.value);
+        }
+        if (dexScreenerTrending.status === 'fulfilled' && dexScreenerTrending.value) {
+            allTrends.push(...dexScreenerTrending.value);
+        }
 
         // Score and rank narratives
         const scoredNarratives = scoreNarratives(allTrends);
 
-        // Get emerging narratives (high engagement, crypto-adjacent)
+        // Get emerging narratives (high engagement)
         const emergingNarratives = scoredNarratives
-            .filter(n => n.relevanceScore > 30)
+            .filter(n => n.relevanceScore > 25)
             .slice(0, 12);
 
         const result = {
             narratives: emergingNarratives,
             lastUpdated: new Date().toISOString(),
             sources: {
-                twitter: twitterTrends.length,
-                tiktok: tiktokTrends.length,
-                reddit: redditBuzz.length
+                coingecko: coinGeckoTrending.status === 'fulfilled' ? (coinGeckoTrending.value?.length || 0) : 0,
+                reddit: redditTrends.status === 'fulfilled' ? (redditTrends.value?.length || 0) : 0,
+                dexscreener: dexScreenerTrending.status === 'fulfilled' ? (dexScreenerTrending.value?.length || 0) : 0
             }
         };
 
@@ -89,7 +85,7 @@ exports.handler = async (event, context) => {
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
-                'Cache-Control': 'public, max-age=300'
+                'Cache-Control': 'public, max-age=120'
             },
             body: JSON.stringify(result)
         };
@@ -124,235 +120,187 @@ exports.handler = async (event, context) => {
     }
 };
 
-// Fetch trending topics from Twitter/X
-async function fetchTwitterTrends() {
+// Fetch CoinGecko trending coins - RELIABLE API
+async function fetchCoinGeckoTrending() {
     const trends = [];
 
     try {
-        // Method 1: Use Nitter (Twitter frontend) RSS or trends page
-        // Nitter instances rotate, try multiple
-        const nitterInstances = [
-            'https://nitter.net',
-            'https://nitter.privacydev.net'
-        ];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        for (const instance of nitterInstances) {
-            try {
-                // Search for crypto-related trending topics
-                const searches = ['crypto', 'solana', 'memecoin', 'AI agent'];
-
-                for (const term of searches) {
-                    const response = await fetch(`${instance}/search?f=tweets&q=${encodeURIComponent(term)}&since=&until=&near=`, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                            'Accept': 'text/html'
-                        },
-                        timeout: 5000
-                    });
-
-                    if (response.ok) {
-                        const html = await response.text();
-                        const extracted = extractTwitterTrends(html, term);
-                        trends.push(...extracted);
-                    }
-                }
-
-                if (trends.length > 0) break;
-            } catch (e) {
-                continue;
-            }
-        }
-
-        // Method 2: Try Trends24 for global trends
-        try {
-            const response = await fetch('https://trends24.in/united-states/', {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                timeout: 5000
-            });
-
-            if (response.ok) {
-                const html = await response.text();
-                const globalTrends = extractTrends24(html);
-                trends.push(...globalTrends);
-            }
-        } catch (e) {
-            // Continue without trends24
-        }
-
-    } catch (error) {
-        console.warn('Twitter trends fetch failed:', error.message);
-    }
-
-    return trends.slice(0, 10);
-}
-
-// Extract trends from Nitter HTML
-function extractTwitterTrends(html, searchTerm) {
-    const trends = [];
-
-    // Look for tweet content patterns
-    const tweetPattern = /<div class="tweet-content[^"]*"[^>]*>([^<]+)/gi;
-    const matches = html.matchAll(tweetPattern);
-
-    for (const match of matches) {
-        const content = match[1].trim();
-        if (content.length > 20 && content.length < 280) {
-            // Check if crypto-related
-            const lowerContent = content.toLowerCase();
-            if (CRYPTO_KEYWORDS.some(kw => lowerContent.includes(kw))) {
-                trends.push({
-                    text: content.slice(0, 100),
-                    source: 'twitter',
-                    category: categorizeNarrative(content),
-                    searchTerm,
-                    engagement: estimateEngagement(content)
-                });
-            }
-        }
-
-        if (trends.length >= 5) break;
-    }
-
-    return trends;
-}
-
-// Extract from Trends24
-function extractTrends24(html) {
-    const trends = [];
-
-    // Look for trend items
-    const trendPattern = /<a[^>]*class="[^"]*trend-link[^"]*"[^>]*>([^<]+)</gi;
-    const matches = html.matchAll(trendPattern);
-
-    for (const match of matches) {
-        const trend = match[1].trim();
-        const lowerTrend = trend.toLowerCase();
-
-        // Only include if crypto-adjacent
-        if (CRYPTO_KEYWORDS.some(kw => lowerTrend.includes(kw))) {
-            trends.push({
-                text: trend,
-                source: 'twitter',
-                category: categorizeNarrative(trend),
-                engagement: 'trending'
-            });
-        }
-
-        if (trends.length >= 5) break;
-    }
-
-    return trends;
-}
-
-// Fetch TikTok trends
-async function fetchTikTokTrends() {
-    const trends = [];
-
-    try {
-        // TikTok Creative Center has public trending data
-        const response = await fetch('https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en', {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml'
-            },
-            timeout: 8000
+        const response = await fetch('https://api.coingecko.com/api/v3/search/trending', {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (response.ok) {
-            const html = await response.text();
+            const data = await response.json();
+            const coins = data.coins || [];
 
-            // Extract hashtag trends
-            const hashtagPattern = /#([a-zA-Z0-9_]+)/g;
-            const matches = html.matchAll(hashtagPattern);
-            const seen = new Set();
-
-            for (const match of matches) {
-                const hashtag = match[1].toLowerCase();
-                if (seen.has(hashtag)) continue;
-                seen.add(hashtag);
-
-                // Filter for crypto-adjacent hashtags
-                if (CRYPTO_KEYWORDS.some(kw => hashtag.includes(kw.replace(/\s+/g, ''))) ||
-                    ['cryptok', 'crypto', 'solana', 'meme', 'viral', 'fyp'].includes(hashtag)) {
+            coins.forEach(item => {
+                const coin = item.item;
+                if (coin) {
                     trends.push({
-                        text: `#${hashtag}`,
-                        source: 'tiktok',
-                        category: categorizeNarrative(hashtag),
-                        engagement: 'viral'
+                        text: `${coin.name} ($${coin.symbol}) trending on CoinGecko`,
+                        source: 'coingecko',
+                        category: categorizeNarrative(coin.name + ' ' + coin.symbol),
+                        engagement: coin.score < 3 ? 'viral' : coin.score < 6 ? 'high' : 'medium',
+                        marketCapRank: coin.market_cap_rank,
+                        priceChange: coin.data?.price_change_percentage_24h?.usd || 0,
+                        symbol: coin.symbol,
+                        thumb: coin.thumb
                     });
                 }
-
-                if (trends.length >= 5) break;
-            }
+            });
         }
     } catch (error) {
-        console.warn('TikTok trends fetch failed:', error.message);
+        console.warn('CoinGecko trending fetch failed:', error.message);
     }
 
-    // Add known crypto TikTok trends if we couldn't fetch
-    if (trends.length === 0) {
-        trends.push(
-            { text: '#cryptok', source: 'tiktok', category: 'CRYPTO', engagement: 'high' },
-            { text: '#memecoin', source: 'tiktok', category: 'MEME_CULTURE', engagement: 'high' },
-            { text: '#solana', source: 'tiktok', category: 'CRYPTO', engagement: 'medium' }
-        );
-    }
-
-    return trends;
+    return trends.slice(0, 8);
 }
 
-// Fetch Reddit crypto buzz
-async function fetchRedditBuzz() {
+// Fetch Reddit crypto trends - RELIABLE JSON API
+async function fetchRedditTrends() {
     const trends = [];
+    const subreddits = ['cryptocurrency', 'solana', 'CryptoMoonShots', 'memecoin'];
 
-    try {
-        // Reddit's public JSON endpoints
-        const subreddits = ['cryptocurrency', 'solana', 'CryptoMoonShots'];
+    for (const sub of subreddits) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        for (const sub of subreddits) {
-            try {
-                const response = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=10`, {
-                    headers: {
-                        'User-Agent': 'NarrativeAlpha/1.0'
-                    },
-                    timeout: 5000
-                });
+            const response = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=10`, {
+                headers: {
+                    'User-Agent': 'NarrativeAlpha/1.0 (Crypto Trend Tracker)',
+                    'Accept': 'application/json'
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    const posts = data.data?.children || [];
+            if (response.ok) {
+                const data = await response.json();
+                const posts = data.data?.children || [];
 
-                    for (const post of posts) {
-                        const title = post.data?.title || '';
-                        const score = post.data?.score || 0;
+                for (const post of posts) {
+                    const { title, score, num_comments, created_utc, subreddit } = post.data || {};
 
-                        if (score > 100 && title.length > 10) {
+                    // Filter for high-engagement posts
+                    if (score > 50 && title && title.length > 10) {
+                        const ageHours = (Date.now() / 1000 - created_utc) / 3600;
+
+                        // Prioritize recent hot posts
+                        if (ageHours < 24) {
                             trends.push({
-                                text: title.slice(0, 100),
+                                text: title.slice(0, 120),
                                 source: 'reddit',
-                                subreddit: sub,
+                                subreddit: subreddit,
                                 category: categorizeNarrative(title),
-                                engagement: score > 1000 ? 'viral' : score > 500 ? 'high' : 'medium',
-                                score
+                                engagement: score > 500 ? 'viral' : score > 200 ? 'high' : 'medium',
+                                score,
+                                comments: num_comments,
+                                ageHours: Math.round(ageHours)
                             });
                         }
                     }
                 }
-            } catch (e) {
-                continue;
             }
+        } catch (e) {
+            console.warn(`Reddit r/${sub} fetch failed:`, e.message);
+            continue;
         }
-    } catch (error) {
-        console.warn('Reddit buzz fetch failed:', error.message);
     }
 
-    return trends.slice(0, 5);
+    // Sort by score and return top trends
+    return trends.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 8);
+}
+
+// Fetch DEX Screener trending/boosted tokens - RELIABLE API
+async function fetchDexScreenerTrending() {
+    const trends = [];
+
+    try {
+        // Get boosted tokens (paid promotions indicate activity)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const response = await fetch('https://api.dexscreener.com/token-boosts/top/v1', {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            const data = await response.json();
+            const solanaTokens = (data || []).filter(t => t.chainId === 'solana').slice(0, 10);
+
+            for (const token of solanaTokens) {
+                // Get token details
+                try {
+                    const detailResponse = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${token.tokenAddress}`);
+                    if (detailResponse.ok) {
+                        const pairs = await detailResponse.json();
+                        const pair = Array.isArray(pairs) && pairs[0];
+
+                        if (pair && pair.baseToken) {
+                            const priceChange = parseFloat(pair.priceChange?.h24 || 0);
+                            const volume = parseFloat(pair.volume?.h24 || 0);
+
+                            trends.push({
+                                text: `$${pair.baseToken.symbol} boosted on DEX Screener`,
+                                source: 'dexscreener',
+                                category: categorizeNarrative(pair.baseToken.name + ' ' + pair.baseToken.symbol),
+                                engagement: priceChange > 50 ? 'viral' : priceChange > 20 ? 'high' : 'medium',
+                                symbol: pair.baseToken.symbol,
+                                name: pair.baseToken.name,
+                                priceChange24h: priceChange,
+                                volume24h: volume,
+                                address: token.tokenAddress
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // Skip this token
+                }
+            }
+        }
+
+        // Also get latest token profiles
+        try {
+            const profilesResponse = await fetch('https://api.dexscreener.com/token-profiles/latest/v1');
+            if (profilesResponse.ok) {
+                const profiles = await profilesResponse.json();
+                const solanaProfiles = (profiles || []).filter(p => p.chainId === 'solana').slice(0, 5);
+
+                for (const profile of solanaProfiles) {
+                    if (!trends.find(t => t.address === profile.tokenAddress)) {
+                        trends.push({
+                            text: `New token profile: ${profile.description?.slice(0, 50) || 'Solana token'}`,
+                            source: 'dexscreener',
+                            category: categorizeNarrative(profile.description || ''),
+                            engagement: 'medium',
+                            address: profile.tokenAddress,
+                            hasLinks: !!(profile.links?.length)
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            // Continue without profiles
+        }
+
+    } catch (error) {
+        console.warn('DEX Screener trending fetch failed:', error.message);
+    }
+
+    return trends.slice(0, 6);
 }
 
 // Categorize a narrative based on keywords
 function categorizeNarrative(text) {
+    if (!text) return 'EMERGING';
     const lowerText = text.toLowerCase();
 
     for (const [category, keywords] of Object.entries(NARRATIVE_CATEGORIES)) {
@@ -364,22 +312,14 @@ function categorizeNarrative(text) {
     return 'EMERGING';
 }
 
-// Estimate engagement level from content
-function estimateEngagement(content) {
-    const indicators = ['🔥', '💰', '🚀', '!!!', 'BREAKING', 'JUST IN', 'viral'];
-    const matches = indicators.filter(i => content.includes(i)).length;
-
-    if (matches >= 2) return 'viral';
-    if (matches >= 1) return 'high';
-    return 'medium';
-}
-
 // Score narratives for relevance
 function scoreNarratives(trends) {
     const narrativeMap = new Map();
 
     for (const trend of trends) {
-        const key = trend.category + '_' + (trend.text?.slice(0, 20) || '').toLowerCase();
+        // Create a normalized key for grouping similar trends
+        const textKey = (trend.text?.slice(0, 30) || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const key = trend.category + '_' + textKey;
 
         if (narrativeMap.has(key)) {
             const existing = narrativeMap.get(key);
@@ -400,8 +340,8 @@ function scoreNarratives(trends) {
     const scored = Array.from(narrativeMap.values()).map(n => {
         let score = 0;
 
-        // Multi-platform bonus
-        score += n.sources.size * 20;
+        // Multi-platform bonus (big bonus for cross-platform trends)
+        score += n.sources.size * 25;
 
         // Mention count bonus
         score += Math.min(n.mentions * 10, 30);
@@ -413,11 +353,22 @@ function scoreNarratives(trends) {
         else score += 10;
 
         // Reddit score bonus
-        if (n.totalScore > 1000) score += 20;
-        else if (n.totalScore > 500) score += 10;
+        if (n.totalScore > 500) score += 20;
+        else if (n.totalScore > 200) score += 10;
+        else if (n.totalScore > 50) score += 5;
 
-        // Category bonus (some categories are more actionable)
+        // Category bonus (actionable categories)
         if (['AI_TECH', 'CELEBRITY', 'POLITICAL', 'NEWS_EVENT'].includes(n.category)) {
+            score += 10;
+        }
+
+        // CoinGecko trending bonus (very reliable signal)
+        if (n.source === 'coingecko') {
+            score += 15;
+        }
+
+        // DEX Screener boosted bonus
+        if (n.source === 'dexscreener' && n.priceChange24h > 30) {
             score += 10;
         }
 
@@ -435,54 +386,49 @@ function scoreNarratives(trends) {
 function getSampleNarratives() {
     return [
         {
-            text: 'AI agents are taking over crypto',
-            source: 'twitter',
+            text: 'AI agents dominating crypto narratives',
+            source: 'coingecko',
             category: 'AI_TECH',
             engagement: 'viral',
             relevanceScore: 85,
-            sources: ['twitter', 'reddit'],
-            tokenExists: false,
+            sources: ['coingecko', 'reddit'],
             suggestion: 'Watch for new AI agent token launches'
         },
         {
-            text: '#cryptok going viral with Gen Z',
-            source: 'tiktok',
+            text: 'Solana memecoins seeing renewed interest',
+            source: 'reddit',
             category: 'MEME_CULTURE',
             engagement: 'high',
             relevanceScore: 72,
-            sources: ['tiktok'],
-            tokenExists: false,
-            suggestion: 'TikTok narratives often precede pumps by 24-48h'
+            sources: ['reddit', 'dexscreener'],
+            suggestion: 'PumpFun launches showing activity'
         },
         {
-            text: 'Political memecoins heating up',
-            source: 'twitter',
+            text: 'Political tokens heating up',
+            source: 'dexscreener',
             category: 'POLITICAL',
             engagement: 'high',
             relevanceScore: 68,
-            sources: ['twitter', 'reddit'],
-            tokenExists: true,
-            suggestion: 'Multiple tokens already exist - find the leader'
+            sources: ['dexscreener', 'reddit'],
+            suggestion: 'Election narratives driving volume'
         },
         {
-            text: 'New animal meta forming',
-            source: 'twitter',
+            text: 'Dog coin meta continuing strong',
+            source: 'coingecko',
             category: 'ANIMAL',
             engagement: 'medium',
             relevanceScore: 55,
-            sources: ['twitter'],
-            tokenExists: false,
-            suggestion: 'Cat coins after dog coins? Watch the rotation'
+            sources: ['coingecko'],
+            suggestion: 'WIF, BONK ecosystem tokens active'
         },
         {
-            text: 'Gaming narratives resurging',
+            text: 'Gaming tokens showing momentum',
             source: 'reddit',
             category: 'GAMING',
             engagement: 'medium',
             relevanceScore: 48,
             sources: ['reddit'],
-            tokenExists: true,
-            suggestion: 'GameFi tokens showing signs of life'
+            suggestion: 'GameFi narratives resurging'
         }
     ];
 }

@@ -1621,9 +1621,15 @@ class LiveDataService {
 
         // New launches (tokens < 24h old)
         const newLaunchCount = tokens.filter(t => {
-            if (!t.createdAt) return false;
-            const ageHours = (Date.now() - t.createdAt) / (1000 * 60 * 60);
-            return ageHours < 24;
+            // Use ageHours if available (already calculated), else compute from createdAt
+            if (t.ageHours !== undefined && t.ageHours !== null) {
+                return t.ageHours < 24;
+            }
+            if (t.createdAt) {
+                const ageHours = (Date.now() - t.createdAt) / (1000 * 60 * 60);
+                return ageHours < 24;
+            }
+            return false;
         }).length;
         const newLaunchesEl = document.getElementById('newLaunches');
         if (newLaunchesEl) {
@@ -1947,9 +1953,10 @@ class LiveDataService {
             // Source icons
             const sources = narrative.sources || [narrative.source];
             const sourceIcons = sources.map(s => {
-                if (s === 'twitter') return '<span class="source-icon x" title="X/Twitter">𝕏</span>';
-                if (s === 'tiktok') return '<span class="source-icon tiktok" title="TikTok">♪</span>';
+                if (s === 'coingecko') return '<span class="source-icon coingecko" title="CoinGecko Trending">🦎</span>';
+                if (s === 'dexscreener') return '<span class="source-icon dex" title="DEX Screener">📊</span>';
                 if (s === 'reddit') return '<span class="source-icon reddit" title="Reddit">⬡</span>';
+                if (s === 'twitter') return '<span class="source-icon x" title="X/Twitter">𝕏</span>';
                 return '';
             }).join('');
 
