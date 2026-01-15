@@ -4,6 +4,55 @@
  */
 
 // ============================================
+// SECURITY UTILITIES
+// ============================================
+
+/**
+ * Escape HTML special characters to prevent XSS attacks
+ * @param {string} str - The string to escape
+ * @returns {string} - The escaped string
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    if (typeof str !== 'string') str = String(str);
+    const htmlEntities = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    };
+    return str.replace(/[&<>"']/g, char => htmlEntities[char]);
+}
+
+/**
+ * Validate and sanitize URLs - only allow http/https protocols
+ * @param {string} url - The URL to validate
+ * @returns {string|null} - The validated URL or null if invalid
+ */
+function sanitizeUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    // Only allow http and https protocols
+    if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+        return trimmed;
+    }
+    return null;
+}
+
+/**
+ * Validate Solana address format (base58, 32-44 characters)
+ * @param {string} address - The address to validate
+ * @returns {boolean} - True if valid Solana address format
+ */
+function isValidSolanaAddress(address) {
+    if (!address || typeof address !== 'string') return false;
+    // Solana addresses are base58 encoded, typically 32-44 characters
+    const solanaAddressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    return solanaAddressRegex.test(address);
+}
+
+// ============================================
 // NETWORK BACKGROUND ANIMATION
 // ============================================
 
@@ -345,43 +394,45 @@ class NarrativeAlpha {
             hour12: false
         }) + ' UTC';
 
-        // Main prediction
+        // Main prediction (escape AI-generated content to prevent XSS)
         this.elements.mainPrediction.innerHTML = `
-            <h3 style="color: var(--accent-cyan); margin-bottom: 0.75rem; font-size: 1.25rem;">${data.narrative_name}</h3>
-            <p>${data.summary}</p>
+            <h3 style="color: var(--accent-cyan); margin-bottom: 0.75rem; font-size: 1.25rem;">${escapeHtml(data.narrative_name)}</h3>
+            <p>${escapeHtml(data.summary)}</p>
         `;
 
-        // Alert level
-        const alertLevel = data.alert_level || 'MEDIUM';
+        // Alert level (use textContent which is safe, validate value)
+        const alertLevel = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(data.alert_level)
+            ? data.alert_level
+            : 'MEDIUM';
         this.elements.alertLevel.textContent = alertLevel;
         this.elements.alertLevel.className = 'card-badge ' + alertLevel.toLowerCase();
 
-        // Confidence gauge
-        const confidence = data.confidence || 50;
+        // Confidence gauge (ensure numeric)
+        const confidence = Math.min(100, Math.max(0, parseInt(data.confidence) || 50));
         this.animateConfidence(confidence);
 
-        // Velocity
-        const velocity = data.velocity_score || 1.0;
+        // Velocity (ensure numeric)
+        const velocity = Math.min(10, Math.max(0, parseFloat(data.velocity_score) || 1.0));
         this.elements.velocityValue.textContent = velocity.toFixed(1) + 'x';
         const velocityPercent = Math.min((velocity / 10) * 100, 100);
         this.elements.velocityFill.style.width = velocityPercent + '%';
 
-        // Catalysts
+        // Catalysts (escape each item)
         this.elements.catalysts.innerHTML = this.formatList(data.catalysts || []);
 
-        // Tickers
+        // Tickers (escape each ticker)
         this.elements.tickers.innerHTML = (data.suggested_tickers || [])
-            .map(t => `<span class="ticker-tag">$${t}</span>`)
+            .map(t => `<span class="ticker-tag">$${escapeHtml(t)}</span>`)
             .join('');
 
-        // Risks
+        // Risks (escape each item)
         this.elements.risks.innerHTML = this.formatList(data.risk_vectors || []);
 
-        // Timeline
-        this.elements.timeline.innerHTML = `<p>${data.timeline || 'Analysis in progress...'}</p>`;
+        // Timeline (escape AI-generated content)
+        this.elements.timeline.innerHTML = `<p>${escapeHtml(data.timeline || 'Analysis in progress...')}</p>`;
 
-        // Actionable intel
-        this.elements.actionable.innerHTML = `<p>${data.actionable_intel || 'No specific actions recommended at this time.'}</p>`;
+        // Actionable intel (escape AI-generated content)
+        this.elements.actionable.innerHTML = `<p>${escapeHtml(data.actionable_intel || 'No specific actions recommended at this time.')}</p>`;
     }
 
     animateConfidence(value) {
@@ -414,7 +465,7 @@ class NarrativeAlpha {
         if (!items || items.length === 0) {
             return '<p>No data available</p>';
         }
-        return '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+        return '<ul>' + items.map(item => `<li>${escapeHtml(item)}</li>`).join('') + '</ul>';
     }
 
     displayError(message) {
@@ -1988,19 +2039,25 @@ class LiveDataService {
         const riskClass = scamCheck.isPotentialHoneypot ? 'honeypot-warning' : scamCheck.isHighRisk ? 'high-risk' : '';
         const deadClass = validation.isDead ? 'dead-token' : '';
 
+        // Escape user-controllable data to prevent XSS
+        const safeSymbol = escapeHtml(token.symbol);
+        const safeAddress = isValidSolanaAddress(token.address) ? token.address : '';
+        const safeEdge = escapeHtml(edge);
+        const safeTag = escapeHtml(tag);
+
         return `
-            <div class="signal-card ${urgentClass} ${riskClass} ${deadClass}" data-type="${token.signalType}" data-address="${token.address}" data-source="${sourceSlug}" data-tag="${tag}" data-age="${ageHours.toFixed(1)}" data-volume="${token.volume24h || 0}" data-scam-score="${scamCheck.scamScore}">
+            <div class="signal-card ${urgentClass} ${riskClass} ${deadClass}" data-type="${escapeHtml(token.signalType)}" data-address="${safeAddress}" data-source="${sourceSlug}" data-tag="${safeTag}" data-age="${ageHours.toFixed(1)}" data-volume="${token.volume24h || 0}" data-scam-score="${scamCheck.scamScore}">
                 <div class="signal-header">
-                    <span class="signal-tag ${tagClass}">${tag}</span>
+                    <span class="signal-tag ${tagClass}">${safeTag}</span>
                     ${warningBadges}
                     <span class="signal-source ${sourceSlug}">${source}</span>
                     <span class="signal-time">${timeAgo}</span>
                 </div>
                 <div class="signal-token">
-                    <strong>$${token.symbol}</strong>
+                    <strong>$${safeSymbol}</strong>
                     <span class="token-price">$${this.formatNumber(token.price)}</span>
                 </div>
-                <div class="signal-edge">${edge}</div>
+                <div class="signal-edge">${safeEdge}</div>
                 ${statsHtml}
             </div>
         `;
@@ -2012,9 +2069,10 @@ class LiveDataService {
         const html = tokens.map(token => {
             const changeClass = token.priceChange24h >= 0 ? 'positive' : 'negative';
             const changeSign = token.priceChange24h >= 0 ? '+' : '';
+            const safeAddress = isValidSolanaAddress(token.address) ? token.address : '';
             return `
-                <span class="quick-token" data-address="${token.address}">
-                    $${token.symbol}
+                <span class="quick-token" data-address="${safeAddress}">
+                    $${escapeHtml(token.symbol)}
                     <span class="token-change ${changeClass}">${changeSign}${token.priceChange24h.toFixed(0)}%</span>
                 </span>
             `;
@@ -2501,10 +2559,19 @@ class LiveDataService {
     updateChartEmbed(tokenAddress, pairAddress) {
         if (!this.elements.chartEmbed) return;
 
-        // Use DEX Screener embed
-        const embedUrl = pairAddress
-            ? `https://dexscreener.com/solana/${pairAddress}?embed=1&theme=dark&trades=0&info=0`
-            : `https://dexscreener.com/solana/${tokenAddress}?embed=1&theme=dark&trades=0&info=0`;
+        // Validate addresses before embedding to prevent injection
+        const validPairAddress = pairAddress && isValidSolanaAddress(pairAddress) ? pairAddress : null;
+        const validTokenAddress = tokenAddress && isValidSolanaAddress(tokenAddress) ? tokenAddress : null;
+
+        if (!validPairAddress && !validTokenAddress) {
+            this.elements.chartEmbed.innerHTML = '<div class="chart-error">Invalid token address</div>';
+            return;
+        }
+
+        // Use DEX Screener embed with validated address
+        const embedUrl = validPairAddress
+            ? `https://dexscreener.com/solana/${validPairAddress}?embed=1&theme=dark&trades=0&info=0`
+            : `https://dexscreener.com/solana/${validTokenAddress}?embed=1&theme=dark&trades=0&info=0`;
 
         this.elements.chartEmbed.innerHTML = `
             <iframe
@@ -2516,17 +2583,21 @@ class LiveDataService {
     }
 
     updateExternalLinks(address, pair) {
-        const pairAddress = pair?.pairAddress || address;
+        // Validate addresses before building URLs
+        const validAddress = isValidSolanaAddress(address) ? address : '';
+        const validPairAddress = pair?.pairAddress && isValidSolanaAddress(pair.pairAddress)
+            ? pair.pairAddress
+            : validAddress;
 
         const dexLink = document.getElementById('linkDexScreener');
         const birdeyeLink = document.getElementById('linkBirdeye');
         const solscanLink = document.getElementById('linkSolscan');
         const pumpfunLink = document.getElementById('linkPumpFun');
 
-        if (dexLink) dexLink.href = `https://dexscreener.com/solana/${pairAddress}`;
-        if (birdeyeLink) birdeyeLink.href = `https://birdeye.so/token/${address}?chain=solana`;
-        if (solscanLink) solscanLink.href = `https://solscan.io/token/${address}`;
-        if (pumpfunLink) pumpfunLink.href = `https://pump.fun/${address}`;
+        if (dexLink) dexLink.href = validPairAddress ? `https://dexscreener.com/solana/${validPairAddress}` : '#';
+        if (birdeyeLink) birdeyeLink.href = validAddress ? `https://birdeye.so/token/${validAddress}?chain=solana` : '#';
+        if (solscanLink) solscanLink.href = validAddress ? `https://solscan.io/token/${validAddress}` : '#';
+        if (pumpfunLink) pumpfunLink.href = validAddress ? `https://pump.fun/${validAddress}` : '#';
     }
 
     updateSocialLinks(info) {
@@ -2536,19 +2607,25 @@ class LiveDataService {
         const socials = [];
 
         if (info?.websites?.length > 0) {
-            socials.push(`<a href="${info.websites[0].url}" target="_blank" class="social-link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
-                </svg>
-                Website
-            </a>`);
+            const websiteUrl = sanitizeUrl(info.websites[0].url);
+            if (websiteUrl) {
+                socials.push(`<a href="${websiteUrl}" target="_blank" rel="noopener noreferrer" class="social-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+                    </svg>
+                    Website
+                </a>`);
+            }
         }
 
         if (info?.socials) {
             info.socials.forEach(social => {
-                const icon = this.getSocialIcon(social.type);
-                socials.push(`<a href="${social.url}" target="_blank" class="social-link">${icon}${social.type}</a>`);
+                const safeUrl = sanitizeUrl(social.url);
+                if (safeUrl) {
+                    const icon = this.getSocialIcon(social.type);
+                    socials.push(`<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="social-link">${icon}${escapeHtml(social.type)}</a>`);
+                }
             });
         }
 

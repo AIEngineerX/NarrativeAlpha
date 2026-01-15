@@ -21,12 +21,30 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const { query, liveData } = JSON.parse(event.body);
+        let parsedBody;
+        try {
+            parsedBody = JSON.parse(event.body);
+        } catch (e) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Invalid JSON body' })
+            };
+        }
 
-        if (!query) {
+        const { query, liveData } = parsedBody;
+
+        // Validate query - must be string, reasonable length
+        if (!query || typeof query !== 'string') {
             return {
                 statusCode: 400,
                 body: JSON.stringify({ error: 'Query is required' })
+            };
+        }
+
+        if (query.length < 3 || query.length > 2000) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Query must be between 3 and 2000 characters' })
             };
         }
 

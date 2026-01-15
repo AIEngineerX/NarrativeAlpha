@@ -19,14 +19,40 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const tokenData = JSON.parse(event.body);
+        let tokenData;
+        try {
+            tokenData = JSON.parse(event.body);
+        } catch (e) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Invalid JSON body' })
+            };
+        }
 
-        if (!tokenData.symbol) {
+        // Validate required fields
+        if (!tokenData || typeof tokenData !== 'object') {
             return {
                 statusCode: 400,
                 body: JSON.stringify({ error: 'Token data is required' })
             };
         }
+
+        if (!tokenData.symbol || typeof tokenData.symbol !== 'string' || tokenData.symbol.length > 20) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Valid token symbol is required' })
+            };
+        }
+
+        // Sanitize string fields to prevent prompt injection (limit lengths)
+        const sanitize = (str, maxLen = 500) => {
+            if (!str || typeof str !== 'string') return '';
+            return str.slice(0, maxLen);
+        };
+
+        tokenData.name = sanitize(tokenData.name, 100);
+        tokenData.description = sanitize(tokenData.description, 500);
+        tokenData.symbol = sanitize(tokenData.symbol, 20);
 
         const systemPrompt = `You are NarrativeAlpha's Token Intelligence module. You analyze Solana memecoins and provide REAL narrative context for degens - not generic financial advice.
 
@@ -193,9 +219,11 @@ Based on the token name, symbol, metrics, age, and social presence - analyze wha
             }
             result = JSON.parse(jsonStr.trim());
         } catch (e) {
+            // Log error server-side but don't expose raw content to client
+            console.error('Failed to parse AI response:', e.message);
             return {
                 statusCode: 500,
-                body: JSON.stringify({ error: 'Failed to parse AI response', raw: content })
+                body: JSON.stringify({ error: 'Failed to parse AI response' })
             };
         }
 
