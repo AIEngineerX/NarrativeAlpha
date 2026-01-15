@@ -1168,108 +1168,117 @@ class LiveDataService {
         const reasonsEl = document.getElementById('trendingReasons');
         if (!reasonsEl) return;
 
-        const reasons = [];
+        const insights = [];
+
+        // Extract all data points
+        const price = parseFloat(pair.priceUsd || 0);
         const priceChange24h = parseFloat(pair.priceChange?.h24 || 0);
+        const priceChange6h = parseFloat(pair.priceChange?.h6 || 0);
         const priceChange1h = parseFloat(pair.priceChange?.h1 || 0);
         const priceChange5m = parseFloat(pair.priceChange?.m5 || 0);
         const volume24h = parseFloat(pair.volume?.h24 || 0);
+        const volume6h = parseFloat(pair.volume?.h6 || 0);
         const volume1h = parseFloat(pair.volume?.h1 || 0);
         const liquidity = parseFloat(pair.liquidity?.usd || 0);
         const mcap = parseFloat(pair.fdv || pair.marketCap || 0);
-        const volumeLiqRatio = liquidity > 0 ? volume24h / liquidity : 0;
+
         const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+        const txns1h = (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0);
         const buys24h = pair.txns?.h24?.buys || 0;
         const sells24h = pair.txns?.h24?.sells || 0;
-        const buyRatio = txns24h > 0 ? buys24h / txns24h : 0.5;
+        const buys1h = pair.txns?.h1?.buys || 0;
+        const sells1h = pair.txns?.h1?.sells || 0;
 
-        // Recent momentum signals (most important for degens)
-        if (priceChange5m > 15) {
-            reasons.push(`<span class="positive">PUMPING NOW:</span> +${priceChange5m.toFixed(0)}% in last 5 minutes`);
-        } else if (priceChange5m < -15) {
-            reasons.push(`<span class="negative">DUMPING NOW:</span> ${priceChange5m.toFixed(0)}% in last 5 minutes`);
+        const buyRatio24h = txns24h > 0 ? buys24h / txns24h : 0.5;
+        const buyRatio1h = txns1h > 0 ? buys1h / txns1h : 0.5;
+
+        // Derived metrics for edge
+        const avgTxSize = txns24h > 0 ? volume24h / txns24h : 0;
+        const volumeAccel = volume6h > 0 ? (volume1h * 6) / volume6h : 1; // Volume acceleration
+        const priceVolDivergence = priceChange1h !== 0 ? (volume1h / (volume24h / 24)) / Math.abs(priceChange1h) : 0;
+        const momentumShift = priceChange1h - (priceChange24h / 24); // Is recent momentum stronger?
+        const ageHours = pair.pairCreatedAt ? (Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60) : 999;
+
+        // === ACTIONABLE TRADING SIGNALS ===
+
+        // 1. MOMENTUM STRUCTURE - Is the move accelerating or exhausting?
+        if (priceChange5m > 5 && priceChange1h > 15 && priceChange1h > priceChange24h * 0.5) {
+            insights.push(`<span class="positive">ACCELERATION:</span> Move is gaining speed - 1h outpacing 24h trend. Momentum chasers entering.`);
+        } else if (priceChange24h > 30 && priceChange1h < 2 && priceChange5m < 1) {
+            insights.push(`<span class="negative">STALLING:</span> Big 24h move but momentum dying. Late entries getting trapped - watch for reversal.`);
+        } else if (priceChange24h > 50 && priceChange1h < -5) {
+            insights.push(`<span class="negative">DISTRIBUTION:</span> Dumping after pump. Early buyers taking profit - don't catch the knife.`);
         }
 
-        if (priceChange1h > 30) {
-            reasons.push(`<span class="positive">Strong 1h momentum:</span> +${priceChange1h.toFixed(0)}% - could be early`);
-        } else if (priceChange1h > 10 && priceChange5m > 0) {
-            reasons.push(`Steady climb: +${priceChange1h.toFixed(0)}% 1h with continued buying`);
+        // 2. VOLUME TELLS - What is volume saying about conviction?
+        if (volumeAccel > 2.5) {
+            insights.push(`<span class="positive">VOLUME SURGE:</span> Last hour ${volumeAccel.toFixed(1)}x normal rate. Fresh capital entering - potential breakout.`);
+        } else if (volumeAccel < 0.3 && priceChange1h > 10) {
+            insights.push(`<span class="negative">WEAK HANDS:</span> Price up but volume dying. Likely a fake pump - exit liquidity incoming.`);
         }
 
-        // 24h performance context
-        if (priceChange24h > 100) {
-            reasons.push(`<span class="positive">MOON ALERT:</span> +${priceChange24h.toFixed(0)}% in 24h - potential multibagger`);
-        } else if (priceChange24h > 50) {
-            reasons.push(`Major pump: +${priceChange24h.toFixed(0)}% in 24h - watch for continuation or pullback`);
-        } else if (priceChange24h < -40) {
-            reasons.push(`<span class="negative">Heavy dump:</span> ${priceChange24h.toFixed(0)}% - dip or dead cat?`);
-        } else if (priceChange24h < -20 && priceChange1h > 5) {
-            reasons.push(`Potential reversal: Recovering after ${priceChange24h.toFixed(0)}% dump`);
+        if (avgTxSize > 5000) {
+            insights.push(`Whale activity: Avg transaction $${this.formatCompact(avgTxSize)}. Following smart money or exit liquidity?`);
+        } else if (avgTxSize < 100 && txns24h > 1000) {
+            insights.push(`Retail frenzy: Small avg tx ($${avgTxSize.toFixed(0)}) but high count. Viral spread - can moon or rug fast.`);
         }
 
-        // Volume analysis
-        if (volume1h > 100000) {
-            reasons.push(`<span class="positive">High 1h volume:</span> $${this.formatCompact(volume1h)} - active trading`);
-        }
-        if (volume24h > 1000000) {
-            reasons.push(`Whale activity: $${this.formatCompact(volume24h)} 24h volume`);
-        }
-
-        // Velocity (key degen metric)
-        if (volumeLiqRatio > 10) {
-            reasons.push(`<span class="positive">EXTREME velocity:</span> ${volumeLiqRatio.toFixed(1)}x vol/liq - heavy rotation`);
-        } else if (volumeLiqRatio > 5) {
-            reasons.push(`High velocity: ${volumeLiqRatio.toFixed(1)}x volume to liquidity ratio`);
+        // 3. BUY PRESSURE SHIFT - Are buyers gaining or losing control?
+        if (buyRatio1h > 0.65 && buyRatio24h < 0.55) {
+            insights.push(`<span class="positive">BUYERS RETURNING:</span> 1h buy ratio (${Math.round(buyRatio1h*100)}%) beating 24h (${Math.round(buyRatio24h*100)}%). Sentiment shifting bullish.`);
+        } else if (buyRatio1h < 0.4 && buyRatio24h > 0.5) {
+            insights.push(`<span class="negative">SELLERS TAKING OVER:</span> Buy ratio dropped from ${Math.round(buyRatio24h*100)}% to ${Math.round(buyRatio1h*100)}%. Distribution phase starting.`);
+        } else if (buyRatio1h > 0.7 && priceChange1h < 0) {
+            insights.push(`<span class="positive">ABSORPTION:</span> Heavy buying (${Math.round(buyRatio1h*100)}%) but price flat/down. Big seller being absorbed - breakout setup.`);
         }
 
-        // Buy pressure
-        if (buyRatio > 0.65) {
-            reasons.push(`<span class="positive">Strong buy pressure:</span> ${Math.round(buyRatio * 100)}% buys vs sells`);
-        } else if (buyRatio < 0.35) {
-            reasons.push(`<span class="negative">Sell pressure:</span> Only ${Math.round(buyRatio * 100)}% buys - distribution phase?`);
+        // 4. ENTRY TIMING SIGNALS
+        if (priceChange24h < -30 && priceChange1h > 5 && buyRatio1h > 0.55) {
+            insights.push(`<span class="positive">REVERSAL SETUP:</span> Bouncing off dump with buy pressure returning. Risk entry for bounce play.`);
+        } else if (priceChange24h > 0 && priceChange24h < 15 && priceChange1h < 3 && volumeAccel > 1.5) {
+            insights.push(`<span class="positive">COILING:</span> Tight price action with volume building. Breakout imminent - set alerts.`);
+        } else if (ageHours < 2 && priceChange1h > 50) {
+            insights.push(`<span class="negative">LAUNCH PUMP:</span> Fresh token spiking. High risk of dump - if playing, size small and take profits fast.`);
         }
 
-        // Liquidity warnings
-        if (liquidity < 20000) {
-            reasons.push(`<span class="negative">DANGER:</span> Only $${this.formatCompact(liquidity)} liquidity - extreme slippage`);
-        } else if (liquidity < 50000) {
-            reasons.push(`<span class="negative">Low liquidity:</span> $${this.formatCompact(liquidity)} - caution with size`);
-        } else if (liquidity > 500000) {
-            reasons.push(`Deep liquidity: $${this.formatCompact(liquidity)} - can handle larger trades`);
+        // 5. RISK SIGNALS - Things that should make you cautious
+        if (txns1h < 20 && volume1h > 50000) {
+            insights.push(`<span class="negative">WHALE GAME:</span> Few txns but big volume. Single actors moving price - you're not the smart money here.`);
         }
 
-        // Market cap context
-        if (mcap > 0 && mcap < 100000) {
-            reasons.push(`Micro cap: $${this.formatCompact(mcap)} FDV - high risk/reward`);
-        } else if (mcap > 0 && mcap < 1000000) {
-            reasons.push(`Low cap gem: $${this.formatCompact(mcap)} FDV - room to run?`);
-        }
-
-        // Age indicator
-        if (pair.pairCreatedAt) {
-            const ageHours = (Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60);
-            if (ageHours < 1) {
-                reasons.push(`<span class="positive">JUST LAUNCHED:</span> Less than 1 hour old`);
-            } else if (ageHours < 6) {
-                reasons.push(`Fresh launch: ${ageHours.toFixed(0)} hours old - early entry window`);
-            } else if (ageHours < 24) {
-                reasons.push(`New token: ${ageHours.toFixed(0)} hours since launch`);
+        if (mcap > 0 && liquidity > 0) {
+            const mcapLiqRatio = mcap / liquidity;
+            if (mcapLiqRatio > 50) {
+                insights.push(`<span class="negative">THIN EXIT:</span> MC/Liq ratio ${mcapLiqRatio.toFixed(0)}x. If this dumps, exits will be brutal.`);
             }
         }
 
-        // Transaction activity
-        if (txns24h > 10000) {
-            reasons.push(`Viral activity: ${this.formatCompact(txns24h)} transactions in 24h`);
-        } else if (txns24h > 5000) {
-            reasons.push(`High engagement: ${this.formatCompact(txns24h)} transactions`);
-        } else if (txns24h < 100 && volume24h > 50000) {
-            reasons.push(`<span class="negative">Low txn count:</span> Possible whale manipulation`);
+        if (priceChange24h > 200 && ageHours < 24) {
+            insights.push(`<span class="negative">EXTENDED:</span> +${priceChange24h.toFixed(0)}% day-1. Most gains happen early - risk/reward skewed against latecomers.`);
         }
 
-        if (reasons.length === 0) {
-            reasons.push('Moderate activity - no significant alpha signals detected');
+        // 6. OPPORTUNITY SIGNALS
+        if (ageHours < 1 && liquidity > 30000 && buyRatio1h > 0.6) {
+            insights.push(`<span class="positive">FRESH + LIQUID:</span> New launch with real liquidity and buy pressure. Early window if narrative hits.`);
         }
 
-        reasonsEl.innerHTML = '<ul>' + reasons.map(r => `<li>${r}</li>`).join('') + '</ul>';
+        if (priceChange24h > 100 && priceChange1h > 0 && priceChange1h < 10 && buyRatio1h > 0.5) {
+            insights.push(`Consolidating gains: Big move holding with continued interest. Looking for higher low for continuation.`);
+        }
+
+        // 7. CONTEXT
+        if (volume24h > 0 && mcap > 0) {
+            const volMcapRatio = (volume24h / mcap) * 100;
+            if (volMcapRatio > 100) {
+                insights.push(`High turnover: ${volMcapRatio.toFixed(0)}% of MC traded in 24h. Active speculation - moves both ways will be violent.`);
+            }
+        }
+
+        if (insights.length === 0) {
+            insights.push('No clear edge signals. Choppy action - wait for setup or find better opportunity.');
+        }
+
+        reasonsEl.innerHTML = '<ul>' + insights.map(i => `<li>${i}</li>`).join('') + '</ul>';
     }
 
     updateChartEmbed(tokenAddress, pairAddress) {
