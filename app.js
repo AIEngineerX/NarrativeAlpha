@@ -345,7 +345,17 @@ class NarrativeAlpha {
         // Get live token data to provide context for the analysis
         const liveTokens = window.liveDataService?.lastTokens || [];
         const topMovers = liveTokens
-            .filter(t => t.priceChange1h !== undefined)
+            .filter(t => {
+                // Must have price data
+                if (t.priceChange1h === undefined) return false;
+                // Exclude potential scams/honeypots
+                const scamScore = t.scamCheck?.scamScore || 0;
+                if (scamScore >= 40) return false; // Exclude high risk
+                if (t.scamCheck?.isPotentialHoneypot) return false;
+                // Exclude dead tokens
+                if (t.volume1h < 500 && t.txns1h < 5) return false;
+                return true;
+            })
             .sort((a, b) => (b.priceChange1h || 0) - (a.priceChange1h || 0))
             .slice(0, 10)
             .map(t => ({

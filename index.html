@@ -824,72 +824,93 @@
                     <div class="docs-content">
                         <div class="doc-section active" id="doc-getting-started">
                             <h2>Getting Started</h2>
-                            <p>NarrativeAlpha is an AI-powered narrative intelligence platform that helps you identify emerging memecoin narratives before they pump.</p>
+                            <p>NarrativeAlpha is an AI-powered narrative intelligence platform that helps you identify emerging Solana memecoin narratives with built-in scam protection.</p>
 
                             <h3>Quick Start</h3>
                             <ol>
-                                <li><strong>Enter a Query</strong> - Type your narrative question in the terminal</li>
-                                <li><strong>Execute Analysis</strong> - Click the button or press Ctrl+Enter</li>
-                                <li><strong>Review Intelligence</strong> - Analyze the results and suggested tickers</li>
-                                <li><strong>Monitor Signals</strong> - Check the Signals tab for real-time narrative detection</li>
+                                <li><strong>Monitor Signals</strong> - Check real-time token signals with scam filtering enabled</li>
+                                <li><strong>Check Market Pulse</strong> - View ecosystem breakdown (PumpFun, Raydium, Bonk, Bags)</li>
+                                <li><strong>Enter a Query</strong> - Ask about narratives, hot movers, or specific tokens</li>
+                                <li><strong>Execute Analysis</strong> - Get AI-powered insights with live data context</li>
                             </ol>
 
                             <h3>Query Examples</h3>
                             <ul>
-                                <li>"What's the next major pump.fun narrative?"</li>
-                                <li>"Analyze AI x Crypto convergence plays"</li>
-                                <li>"Which narratives are showing velocity spikes?"</li>
+                                <li>"What's the next major pump.fun narrative brewing on CT?"</li>
+                                <li>"Analyze AI x Crypto convergence plays and emerging tokens"</li>
+                                <li>"What memecoins are showing strong momentum right now?"</li>
+                            </ul>
+
+                            <h3>Key Features</h3>
+                            <ul>
+                                <li><strong>Scam Detection</strong> - Automatic honeypot and rug pull filtering</li>
+                                <li><strong>Dead Token Detection</strong> - Filters out tokens with no real activity</li>
+                                <li><strong>Live Data Analysis</strong> - AI uses real-time DEX data in responses</li>
+                                <li><strong>Ecosystem Tracking</strong> - Monitor PumpFun, Bonk, Bags, and Raydium</li>
                             </ul>
                         </div>
 
                         <div class="doc-section" id="doc-methodology">
                             <h2>Methodology</h2>
-                            <p>Our AI analyzes multiple data sources to detect emerging narratives:</p>
+                            <p>NarrativeAlpha aggregates real-time data from multiple sources:</p>
 
                             <h3>Data Sources</h3>
                             <ul>
-                                <li><strong>Twitter/X</strong> - CT influencers, trending topics, engagement velocity</li>
-                                <li><strong>Reddit</strong> - r/cryptocurrency, r/solana, r/memecoins</li>
-                                <li><strong>TikTok</strong> - Viral content that drives retail speculation</li>
-                                <li><strong>Telegram</strong> - Alpha groups, pump.fun communities</li>
+                                <li><strong>DEX Screener</strong> - Real-time Solana token prices, volume, liquidity</li>
+                                <li><strong>CoinGecko</strong> - Trending tokens, ecosystem categories (Bonk, Bags)</li>
+                                <li><strong>PumpFun</strong> - New token launches and memecoin activity</li>
+                                <li><strong>On-Chain Data</strong> - Transaction counts, buy/sell ratios, whale activity</li>
                             </ul>
 
-                            <h3>Detection Methods</h3>
+                            <h3>Scam Detection</h3>
                             <ul>
-                                <li><strong>Velocity Tracking</strong> - Monitoring spike in keyword mentions vs baseline</li>
-                                <li><strong>Influencer Signals</strong> - Tracking CT accounts with high hit rates</li>
-                                <li><strong>Cross-Platform Correlation</strong> - Same narrative across multiple platforms = strong signal</li>
-                                <li><strong>AI Synthesis</strong> - Claude analyzes clusters of posts to identify themes</li>
+                                <li><strong>Honeypot Detection</strong> - High buy ratio with no price movement</li>
+                                <li><strong>MC/Liquidity Ratio</strong> - Flags tokens with suspicious ratios (>50x warning, >100x critical)</li>
+                                <li><strong>Activity Validation</strong> - Requires minimum volume and transactions</li>
+                                <li><strong>Dead Token Filter</strong> - Excludes tokens with no recent trading</li>
+                            </ul>
+
+                            <h3>AI Analysis</h3>
+                            <ul>
+                                <li><strong>Live Context</strong> - Claude receives top 10 movers (scam-filtered) with each query</li>
+                                <li><strong>Narrative Detection</strong> - Identifies themes across token names/symbols</li>
+                                <li><strong>Token Intelligence</strong> - Deep analysis of individual tokens on request</li>
                             </ul>
                         </div>
 
                         <div class="doc-section" id="doc-signals">
                             <h2>Understanding Signals</h2>
 
-                            <h3>Alert Levels</h3>
+                            <h3>Signal Tags</h3>
                             <ul>
-                                <li><strong class="text-green">LOW</strong> - New narrative detected, low confidence. Watch and monitor.</li>
-                                <li><strong class="text-orange">MEDIUM</strong> - Narrative gaining traction. Consider small position.</li>
-                                <li><strong class="text-red">HIGH</strong> - Narrative spiking. Time-sensitive opportunity.</li>
-                                <li><strong class="text-purple">URGENT</strong> - Smart money moving. Immediate attention required.</li>
+                                <li><strong class="text-green">PUMPING</strong> - Token showing strong upward momentum with volume confirmation</li>
+                                <li><strong class="text-green">FRESH</strong> - New launch under 6 hours old</li>
+                                <li><strong class="text-orange">VERIFY</strong> - Price movement without volume confirmation</li>
+                                <li><strong class="text-red">DEAD</strong> - No trading activity detected</li>
+                                <li><strong class="text-red">DUMPING</strong> - Significant downward price movement</li>
                             </ul>
 
-                            <h3>Confidence Score</h3>
-                            <p>The confidence percentage indicates how strong the narrative signal is based on:</p>
+                            <h3>Warning Badges</h3>
                             <ul>
-                                <li>Volume of mentions across platforms</li>
-                                <li>Quality of sources (verified influencers vs anon accounts)</li>
-                                <li>Historical pattern matching</li>
-                                <li>Token creation activity on pump.fun</li>
+                                <li><strong style="color: #ef4444;">HONEYPOT?</strong> - Potential honeypot detected (sells may be blocked)</li>
+                                <li><strong style="color: #f97316;">HIGH RISK</strong> - Multiple risk indicators present</li>
+                                <li><strong style="color: #6b7280;">DEAD</strong> - No trading activity in recent period</li>
                             </ul>
 
-                            <h3>Velocity Score</h3>
-                            <p>Velocity measures how fast a narrative is growing compared to its 24-hour baseline:</p>
+                            <h3>Market Pulse Ecosystems</h3>
                             <ul>
-                                <li><strong>1-2x</strong> - Normal activity</li>
-                                <li><strong>2-5x</strong> - Elevated interest, worth monitoring</li>
-                                <li><strong>5-10x</strong> - Significant spike, potential opportunity</li>
-                                <li><strong>10x+</strong> - Viral moment, act fast or miss it</li>
+                                <li><strong>PumpFun</strong> - Tokens launched via pump.fun</li>
+                                <li><strong>Raydium</strong> - Tokens trading on Raydium DEX</li>
+                                <li><strong>Bonk</strong> - LetsBonk.fun ecosystem (via CoinGecko)</li>
+                                <li><strong>Bags</strong> - Bags.fm ecosystem (via CoinGecko)</li>
+                            </ul>
+
+                            <h3>Trading Activity Metrics</h3>
+                            <ul>
+                                <li><strong>Volume (1h)</strong> - Aggregate hourly volume across tracked tokens</li>
+                                <li><strong>Buy Pressure</strong> - Percentage of buy vs sell transactions</li>
+                                <li><strong>Urgent Signals</strong> - Count of high-momentum tokens</li>
+                                <li><strong>Top Gainer</strong> - Best performing token (click to view on DEX Screener)</li>
                             </ul>
                         </div>
 
@@ -902,13 +923,23 @@
                             </div>
 
                             <div class="faq-item">
-                                <h3>How accurate are the predictions?</h3>
-                                <p>Our historical hit rate is approximately 87% for detecting narratives that result in significant price movement. However, timing and magnitude vary significantly.</p>
+                                <h3>How does scam detection work?</h3>
+                                <p>We analyze MC/Liquidity ratios, buy/sell patterns, transaction activity, and price correlation. Tokens scoring above 70 on our scam score are filtered out. Potential honeypots (high buys, no price movement) are flagged with warnings.</p>
                             </div>
 
                             <div class="faq-item">
-                                <h3>Can I use this for tokens outside Solana?</h3>
-                                <p>Currently optimized for Solana/pump.fun narratives, but the AI can analyze narratives across any chain. Specify the chain in your query for best results.</p>
+                                <h3>Why do some tokens show "DEAD" or "VERIFY"?</h3>
+                                <p>DEAD tokens have no recent trading activity (volume under $500/hr, less than 5 transactions). VERIFY tokens show price movement without corresponding volume, which could indicate wash trading or data issues.</p>
+                            </div>
+
+                            <div class="faq-item">
+                                <h3>How often does data refresh?</h3>
+                                <p>Signal feed refreshes every 2 minutes. Trading Activity metrics update every 30 seconds. Ecosystem data (Bonk/Bags) updates every 2 minutes via CoinGecko.</p>
+                            </div>
+
+                            <div class="faq-item">
+                                <h3>Can I search for specific tokens?</h3>
+                                <p>Yes! Use the search bar in the Signals tab. Enter a token symbol, name, or contract address. Click any token card to view detailed charts and analytics on DEX Screener.</p>
                             </div>
                         </div>
                     </div>
@@ -920,7 +951,7 @@
             <div class="footer-content">
                 <div class="footer-brand">
                     <span class="footer-logo">NARRATIVEALPHA</span>
-                    <span class="footer-version">v1.0</span>
+                    <span class="footer-version">v2.1</span>
                 </div>
                 <div class="footer-disclaimer">
                     Alpha signals for informational purposes only. Not financial advice. DYOR.
