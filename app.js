@@ -552,7 +552,7 @@ class NavigationController {
                 document.querySelectorAll('.pulse-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 const tabType = tab.dataset.tab;
-                const targetId = tabType === 'market' ? 'pulseMarket' : tabType === 'social' ? 'pulseSocial' : 'pulseKol';
+                const targetId = tabType === 'market' ? 'pulseMarket' : tabType === 'social' ? 'pulseSocial' : tabType === 'kol' ? 'pulseKol' : 'pulseWallets';
                 document.getElementById(targetId)?.classList.add('active');
             });
         });
@@ -612,6 +612,7 @@ class NavigationController {
         cards.forEach(card => {
             const type = card.dataset.type || '';
             const tag = card.dataset.tag || '';
+            const address = card.dataset.address || '';
             const ageHours = parseFloat(card.dataset.age || '999');
             const volume = parseFloat(card.dataset.volume || '0');
 
@@ -619,6 +620,9 @@ class NavigationController {
 
             if (filter === 'all') {
                 show = true;
+            } else if (filter === 'watchlist') {
+                // Show only watchlisted tokens
+                show = window.liveDataService?.isInWatchlist(address) || false;
             } else if (filter === 'fresh') {
                 // Show tokens < 24h old
                 show = ageHours < 24;
@@ -675,6 +679,18 @@ class LiveDataService {
         this.bonkEcosystemTokens = 0;
         this.bagsEcosystemTokens = 0;
 
+        // Watchlist - stored in localStorage
+        this.watchlist = this.loadWatchlist();
+
+        // Wallet Tracker - stored in localStorage
+        this.trackedWallets = this.loadTrackedWallets();
+
+        // Sound Alerts
+        this.soundEnabled = localStorage.getItem('na_sound_enabled') !== 'false';
+        this.lastAlertTime = 0;
+        this.alertSound = null;
+        this.initAlertSound();
+
         this.elements = {
             signalsFeed: document.getElementById('signalsFeed'),
             lastUpdateTime: document.getElementById('lastUpdateTime'),
@@ -690,11 +706,16 @@ class LiveDataService {
 
     init() {
         this.setupEventListeners();
+        this.setupWatchlistUI();
+        this.setupWalletTrackerUI();
+        this.setupSoundAlertUI();
         // Load from PumpFun first (no rate limit issues), then DEX
         this.fetchAllData();
         this.fetchSocialTrends(); // Fetch real social trends
         this.fetchKolData(); // Fetch KOL leaderboard data
         this.startAutoRefresh();
+        // Refresh wallet activity periodically
+        this.walletRefreshInterval = setInterval(() => this.refreshWalletActivity(), 300000); // 5 min
     }
 
     setupEventListeners() {
@@ -1287,9 +1308,12 @@ class LiveDataService {
         const html = tokens.map(token => this.createSignalCard(token)).join('');
         this.elements.signalsFeed.innerHTML = html;
 
-        // Add click handlers to signal cards
+        // Add click handlers to signal cards (but not on watchlist button)
         this.elements.signalsFeed.querySelectorAll('.signal-card').forEach(card => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+                // Don't navigate if clicking watchlist button
+                if (e.target.closest('.watchlist-btn')) return;
+
                 const address = card.dataset.address;
                 if (address) {
                     this.loadTokenDetails(address);
@@ -1298,6 +1322,34 @@ class LiveDataService {
                 }
             });
         });
+
+        // Add watchlist button handlers
+        this.elements.signalsFeed.querySelectorAll('.watchlist-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const address = btn.dataset.address;
+                const symbol = btn.dataset.symbol;
+                const name = btn.dataset.name;
+
+                if (this.isInWatchlist(address)) {
+                    this.removeFromWatchlist(address);
+                    btn.classList.remove('active');
+                    btn.querySelector('svg').setAttribute('fill', 'none');
+                    btn.title = 'Add to watchlist';
+                } else {
+                    this.addToWatchlist({ address, symbol, name });
+                    btn.classList.add('active');
+                    btn.querySelector('svg').setAttribute('fill', 'currentColor');
+                    btn.title = 'Remove from watchlist';
+                }
+            });
+        });
+
+        // Play sound alert if there are urgent signals
+        const urgentCount = tokens.filter(t => t.isUrgent).length;
+        if (urgentCount > 0 && this.soundEnabled) {
+            this.playAlertSound();
+        }
 
         // Update system stats with real data
         this.updateSystemStats(tokens);
@@ -1866,17 +1918,367 @@ class LiveDataService {
             if (data.parsed === false) {
                 kolTimeEl.textContent = 'Sample';
                 kolTimeEl.title = 'Showing sample data - kolscan.io data could not be parsed';
+                kolTimeEl.classList.add('sample-data');
             } else if (data.cached) {
                 kolTimeEl.textContent = 'Cached';
                 kolTimeEl.title = 'Data from cache';
+                kolTimeEl.classList.remove('sample-data');
             } else if (data.stale) {
                 kolTimeEl.textContent = 'Stale';
                 kolTimeEl.title = 'Stale cached data';
+                kolTimeEl.classList.remove('sample-data');
             } else {
                 kolTimeEl.textContent = 'Live';
                 kolTimeEl.title = 'Fresh data from kolscan.io';
+                kolTimeEl.classList.remove('sample-data');
             }
         }
+
+        // Update footer source text
+        const kolSource = document.querySelector('.kol-source');
+        if (kolSource) {
+            if (data.parsed === false) {
+                kolSource.textContent = 'Sample Data (KOLscan unavailable)';
+            } else {
+                kolSource.textContent = 'Data: KOLscan.io';
+            }
+        }
+    }
+
+    // ============================================
+    // WATCHLIST FUNCTIONALITY
+    // ============================================
+
+    loadWatchlist() {
+        try {
+            const saved = localStorage.getItem('na_watchlist');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    saveWatchlist() {
+        localStorage.setItem('na_watchlist', JSON.stringify(this.watchlist));
+    }
+
+    addToWatchlist(token) {
+        if (!this.isInWatchlist(token.address)) {
+            this.watchlist.push({
+                address: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                addedAt: Date.now()
+            });
+            this.saveWatchlist();
+            this.showNotification(`${token.symbol} added to watchlist`);
+        }
+    }
+
+    removeFromWatchlist(address) {
+        const token = this.watchlist.find(t => t.address === address);
+        this.watchlist = this.watchlist.filter(t => t.address !== address);
+        this.saveWatchlist();
+        if (token) {
+            this.showNotification(`${token.symbol} removed from watchlist`);
+        }
+    }
+
+    isInWatchlist(address) {
+        return this.watchlist.some(t => t.address === address);
+    }
+
+    setupWatchlistUI() {
+        // Watchlist filter is handled in the filter buttons
+        // Nothing special needed here for now
+    }
+
+    // ============================================
+    // WALLET TRACKER FUNCTIONALITY
+    // ============================================
+
+    loadTrackedWallets() {
+        try {
+            const saved = localStorage.getItem('na_tracked_wallets');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    saveTrackedWallets() {
+        localStorage.setItem('na_tracked_wallets', JSON.stringify(this.trackedWallets));
+    }
+
+    setupWalletTrackerUI() {
+        const addBtn = document.getElementById('addWalletBtn');
+        const inputSection = document.getElementById('walletInputSection');
+        const saveBtn = document.getElementById('saveWalletBtn');
+        const addressInput = document.getElementById('walletAddressInput');
+        const labelInput = document.getElementById('walletLabelInput');
+
+        if (addBtn && inputSection) {
+            addBtn.addEventListener('click', () => {
+                inputSection.classList.toggle('hidden');
+                if (!inputSection.classList.contains('hidden')) {
+                    addressInput?.focus();
+                }
+            });
+        }
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const address = addressInput?.value?.trim();
+                const label = labelInput?.value?.trim() || 'Wallet';
+                if (address && isValidSolanaAddress(address)) {
+                    this.addTrackedWallet(address, label);
+                    if (addressInput) addressInput.value = '';
+                    if (labelInput) labelInput.value = '';
+                    inputSection?.classList.add('hidden');
+                } else {
+                    this.showNotification('Invalid Solana address', 'error');
+                }
+            });
+        }
+
+        // Render existing wallets
+        this.renderTrackedWallets();
+    }
+
+    addTrackedWallet(address, label) {
+        if (this.trackedWallets.find(w => w.address === address)) {
+            this.showNotification('Wallet already tracked');
+            return;
+        }
+        this.trackedWallets.push({
+            address,
+            label,
+            addedAt: Date.now()
+        });
+        this.saveTrackedWallets();
+        this.renderTrackedWallets();
+        this.fetchWalletActivity(address);
+        this.showNotification(`Now tracking ${label}`);
+    }
+
+    removeTrackedWallet(address) {
+        this.trackedWallets = this.trackedWallets.filter(w => w.address !== address);
+        this.saveTrackedWallets();
+        this.renderTrackedWallets();
+    }
+
+    renderTrackedWallets() {
+        const listEl = document.getElementById('trackedWalletsList');
+        if (!listEl) return;
+
+        if (this.trackedWallets.length === 0) {
+            listEl.innerHTML = `
+                <div class="no-wallets-msg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+                        <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
+                        <path d="M3 5v14a2 2 0 002 2h16v-5"/>
+                        <path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/>
+                    </svg>
+                    <p>No wallets tracked yet</p>
+                    <span>Add whale or smart money wallets to monitor their trades</span>
+                </div>
+            `;
+            return;
+        }
+
+        const html = this.trackedWallets.map(wallet => {
+            const shortAddr = `${wallet.address.slice(0, 4)}...${wallet.address.slice(-4)}`;
+            return `
+                <div class="tracked-wallet-item" data-address="${wallet.address}">
+                    <div class="wallet-item-info">
+                        <span class="wallet-label">${escapeHtml(wallet.label)}</span>
+                        <span class="wallet-addr" title="${wallet.address}">${shortAddr}</span>
+                    </div>
+                    <div class="wallet-item-actions">
+                        <a href="https://solscan.io/account/${wallet.address}" target="_blank" class="wallet-action-btn" title="View on Solscan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                        </a>
+                        <button class="wallet-action-btn remove-wallet" data-address="${wallet.address}" title="Remove">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listEl.innerHTML = html;
+
+        // Add remove event listeners
+        listEl.querySelectorAll('.remove-wallet').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const address = e.currentTarget.dataset.address;
+                this.removeTrackedWallet(address);
+            });
+        });
+    }
+
+    async fetchWalletActivity(address) {
+        const activityEl = document.getElementById('walletActivity');
+        if (!activityEl) return;
+
+        try {
+            // Use Solscan public API for recent transactions
+            const response = await fetch(`https://public-api.solscan.io/account/transactions?account=${address}&limit=10`);
+
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const txns = await response.json();
+            this.displayWalletActivity(txns, address);
+        } catch (error) {
+            console.warn('Wallet activity fetch failed:', error);
+        }
+    }
+
+    displayWalletActivity(txns, address) {
+        const activityEl = document.getElementById('walletActivity');
+        if (!activityEl || !txns || txns.length === 0) return;
+
+        const wallet = this.trackedWallets.find(w => w.address === address);
+        const label = wallet?.label || 'Wallet';
+
+        const html = `
+            <div class="wallet-activity-section">
+                <h4>Recent Activity - ${escapeHtml(label)}</h4>
+                <div class="activity-list">
+                    ${txns.slice(0, 5).map(tx => {
+                        const time = new Date(tx.blockTime * 1000).toLocaleTimeString();
+                        return `
+                            <div class="activity-item">
+                                <span class="activity-time">${time}</span>
+                                <span class="activity-sig">${tx.txHash?.slice(0, 8)}...</span>
+                                <a href="https://solscan.io/tx/${tx.txHash}" target="_blank" class="activity-link">View</a>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+
+        activityEl.innerHTML = html;
+    }
+
+    async refreshWalletActivity() {
+        for (const wallet of this.trackedWallets) {
+            await this.fetchWalletActivity(wallet.address);
+        }
+    }
+
+    // ============================================
+    // SOUND ALERT FUNCTIONALITY
+    // ============================================
+
+    initAlertSound() {
+        // Create audio context for alert sounds
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.warn('Audio context not available');
+        }
+    }
+
+    playAlertSound() {
+        if (!this.soundEnabled || !this.audioContext) return;
+
+        // Prevent sound spam - minimum 30 seconds between alerts
+        const now = Date.now();
+        if (now - this.lastAlertTime < 30000) return;
+        this.lastAlertTime = now;
+
+        try {
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            oscillator.frequency.value = 880; // A5 note
+            oscillator.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
+
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + 0.5);
+
+            // Second beep
+            setTimeout(() => {
+                const osc2 = this.audioContext.createOscillator();
+                const gain2 = this.audioContext.createGain();
+                osc2.connect(gain2);
+                gain2.connect(this.audioContext.destination);
+                osc2.frequency.value = 1100;
+                osc2.type = 'sine';
+                gain2.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                osc2.start(this.audioContext.currentTime);
+                osc2.stop(this.audioContext.currentTime + 0.3);
+            }, 150);
+        } catch (e) {
+            console.warn('Could not play alert sound');
+        }
+    }
+
+    setupSoundAlertUI() {
+        const toggleBtn = document.getElementById('soundToggle');
+        if (!toggleBtn) return;
+
+        // Set initial state
+        this.updateSoundToggleUI();
+
+        toggleBtn.addEventListener('click', () => {
+            this.soundEnabled = !this.soundEnabled;
+            localStorage.setItem('na_sound_enabled', this.soundEnabled.toString());
+            this.updateSoundToggleUI();
+
+            // Resume audio context on user interaction (required by browsers)
+            if (this.soundEnabled && this.audioContext?.state === 'suspended') {
+                this.audioContext.resume();
+            }
+
+            // Play test sound when enabled
+            if (this.soundEnabled) {
+                this.playAlertSound();
+            }
+        });
+    }
+
+    updateSoundToggleUI() {
+        const toggleBtn = document.getElementById('soundToggle');
+        if (!toggleBtn) return;
+
+        const soundOn = toggleBtn.querySelector('.sound-on');
+        const soundOff = toggleBtn.querySelector('.sound-off');
+
+        if (this.soundEnabled) {
+            toggleBtn.classList.add('active');
+            toggleBtn.title = 'Sound alerts ON - click to disable';
+            soundOn?.classList.remove('hidden');
+            soundOff?.classList.add('hidden');
+        } else {
+            toggleBtn.classList.remove('active');
+            toggleBtn.title = 'Sound alerts OFF - click to enable';
+            soundOn?.classList.add('hidden');
+            soundOff?.classList.remove('hidden');
+        }
+    }
+
+    showNotification(message, type = 'success') {
+        // Create temporary notification
+        const notification = document.createElement('div');
+        notification.className = `na-notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => notification.classList.add('show'), 10);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     // Validate if a token has genuine trading activity (not dead)
@@ -2312,6 +2714,10 @@ class LiveDataService {
         const safeEdge = escapeHtml(edge);
         const safeTag = escapeHtml(tag);
 
+        // Check if token is in watchlist
+        const isWatchlisted = this.isInWatchlist(safeAddress);
+        const watchlistClass = isWatchlisted ? 'active' : '';
+
         return `
             <div class="signal-card ${urgentClass} ${riskClass} ${deadClass}" data-type="${escapeHtml(token.signalType)}" data-address="${safeAddress}" data-source="${sourceSlug}" data-tag="${safeTag}" data-age="${ageHours.toFixed(1)}" data-volume="${token.volume24h || 0}" data-scam-score="${scamCheck.scamScore}">
                 <div class="signal-header">
@@ -2319,6 +2725,11 @@ class LiveDataService {
                     ${warningBadges}
                     <span class="signal-source ${sourceSlug}">${source}</span>
                     <span class="signal-time">${timeAgo}</span>
+                    <button class="watchlist-btn ${watchlistClass}" data-address="${safeAddress}" data-symbol="${safeSymbol}" data-name="${escapeHtml(token.name || token.symbol)}" title="${isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist'}">
+                        <svg viewBox="0 0 24 24" fill="${isWatchlisted ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="signal-token">
                     <strong>$${safeSymbol}</strong>

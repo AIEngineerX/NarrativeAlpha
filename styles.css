@@ -1556,6 +1556,15 @@ body {
     animation: pulse 2s ease-in-out infinite;
 }
 
+.pulse-update.sample-data {
+    color: var(--accent-yellow);
+}
+
+.pulse-update.sample-data::before {
+    background: var(--accent-yellow);
+    animation: none;
+}
+
 .pulse-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -2240,6 +2249,334 @@ body {
 .kol-more-link:hover svg {
     opacity: 1;
     transform: translateX(2px);
+}
+
+/* ============================================
+   WALLET TRACKER STYLES
+   ============================================ */
+
+.add-wallet-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-wallet-btn:hover {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--accent-cyan);
+}
+
+.wallet-input-section {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.wallet-input-section.hidden {
+    display: none;
+}
+
+.wallet-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+}
+
+.wallet-label-input {
+    width: 100px;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+}
+
+.wallet-save-btn {
+    padding: 0.5rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bg-primary);
+    background: var(--accent-cyan);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wallet-save-btn:hover {
+    background: var(--text-primary);
+}
+
+.tracked-wallets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.no-wallets-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.no-wallets-msg svg {
+    opacity: 0.3;
+}
+
+.no-wallets-msg p {
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.no-wallets-msg span {
+    font-size: 0.8rem;
+}
+
+.tracked-wallet-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.wallet-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.wallet-label {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.wallet-addr {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.wallet-item-actions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.wallet-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.wallet-action-btn:hover {
+    background: rgba(0, 240, 255, 0.1);
+    color: var(--accent-cyan);
+}
+
+.wallet-action-btn.remove-wallet:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+.wallet-activity-section {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.wallet-activity-section h4 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem 0;
+}
+
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.activity-time {
+    color: var(--text-secondary);
+}
+
+.activity-link {
+    color: var(--accent-cyan);
+    text-decoration: none;
+}
+
+/* ============================================
+   WATCHLIST BUTTON STYLES
+   ============================================ */
+
+.watchlist-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.watchlist-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.watchlist-btn.active {
+    color: #ef4444;
+}
+
+.watchlist-btn.active:hover {
+    color: var(--text-muted);
+}
+
+/* Filter button with heart icon */
+.filter-btn svg {
+    margin-right: 0.35rem;
+}
+
+/* ============================================
+   SOUND ALERT TOGGLE STYLES
+   ============================================ */
+
+.signal-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.signal-toggles {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sound-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sound-toggle:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.sound-toggle.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.sound-toggle .hidden {
+    display: none;
+}
+
+/* ============================================
+   NOTIFICATION TOAST STYLES
+   ============================================ */
+
+.na-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--accent-cyan);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 9999;
+}
+
+.na-notification.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.na-notification.error {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.na-notification.success {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
 }
 
 .signals-filters {
@@ -4390,4 +4727,443 @@ span.negative,
 
 .source-tag[data-source="dexscreener"] {
     color: var(--accent-cyan);
+}
+
+/* ======================================
+   WALLET TRACKER STYLES
+   ====================================== */
+
+.add-wallet-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 6px;
+    color: var(--accent-cyan);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-wallet-btn:hover {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--accent-cyan);
+}
+
+.wallet-input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.wallet-input-section.hidden {
+    display: none;
+}
+
+.wallet-input,
+.wallet-label-input {
+    padding: 0.6rem 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+.wallet-input:focus,
+.wallet-label-input:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+}
+
+.wallet-save-btn {
+    padding: 0.6rem 1rem;
+    background: var(--accent-cyan);
+    border: none;
+    border-radius: 6px;
+    color: var(--bg-primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wallet-save-btn:hover {
+    background: #00d4e6;
+    transform: translateY(-1px);
+}
+
+.tracked-wallets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.no-wallets-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.no-wallets-msg svg {
+    opacity: 0.4;
+    margin-bottom: 0.75rem;
+}
+
+.no-wallets-msg p {
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+}
+
+.no-wallets-msg span {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.tracked-wallet {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.tracked-wallet:hover {
+    background: rgba(0, 240, 255, 0.05);
+    border-color: rgba(0, 240, 255, 0.2);
+}
+
+.wallet-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.7rem;
+    color: var(--bg-primary);
+}
+
+.wallet-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.wallet-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.wallet-address {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.wallet-pnl {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.wallet-pnl.positive {
+    color: var(--accent-green);
+}
+
+.wallet-pnl.negative {
+    color: var(--accent-red);
+}
+
+.remove-wallet-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 6px;
+    color: var(--accent-red);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.tracked-wallet:hover .remove-wallet-btn {
+    opacity: 1;
+}
+
+.remove-wallet-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--accent-red);
+}
+
+.wallet-activity {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.wallet-activity-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.wallet-trade {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.wallet-trade.buy {
+    border-left: 2px solid var(--accent-green);
+}
+
+.wallet-trade.sell {
+    border-left: 2px solid var(--accent-red);
+}
+
+.trade-type {
+    font-weight: 600;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.trade-type.buy {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+.trade-type.sell {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--accent-red);
+}
+
+.trade-token {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.trade-amount {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.trade-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* ======================================
+   WATCHLIST BUTTON STYLES
+   ====================================== */
+
+.watchlist-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 2;
+}
+
+.watchlist-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: var(--accent-red);
+}
+
+.watchlist-btn.active {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.watchlist-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ======================================
+   SIGNAL CONTROLS & SOUND TOGGLE
+   ====================================== */
+
+.signal-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.signals-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.signal-toggles {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sound-toggle {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sound-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sound-toggle.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.3);
+    color: var(--accent-cyan);
+}
+
+.sound-toggle .sound-off {
+    display: none;
+}
+
+.sound-toggle.muted .sound-on {
+    display: none;
+}
+
+.sound-toggle.muted .sound-off {
+    display: block;
+}
+
+/* ======================================
+   NOTIFICATION TOAST
+   ====================================== */
+
+.na-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    background: rgba(15, 15, 20, 0.95);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 240, 255, 0.1);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    z-index: 10000;
+    animation: slideInNotification 0.3s ease;
+}
+
+.na-notification.success {
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(16, 185, 129, 0.1);
+}
+
+.na-notification.warning {
+    border-color: rgba(251, 191, 36, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(251, 191, 36, 0.1);
+}
+
+.na-notification.error {
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+.na-notification-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.na-notification.success .na-notification-icon {
+    color: var(--accent-green);
+}
+
+.na-notification.warning .na-notification-icon {
+    color: var(--accent-yellow);
+}
+
+.na-notification.error .na-notification-icon {
+    color: var(--accent-red);
+}
+
+@keyframes slideInNotification {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.na-notification.hiding {
+    animation: slideOutNotification 0.3s ease forwards;
+}
+
+@keyframes slideOutNotification {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
+    }
 }
