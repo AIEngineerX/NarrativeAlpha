@@ -52,14 +52,12 @@ exports.handler = async (event, context) => {
             traders: traders,
             lastUpdated: new Date().toISOString(),
             source: 'kolscan.io',
-            parsed: traders.length > 0 && traders[0].name !== 'Bastille' // Indicate if we got fresh data
+            parsed: traders.length > 0 && !traders[0].isFallback
         };
 
-        // Update cache only if we got real data
-        if (result.parsed || !cache.data) {
-            cache.data = result;
-            cache.timestamp = now;
-        }
+        // Update cache
+        cache.data = result;
+        cache.timestamp = now;
 
         return {
             statusCode: 200,
@@ -96,142 +94,91 @@ exports.handler = async (event, context) => {
 // Parse trader data from kolscan.io HTML (Next.js RSC format)
 function parseKolscanData(html) {
     const traders = [];
+    const seen = new Set();
 
     try {
-        // Method 1: Look for RSC payload with wallet_address pattern
-        // RSC payloads contain JSON objects with trader data
-        const rscPattern = /"wallet_address"\s*:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"\s*,\s*"name"\s*:\s*"([^"]+)"\s*,\s*"profit"\s*:\s*([\d.-]+)\s*,\s*"wins"\s*:\s*(\d+)\s*,\s*"losses"\s*:\s*(\d+)/g;
+        // Method 1: Extract individual trader objects with flexible field ordering
+        // The format is: {"wallet_address":"...","name":"...","telegram":...,"twitter":"...","profit":...,"wins":...,"losses":...,"timeframe":...}
 
-        let match;
-        const seen = new Set();
+        // Find all wallet addresses first
+        const walletPattern = /"wallet_address"\s*:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"/g;
+        let walletMatch;
+        const walletPositions = [];
 
-        while ((match = rscPattern.exec(html)) !== null && traders.length < 10) {
-            const wallet = match[1];
-            // Avoid duplicates (same wallet appears in multiple timeframes)
-            if (seen.has(wallet)) continue;
-            seen.add(wallet);
+        while ((walletMatch = walletPattern.exec(html)) !== null) {
+            walletPositions.push({
+                wallet: walletMatch[1],
+                index: walletMatch.index
+            });
+        }
 
-            const wins = parseInt(match[4]) || 0;
-            const losses = parseInt(match[5]) || 0;
-            const pnlSol = parseFloat(match[3]) || 0;
+        // For each wallet, extract the surrounding object data
+        for (const wp of walletPositions) {
+            if (seen.has(wp.wallet)) continue;
+
+            // Get a chunk of text around the wallet address to parse
+            const startIdx = Math.max(0, wp.index - 50);
+            const endIdx = Math.min(html.length, wp.index + 500);
+            const chunk = html.substring(startIdx, endIdx);
+
+            // Extract name
+            const nameMatch = chunk.match(/"name"\s*:\s*"([^"]+)"/);
+            if (!nameMatch) continue;
+
+            // Extract profit (floating point)
+            const profitMatch = chunk.match(/"profit"\s*:\s*(-?[\d.]+)/);
+            if (!profitMatch) continue;
+
+            // Extract wins
+            const winsMatch = chunk.match(/"wins"\s*:\s*(\d+)/);
+
+            // Extract losses
+            const lossesMatch = chunk.match(/"losses"\s*:\s*(\d+)/);
+
+            // Extract timeframe - we want daily (timeframe: 1)
+            const timeframeMatch = chunk.match(/"timeframe"\s*:\s*(\d+)/);
+            const timeframe = timeframeMatch ? parseInt(timeframeMatch[1]) : 1;
+
+            // Only take daily timeframe entries (timeframe: 1)
+            if (timeframe !== 1) continue;
+
+            // Extract twitter if available
+            const twitterMatch = chunk.match(/"twitter"\s*:\s*"([^"]+)"/);
+
+            seen.add(wp.wallet);
+
+            const wins = winsMatch ? parseInt(winsMatch[1]) : 0;
+            const losses = lossesMatch ? parseInt(lossesMatch[1]) : 0;
+            const pnlSol = parseFloat(profitMatch[1]) || 0;
 
             traders.push({
                 rank: traders.length + 1,
-                name: match[2],
-                wallet: wallet,
+                name: nameMatch[1],
+                wallet: wp.wallet,
                 pnlSol: pnlSol,
                 pnlUsd: pnlSol * 140, // Approximate SOL price
                 wins: wins,
                 losses: losses,
                 winRate: wins + losses > 0 ? (wins / (wins + losses) * 100) : 0,
-                twitter: null
+                twitter: twitterMatch ? twitterMatch[1] : null
             });
+
+            // Limit to 10 traders
+            if (traders.length >= 10) break;
         }
 
-        // Method 2: Try alternate JSON structure patterns
-        if (traders.length === 0) {
-            // Look for JSON array patterns with trader objects
-            const jsonArrayPattern = /\[[\s\S]*?"wallet_address"[\s\S]*?\]/g;
-            const jsonMatches = html.match(jsonArrayPattern);
-
-            if (jsonMatches) {
-                for (const jsonStr of jsonMatches) {
-                    try {
-                        // Try to extract individual objects
-                        const objPattern = /\{[^{}]*"wallet_address"\s*:\s*"([^"]+)"[^{}]*"name"\s*:\s*"([^"]+)"[^{}]*"profit"\s*:\s*([\d.-]+)[^{}]*"wins"\s*:\s*(\d+)[^{}]*"losses"\s*:\s*(\d+)[^{}]*\}/g;
-                        let objMatch;
-
-                        while ((objMatch = objPattern.exec(jsonStr)) !== null && traders.length < 10) {
-                            const wallet = objMatch[1];
-                            if (seen.has(wallet)) continue;
-                            seen.add(wallet);
-
-                            const wins = parseInt(objMatch[4]) || 0;
-                            const losses = parseInt(objMatch[5]) || 0;
-                            const pnlSol = parseFloat(objMatch[3]) || 0;
-
-                            traders.push({
-                                rank: traders.length + 1,
-                                name: objMatch[2],
-                                wallet: wallet,
-                                pnlSol: pnlSol,
-                                pnlUsd: pnlSol * 140,
-                                wins: wins,
-                                losses: losses,
-                                winRate: wins + losses > 0 ? (wins / (wins + losses) * 100) : 0,
-                                twitter: null
-                            });
-                        }
-                    } catch (e) {
-                        // Continue to next match
-                    }
-                }
-            }
-        }
-
-        // Method 3: Look for Next.js __NEXT_DATA__ (legacy fallback)
-        if (traders.length === 0) {
-            const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
-
-            if (nextDataMatch) {
-                const nextData = JSON.parse(nextDataMatch[1]);
-                const pageProps = nextData?.props?.pageProps;
-
-                if (pageProps?.traders || pageProps?.leaderboard) {
-                    const rawTraders = pageProps.traders || pageProps.leaderboard || [];
-                    return rawTraders.slice(0, 10).map((trader, index) => ({
-                        rank: index + 1,
-                        name: trader.name || trader.alias || `Trader ${index + 1}`,
-                        wallet: trader.wallet_address || trader.wallet || trader.address || '',
-                        pnlSol: trader.profit || trader.pnl || 0,
-                        pnlUsd: (trader.profit || trader.pnl || 0) * 140,
-                        wins: trader.wins || 0,
-                        losses: trader.losses || 0,
-                        winRate: trader.wins && trader.losses ? (trader.wins / (trader.wins + trader.losses) * 100) : 0,
-                        twitter: trader.twitter || null
-                    }));
-                }
-            }
-        }
-
-        // Method 4: Extract from visible text patterns
-        if (traders.length === 0) {
-            // Match patterns like "Bastille" followed by wallet and SOL amount
-            const textPattern = /([A-Za-z0-9_]+)\s*\n?\s*([1-9A-HJ-NP-Za-km-z]{32,44})[\s\S]*?\+?([\d.]+)\s*Sol/gi;
-            let textMatch;
-
-            while ((textMatch = textPattern.exec(html)) !== null && traders.length < 10) {
-                const wallet = textMatch[2];
-                if (seen.has(wallet)) continue;
-                seen.add(wallet);
-
-                traders.push({
-                    rank: traders.length + 1,
-                    name: textMatch[1],
-                    wallet: wallet,
-                    pnlSol: parseFloat(textMatch[3]) || 0,
-                    pnlUsd: (parseFloat(textMatch[3]) || 0) * 140,
-                    wins: 0,
-                    losses: 0,
-                    winRate: 0,
-                    twitter: null
-                });
-            }
+        // Sort by PnL descending
+        if (traders.length > 0) {
+            traders.sort((a, b) => b.pnlSol - a.pnlSol);
+            traders.forEach((t, i) => t.rank = i + 1);
+            return traders;
         }
 
     } catch (e) {
         console.warn('Error parsing kolscan data:', e.message);
     }
 
-    // Sort by PnL descending
-    if (traders.length > 0) {
-        traders.sort((a, b) => b.pnlSol - a.pnlSol);
-        traders.forEach((t, i) => t.rank = i + 1);
-        return traders;
-    }
-
-    // If parsing fails completely, return curated fallback data
-    // This data represents typical top performers from kolscan.io
+    // Fallback data if parsing fails
     return [
         {
             rank: 1,
@@ -242,7 +189,8 @@ function parseKolscanData(html) {
             wins: 22,
             losses: 24,
             winRate: 47.8,
-            twitter: null
+            twitter: null,
+            isFallback: true
         },
         {
             rank: 2,
@@ -253,7 +201,8 @@ function parseKolscanData(html) {
             wins: 174,
             losses: 113,
             winRate: 60.6,
-            twitter: null
+            twitter: null,
+            isFallback: true
         },
         {
             rank: 3,
@@ -264,7 +213,8 @@ function parseKolscanData(html) {
             wins: 9,
             losses: 9,
             winRate: 50.0,
-            twitter: null
+            twitter: null,
+            isFallback: true
         },
         {
             rank: 4,
@@ -275,7 +225,8 @@ function parseKolscanData(html) {
             wins: 45,
             losses: 32,
             winRate: 58.4,
-            twitter: null
+            twitter: null,
+            isFallback: true
         },
         {
             rank: 5,
@@ -286,7 +237,8 @@ function parseKolscanData(html) {
             wins: 89,
             losses: 67,
             winRate: 57.1,
-            twitter: null
+            twitter: null,
+            isFallback: true
         }
     ];
 }
