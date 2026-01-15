@@ -446,6 +446,32 @@ class NavigationController {
             });
         });
 
+        // Pulse tabs
+        document.querySelectorAll('.pulse-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.pulse-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.pulse-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                const targetId = tab.dataset.tab === 'market' ? 'pulseMarket' : 'pulseSocial';
+                document.getElementById(targetId)?.classList.add('active');
+            });
+        });
+
+        // Volume timeframe buttons
+        document.querySelectorAll('.timeframe-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.timeframe-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const timeframe = btn.dataset.tf;
+                document.getElementById('volumeTimeframe').textContent = timeframe;
+                // Trigger data refresh with new timeframe if liveDataService exists
+                if (window.liveDataService) {
+                    window.liveDataService.currentTimeframe = timeframe;
+                    window.liveDataService.updateEcosystemPulse(window.liveDataService.lastTokens || []);
+                }
+            });
+        });
+
         // Handle hash navigation
         this.handleHash();
         window.addEventListener('hashchange', () => this.handleHash());
@@ -1140,64 +1166,80 @@ class LiveDataService {
     updateEcosystemPulse(tokens) {
         if (!tokens || tokens.length === 0) return;
 
-        // Calculate DEX breakdown
-        const dexCounts = { raydium: 0, orca: 0, meteora: 0, other: 0 };
-        const dexVolumes = { raydium: 0, orca: 0, meteora: 0, other: 0 };
+        // Store for timeframe refresh
+        this.lastTokens = tokens;
+        const timeframe = this.currentTimeframe || '24h';
+
+        // Calculate platform breakdown (Raydium, PumpFun, Jupiter, Orca, Other)
+        const platformVolumes = { raydium: 0, pumpfun: 0, jupiter: 0, orca: 0, other: 0 };
 
         tokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
-            const vol = t.volume24h || 0;
-            if (dex.includes('raydium')) {
-                dexCounts.raydium++;
-                dexVolumes.raydium += vol;
+            const isPumpFun = t.isPumpFun || dex.includes('pump');
+            // Use appropriate volume based on timeframe
+            const vol = timeframe === '5m' ? (t.volume5m || t.volume24h * 0.003) :
+                       timeframe === '1h' ? (t.volume1h || t.volume24h * 0.04) :
+                       t.volume24h || 0;
+
+            if (isPumpFun) {
+                platformVolumes.pumpfun += vol;
+            } else if (dex.includes('raydium')) {
+                platformVolumes.raydium += vol;
+            } else if (dex.includes('jupiter')) {
+                platformVolumes.jupiter += vol;
             } else if (dex.includes('orca')) {
-                dexCounts.orca++;
-                dexVolumes.orca += vol;
-            } else if (dex.includes('meteora')) {
-                dexCounts.meteora++;
-                dexVolumes.meteora += vol;
+                platformVolumes.orca += vol;
             } else {
-                dexCounts.other++;
-                dexVolumes.other += vol;
+                platformVolumes.other += vol;
             }
         });
 
-        const totalVolume = Object.values(dexVolumes).reduce((a, b) => a + b, 0);
+        const totalVolume = Object.values(platformVolumes).reduce((a, b) => a + b, 0);
 
-        // Find top DEX
-        const topDexName = Object.entries(dexVolumes).sort((a, b) => b[1] - a[1])[0];
-        const topDexEl = document.getElementById('topDex');
-        const topDexShareEl = document.getElementById('topDexShare');
-        if (topDexEl) {
-            topDexEl.textContent = topDexName[0].charAt(0).toUpperCase() + topDexName[0].slice(1);
-        }
-        if (topDexShareEl && totalVolume > 0) {
-            const share = Math.round((topDexName[1] / totalVolume) * 100);
-            topDexShareEl.textContent = `${share}% volume`;
-        }
+        // Update platform cards
+        const updatePlatformCard = (id, volume, total) => {
+            const volEl = document.getElementById(`${id}Volume`);
+            const shareEl = document.getElementById(`${id}Share`);
+            if (volEl) volEl.textContent = `$${this.formatCompact(volume)}`;
+            if (shareEl && total > 0) {
+                shareEl.textContent = `${Math.round((volume / total) * 100)}% share`;
+            }
+        };
 
-        // Detect hot narrative from token names/symbols
+        updatePlatformCard('raydium', platformVolumes.raydium, totalVolume);
+        updatePlatformCard('pumpfun', platformVolumes.pumpfun, totalVolume);
+        updatePlatformCard('jupiter', platformVolumes.jupiter, totalVolume);
+        updatePlatformCard('orca', platformVolumes.orca, totalVolume);
+
+        // Detect narratives from token names/symbols
         const narrativeKeywords = {
-            'AI': ['ai', 'gpt', 'agent', 'neural', 'bot', 'llm'],
-            'Dogs': ['dog', 'doge', 'shib', 'inu', 'wif', 'bonk', 'pup'],
-            'Cats': ['cat', 'kit', 'meow', 'nyan'],
-            'Frogs': ['frog', 'pepe', 'kek'],
-            'Political': ['trump', 'biden', 'maga', 'political'],
-            'Culture': ['meme', 'wojak', 'chad', 'based'],
-            'Gaming': ['game', 'play', 'nft']
+            'AI Agents': ['ai', 'gpt', 'agent', 'neural', 'bot', 'llm', 'virtual'],
+            'Dog Coins': ['dog', 'doge', 'shib', 'inu', 'wif', 'bonk', 'pup', 'doggo'],
+            'Cat Coins': ['cat', 'kit', 'meow', 'nyan', 'kitty'],
+            'Frog Meta': ['frog', 'pepe', 'kek', 'ribbit'],
+            'Political': ['trump', 'biden', 'maga', 'political', 'elon', 'musk'],
+            'Culture/Meme': ['meme', 'wojak', 'chad', 'based', 'cope', 'seethe'],
+            'Gaming': ['game', 'play', 'nft', 'pixel'],
+            'DeFi': ['swap', 'yield', 'stake', 'farm', 'lend']
         };
 
         const narrativeCounts = {};
+        const narrativeVolumes = {};
         tokens.forEach(t => {
             const name = ((t.name || '') + ' ' + (t.symbol || '')).toLowerCase();
             for (const [narrative, keywords] of Object.entries(narrativeKeywords)) {
                 if (keywords.some(kw => name.includes(kw))) {
                     narrativeCounts[narrative] = (narrativeCounts[narrative] || 0) + 1;
+                    narrativeVolumes[narrative] = (narrativeVolumes[narrative] || 0) + (t.volume24h || 0);
                 }
             }
         });
 
-        const hotNarrative = Object.entries(narrativeCounts).sort((a, b) => b[1] - a[1])[0];
+        // Sort narratives by count
+        const sortedNarratives = Object.entries(narrativeCounts).sort((a, b) => b[1] - a[1]);
+
+        // Update hot narrative
+        const hotNarrative = sortedNarratives[0];
         const hotNarrativeEl = document.getElementById('hotNarrative');
         const hotNarrativeCountEl = document.getElementById('hotNarrativeCount');
         if (hotNarrativeEl && hotNarrative) {
@@ -1224,26 +1266,95 @@ class LiveDataService {
             newLaunchesEl.textContent = newLaunchCount;
         }
 
+        // Average market cap
+        const avgMcap = tokens.reduce((sum, t) => sum + (t.marketCap || 0), 0) / tokens.length;
+        const avgMcapEl = document.getElementById('avgMcap');
+        if (avgMcapEl) {
+            avgMcapEl.textContent = `$${this.formatCompact(avgMcap)}`;
+        }
+
         // Update DEX bar visualization
         if (totalVolume > 0) {
-            const raydiumPct = Math.max(5, (dexVolumes.raydium / totalVolume) * 100);
-            const orcaPct = Math.max(5, (dexVolumes.orca / totalVolume) * 100);
-            const meteoraPct = Math.max(5, (dexVolumes.meteora / totalVolume) * 100);
-            const otherPct = Math.max(5, (dexVolumes.other / totalVolume) * 100);
+            const segments = [
+                { id: 'dexRaydium', vol: platformVolumes.raydium },
+                { id: 'dexPumpfun', vol: platformVolumes.pumpfun },
+                { id: 'dexJupiter', vol: platformVolumes.jupiter },
+                { id: 'dexOrca', vol: platformVolumes.orca },
+                { id: 'dexOther', vol: platformVolumes.other }
+            ];
+
+            // Calculate percentages with minimum 3% for visibility
+            let percentages = segments.map(s => ({ ...s, pct: Math.max(3, (s.vol / totalVolume) * 100) }));
+            const totalPct = percentages.reduce((sum, s) => sum + s.pct, 0);
 
             // Normalize to 100%
-            const total = raydiumPct + orcaPct + meteoraPct + otherPct;
-            const normalize = (v) => ((v / total) * 100).toFixed(1);
+            percentages.forEach(s => {
+                const el = document.getElementById(s.id);
+                if (el) {
+                    const normalizedPct = (s.pct / totalPct) * 100;
+                    el.style.width = `${normalizedPct.toFixed(1)}%`;
+                }
+            });
+        }
 
-            const raydiumBar = document.getElementById('dexRaydium');
-            const orcaBar = document.getElementById('dexOrca');
-            const meteoraBar = document.getElementById('dexMeteora');
-            const otherBar = document.getElementById('dexOther');
+        // Update CT Buzz / Social Trends
+        this.updateSocialTrends(sortedNarratives, tokens);
+    }
 
-            if (raydiumBar) raydiumBar.style.width = `${normalize(raydiumPct)}%`;
-            if (orcaBar) orcaBar.style.width = `${normalize(orcaPct)}%`;
-            if (meteoraBar) meteoraBar.style.width = `${normalize(meteoraPct)}%`;
-            if (otherBar) otherBar.style.width = `${normalize(otherPct)}%`;
+    // Update the CT Buzz / Social Trends tab
+    updateSocialTrends(sortedNarratives, tokens) {
+        // Generate trend topics from narratives and top movers
+        const trends = [];
+
+        // Add top narratives as trends
+        sortedNarratives.slice(0, 3).forEach(([narrative, count], i) => {
+            trends.push({
+                topic: narrative,
+                meta: `${count} tokens trending`,
+                hot: i === 0
+            });
+        });
+
+        // Add top mover tokens
+        const topMovers = [...tokens]
+            .filter(t => t.priceChange1h > 20)
+            .sort((a, b) => b.priceChange1h - a.priceChange1h)
+            .slice(0, 2);
+
+        topMovers.forEach(t => {
+            trends.push({
+                topic: `$${t.symbol} pumping`,
+                meta: `+${t.priceChange1h.toFixed(0)}% in 1h`,
+                hot: t.priceChange1h > 50
+            });
+        });
+
+        // Fill remaining with fresh launches
+        if (trends.length < 5) {
+            const freshTokens = tokens
+                .filter(t => t.createdAt && (Date.now() - t.createdAt) < 6 * 60 * 60 * 1000)
+                .slice(0, 5 - trends.length);
+            freshTokens.forEach(t => {
+                trends.push({
+                    topic: `$${t.symbol} launched`,
+                    meta: `New token alert`,
+                    hot: false
+                });
+            });
+        }
+
+        // Update DOM
+        for (let i = 1; i <= 5; i++) {
+            const topicEl = document.getElementById(`trend${i}Topic`);
+            const metaEl = document.getElementById(`trend${i}Meta`);
+            const trend = trends[i - 1];
+
+            if (topicEl) {
+                topicEl.textContent = trend ? trend.topic : 'No data';
+            }
+            if (metaEl) {
+                metaEl.textContent = trend ? trend.meta : '--';
+            }
         }
     }
 
