@@ -658,6 +658,12 @@ class LiveDataService {
         this.maxRetries = 2;
         this.cacheExpiry = 120000; // Cache valid for 2 minutes
 
+        // Ecosystem volumes from CoinGecko
+        this.bonkEcosystemVolume = 0;
+        this.bagsEcosystemVolume = 0;
+        this.bonkEcosystemTokens = 0;
+        this.bagsEcosystemTokens = 0;
+
         this.elements = {
             signalsFeed: document.getElementById('signalsFeed'),
             lastUpdateTime: document.getElementById('lastUpdateTime'),
@@ -773,11 +779,22 @@ class LiveDataService {
             `;
         }
 
-        // Fetch both sources in parallel (only 2 API calls total)
+        // Fetch main data sources in parallel
         const [dexData, pumpFunData] = await Promise.allSettled([
             this.fetchDexScreener(),
             this.fetchPumpFun()
         ]);
+
+        // Fetch ecosystem data in background (for Market Pulse, non-blocking)
+        Promise.allSettled([
+            this.fetchBonkEcosystem(),
+            this.fetchBagsEcosystem()
+        ]).then(() => {
+            // Update ecosystem pulse with new data when available
+            if (this.cachedTrendingTokens.length > 0) {
+                this.updateEcosystemPulse(this.cachedTrendingTokens);
+            }
+        });
 
         let allTokens = [];
 
@@ -962,6 +979,52 @@ class LiveDataService {
 
         } catch (error) {
             console.warn('PumpFun-style fetch failed:', error.message);
+            return null;
+        }
+    }
+
+    // Fetch Bonk ecosystem data from CoinGecko
+    async fetchBonkEcosystem() {
+        try {
+            const response = await fetch(
+                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=letsbonk-fun-ecosystem&order=volume_desc&per_page=20&sparkline=false',
+                { headers: { 'Accept': 'application/json' } }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            this.bonkEcosystemVolume = data.reduce((sum, token) => sum + (token.total_volume || 0), 0);
+            this.bonkEcosystemTokens = data.length;
+            console.log(`Bonk ecosystem: ${data.length} tokens, $${this.formatCompact(this.bonkEcosystemVolume)} volume`);
+            return data;
+        } catch (error) {
+            console.warn('Bonk ecosystem fetch failed:', error.message);
+            return null;
+        }
+    }
+
+    // Fetch Bags ecosystem data from CoinGecko
+    async fetchBagsEcosystem() {
+        try {
+            const response = await fetch(
+                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=bagsapp-ecosystem&order=volume_desc&per_page=20&sparkline=false',
+                { headers: { 'Accept': 'application/json' } }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            this.bagsEcosystemVolume = data.reduce((sum, token) => sum + (token.total_volume || 0), 0);
+            this.bagsEcosystemTokens = data.length;
+            console.log(`Bags ecosystem: ${data.length} tokens, $${this.formatCompact(this.bagsEcosystemVolume)} volume`);
+            return data;
+        } catch (error) {
+            console.warn('Bags ecosystem fetch failed:', error.message);
             return null;
         }
     }
@@ -1331,50 +1394,35 @@ class LiveDataService {
         this.lastTokens = tokens;
         const timeframe = this.currentTimeframe || '24h';
 
-        // Calculate platform breakdown (Raydium, PumpFun, Bonk, Bags, Other)
-        const platformVolumes = { raydium: 0, pumpfun: 0, bonk: 0, bags: 0, other: 0 };
+        // Calculate platform breakdown from DEX Screener tokens (Raydium, PumpFun)
+        const platformVolumes = { raydium: 0, pumpfun: 0, other: 0 };
 
         tokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
             const url = (t.url || '').toLowerCase();
-            const name = (t.name || '').toLowerCase();
-            const symbol = (t.symbol || '').toLowerCase();
-
-            // Check websites array for platform detection
-            const websiteUrls = (t.info?.websites || t.websites || [])
-                .map(w => (w.url || w || '').toLowerCase())
-                .join(' ');
-
-            // Check socials array for platform detection
-            const socialUrls = (t.info?.socials || t.socials || [])
-                .map(s => (s.url || '').toLowerCase())
-                .join(' ');
-
-            // Combined text for searching
-            const allUrls = `${url} ${websiteUrls} ${socialUrls}`;
 
             // Use appropriate volume based on timeframe
             const vol = timeframe === '5m' ? (t.volume5m || t.volume24h * 0.003) :
                        timeframe === '1h' ? (t.volume1h || t.volume24h * 0.04) :
                        t.volume24h || 0;
 
-            // Detect platform/ecosystem based on dexId, URL, token name, websites, socials
-            if (dex.includes('pump') || allUrls.includes('pump.fun')) {
+            // Detect platform from dexId
+            if (dex.includes('pump') || url.includes('pump.fun')) {
                 platformVolumes.pumpfun += vol;
-            } else if (allUrls.includes('bags.fm') || allUrls.includes('getbags') || dex.includes('bags')) {
-                platformVolumes.bags += vol;
-            } else if (name.includes('bonk') || symbol.includes('bonk') || symbol === 'bonk' ||
-                       allUrls.includes('bonkcoin') || allUrls.includes('letsbonk')) {
-                platformVolumes.bonk += vol;
-            } else if (dex.includes('raydium') || allUrls.includes('raydium')) {
+            } else if (dex.includes('raydium') || url.includes('raydium')) {
                 platformVolumes.raydium += vol;
             } else {
-                // Default unrecognized DEXs to "other"
                 platformVolumes.other += vol;
             }
         });
 
-        const totalVolume = Object.values(platformVolumes).reduce((a, b) => a + b, 0);
+        // Use CoinGecko ecosystem data for Bonk and Bags (fetched separately)
+        const bonkVolume = this.bonkEcosystemVolume || 0;
+        const bagsVolume = this.bagsEcosystemVolume || 0;
+
+        // Total volume includes both DEX detected + ecosystem volumes
+        const dexTotal = Object.values(platformVolumes).reduce((a, b) => a + b, 0);
+        const totalVolume = dexTotal + bonkVolume + bagsVolume;
 
         // Update platform cards
         const updatePlatformCard = (id, volume, total) => {
@@ -1383,13 +1431,15 @@ class LiveDataService {
             if (volEl) volEl.textContent = `$${this.formatCompact(volume)}`;
             if (shareEl && total > 0) {
                 shareEl.textContent = `${Math.round((volume / total) * 100)}% share`;
+            } else if (shareEl) {
+                shareEl.textContent = volume > 0 ? 'Active' : '---';
             }
         };
 
         updatePlatformCard('raydium', platformVolumes.raydium, totalVolume);
         updatePlatformCard('pumpfun', platformVolumes.pumpfun, totalVolume);
-        updatePlatformCard('bonk', platformVolumes.bonk, totalVolume);
-        updatePlatformCard('bags', platformVolumes.bags, totalVolume);
+        updatePlatformCard('bonk', bonkVolume, totalVolume);
+        updatePlatformCard('bags', bagsVolume, totalVolume);
 
         // Detect narratives from token names/symbols
         const narrativeKeywords = {
@@ -1458,8 +1508,8 @@ class LiveDataService {
             const segments = [
                 { id: 'dexRaydium', vol: platformVolumes.raydium },
                 { id: 'dexPumpfun', vol: platformVolumes.pumpfun },
-                { id: 'dexBonk', vol: platformVolumes.bonk },
-                { id: 'dexBags', vol: platformVolumes.bags },
+                { id: 'dexBonk', vol: bonkVolume },
+                { id: 'dexBags', vol: bagsVolume },
                 { id: 'dexOther', vol: platformVolumes.other }
             ];
 
