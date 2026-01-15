@@ -586,6 +586,7 @@ class LiveDataService {
         this.setupEventListeners();
         // Load from PumpFun first (no rate limit issues), then DEX
         this.fetchAllData();
+        this.fetchSocialTrends(); // Fetch real social trends
         this.startAutoRefresh();
     }
 
@@ -624,15 +625,28 @@ class LiveDataService {
     }
 
     startAutoRefresh() {
+        // Full data refresh every 2 minutes
         this.intervalId = setInterval(() => {
             this.fetchAllData();
         }, this.updateInterval);
+
+        // Faster metrics refresh every 30 seconds using cached data
+        this.metricsIntervalId = setInterval(() => {
+            if (this.cachedTrendingTokens.length > 0) {
+                this.updateSystemStats(this.cachedTrendingTokens);
+            }
+        }, 30000);
+
+        // Social trends refresh every 5 minutes
+        this.socialTrendsIntervalId = setInterval(() => {
+            this.fetchSocialTrends();
+        }, 300000);
     }
 
     stopAutoRefresh() {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-        }
+        if (this.intervalId) clearInterval(this.intervalId);
+        if (this.metricsIntervalId) clearInterval(this.metricsIntervalId);
+        if (this.socialTrendsIntervalId) clearInterval(this.socialTrendsIntervalId);
     }
 
     updateLastUpdateTime(fromCache = false) {
@@ -1066,7 +1080,28 @@ class LiveDataService {
                 createdAt: pair.pairCreatedAt,
                 url: pair.url,
                 info: pair.info || {}
-            });
+            };
+
+            // Run scam detection
+            const scamCheck = this.detectScamIndicators(tokenData);
+
+            // Filter obvious scams entirely
+            if (scamCheck.shouldFilter) {
+                console.log(`Filtered potential scam: ${tokenData.symbol}`, scamCheck.warnings.map(w => w.message));
+                continue;
+            }
+
+            // Add scam info to token data
+            tokenData.scamCheck = scamCheck;
+            tokenData.isHighRisk = scamCheck.isHighRisk;
+            tokenData.isPotentialHoneypot = scamCheck.isPotentialHoneypot;
+
+            // Adjust confidence based on scam score
+            if (scamCheck.scamScore > 0) {
+                tokenData.confidence = Math.max(10, tokenData.confidence - Math.floor(scamCheck.scamScore / 2));
+            }
+
+            processed.push(tokenData);
         }
 
         // Sort by heat score (most momentum first) - this prioritizes active pumps
@@ -1100,62 +1135,86 @@ class LiveDataService {
         this.updateSystemStats(tokens);
     }
 
-    // Update the hero section system stats with real data
+    // Update Trading Activity metrics (replaces old System Performance)
     updateSystemStats(tokens) {
         if (!tokens || tokens.length === 0) return;
 
-        // Calculate bullish signal percentage
-        const bullishCount = tokens.filter(t => t.signalType === 'bullish').length;
-        const bullishRate = Math.round((bullishCount / tokens.length) * 100);
+        // 1. Calculate total 1h volume across all tokens
+        const totalVolume1h = tokens.reduce((sum, t) => sum + (t.volume1h || 0), 0);
 
-        // Calculate average token age (for tokens with createdAt)
-        const tokensWithAge = tokens.filter(t => t.createdAt);
-        let avgAge = 0;
-        if (tokensWithAge.length > 0) {
-            const totalAgeHours = tokensWithAge.reduce((sum, t) => {
-                return sum + (Date.now() - t.createdAt) / (1000 * 60 * 60);
-            }, 0);
-            avgAge = totalAgeHours / tokensWithAge.length;
-        }
+        // 2. Calculate aggregate buy pressure
+        const tokensWithBuyData = tokens.filter(t => t.buyRatio !== undefined);
+        const avgBuyPressure = tokensWithBuyData.length > 0
+            ? tokensWithBuyData.reduce((sum, t) => sum + t.buyRatio, 0) / tokensWithBuyData.length
+            : 0.5;
+        const buyPressurePercent = Math.round(avgBuyPressure * 100);
+
+        // 3. Count urgent signals
+        const urgentCount = tokens.filter(t => t.isUrgent === true).length;
+
+        // 4. Find top gainer (best 1h performance)
+        const topGainer = [...tokens]
+            .filter(t => t.priceChange1h !== undefined && t.volume1h > 500)
+            .sort((a, b) => b.priceChange1h - a.priceChange1h)[0];
 
         // Update DOM elements
-        const bullishEl = document.getElementById('statsBullishRate');
-        const bullishBar = document.getElementById('statsBullishBar');
-        const ageEl = document.getElementById('statsAvgAge');
-        const ageBar = document.getElementById('statsAgeBar');
-        const signalsEl = document.getElementById('statsActiveSignals');
-        const signalsBar = document.getElementById('statsSignalsBar');
+        const volumeEl = document.getElementById('statsTotalVolume');
+        const volumeBar = document.getElementById('statsVolumeBar');
+        const buyEl = document.getElementById('statsBuyPressure');
+        const buyBar = document.getElementById('statsBuyBar');
+        const urgentEl = document.getElementById('statsUrgentCount');
+        const urgentBar = document.getElementById('statsUrgentBar');
+        const topGainerEl = document.getElementById('statsTopGainer');
+        const topGainerChangeEl = document.getElementById('statsTopGainerChange');
+        const timeEl = document.getElementById('metricsUpdateTime');
 
-        // Bullish rate
-        if (bullishEl) {
-            bullishEl.textContent = `${bullishRate}%`;
-            bullishEl.dataset.value = bullishRate;
+        // Total Volume
+        if (volumeEl) {
+            volumeEl.textContent = `$${this.formatCompact(totalVolume1h)}`;
         }
-        if (bullishBar) {
-            bullishBar.style.setProperty('--fill-width', `${bullishRate}%`);
-        }
-
-        // Average age (cap display at 168h = 1 week for bar visualization)
-        const ageDisplay = avgAge < 1 ? `${Math.round(avgAge * 60)}m` : `${avgAge.toFixed(1)}h`;
-        if (ageEl) {
-            ageEl.textContent = ageDisplay;
-            ageEl.dataset.value = avgAge.toFixed(1);
-        }
-        if (ageBar) {
-            // Lower age = better (fresher tokens), so invert for bar
-            const freshness = Math.max(0, 100 - (avgAge / 168 * 100));
-            ageBar.style.setProperty('--fill-width', `${freshness}%`);
+        if (volumeBar) {
+            const volPercent = Math.min(100, (totalVolume1h / 1000000) * 100);
+            volumeBar.style.setProperty('--fill-width', `${volPercent}%`);
         }
 
-        // Active signals count
-        if (signalsEl) {
-            signalsEl.textContent = tokens.length;
-            signalsEl.dataset.value = tokens.length;
+        // Buy Pressure
+        if (buyEl) {
+            buyEl.textContent = `${buyPressurePercent}%`;
+            buyEl.className = `metric-value ${buyPressurePercent > 55 ? 'positive' : buyPressurePercent < 45 ? 'negative' : ''}`;
         }
-        if (signalsBar) {
-            // Percentage based on max 50 signals
-            const signalPercent = Math.min(100, (tokens.length / 50) * 100);
-            signalsBar.style.setProperty('--fill-width', `${signalPercent}%`);
+        if (buyBar) {
+            buyBar.style.setProperty('--fill-width', `${buyPressurePercent}%`);
+            buyBar.className = `metric-fill ${buyPressurePercent > 55 ? 'bullish' : buyPressurePercent < 45 ? 'bearish' : ''}`;
+        }
+
+        // Urgent Signals
+        if (urgentEl) {
+            urgentEl.textContent = urgentCount;
+            urgentEl.className = `metric-value ${urgentCount > 0 ? 'urgent-pulse' : ''}`;
+        }
+        if (urgentBar) {
+            const urgentPercent = Math.min(100, (urgentCount / 10) * 100);
+            urgentBar.style.setProperty('--fill-width', `${urgentPercent}%`);
+        }
+
+        // Top Gainer
+        if (topGainerEl && topGainer) {
+            topGainerEl.textContent = `$${topGainer.symbol}`;
+            topGainerEl.dataset.address = topGainer.address;
+        } else if (topGainerEl) {
+            topGainerEl.textContent = '---';
+        }
+        if (topGainerChangeEl && topGainer) {
+            const change = topGainer.priceChange1h;
+            topGainerChangeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+            topGainerChangeEl.className = `top-gainer-change ${change >= 0 ? 'positive' : 'negative'}`;
+        }
+
+        // Update timestamp
+        if (timeEl) {
+            timeEl.textContent = new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            });
         }
 
         // Update ecosystem pulse
@@ -1360,6 +1419,260 @@ class LiveDataService {
         }
     }
 
+    // Fetch real social trends from Netlify function
+    async fetchSocialTrends() {
+        try {
+            const response = await fetch('/.netlify/functions/social-trends');
+
+            if (!response.ok) {
+                throw new Error('Social trends fetch failed');
+            }
+
+            const data = await response.json();
+            this.displaySocialTrends(data);
+
+            return data;
+        } catch (error) {
+            console.warn('Social trends error:', error);
+            // Fall back to token-based trends
+            if (this.lastTokens && this.lastTokens.length > 0) {
+                this.updateSocialTrends(this.sortedNarratives || [], this.lastTokens);
+            }
+            return null;
+        }
+    }
+
+    // Display real social trends in CT Buzz tab
+    displaySocialTrends(data) {
+        const trends = data.aggregatedTrends || [];
+        const categories = data.hotCategories || [];
+
+        // Build combined trend list
+        const displayTrends = [];
+
+        // Add trending tokens
+        trends.slice(0, 3).forEach((t, i) => {
+            displayTrends.push({
+                topic: `$${t.symbol} trending`,
+                meta: t.priceChange24h !== undefined
+                    ? `${t.priceChange24h >= 0 ? '+' : ''}${t.priceChange24h.toFixed(1)}% 24h`
+                    : `Rank #${t.marketCapRank || t.rank}`,
+                hot: i === 0,
+                source: t.source
+            });
+        });
+
+        // Add hot categories/narratives
+        categories.slice(0, 2).forEach(cat => {
+            displayTrends.push({
+                topic: cat.name,
+                meta: cat.change24h
+                    ? `${cat.change24h >= 0 ? '+' : ''}${cat.change24h.toFixed(1)}% MC`
+                    : 'Hot narrative',
+                hot: cat.change24h > 10,
+                source: 'narrative'
+            });
+        });
+
+        // Update DOM
+        for (let i = 1; i <= 5; i++) {
+            const topicEl = document.getElementById(`trend${i}Topic`);
+            const metaEl = document.getElementById(`trend${i}Meta`);
+            const cardEl = topicEl?.closest('.trend-card');
+            const trend = displayTrends[i - 1];
+
+            if (topicEl) {
+                topicEl.textContent = trend ? trend.topic : 'No data';
+            }
+            if (metaEl) {
+                metaEl.textContent = trend ? trend.meta : '--';
+                // Color code the meta based on value
+                if (trend && trend.meta.includes('+')) {
+                    metaEl.classList.add('positive');
+                    metaEl.classList.remove('negative');
+                } else if (trend && trend.meta.includes('-')) {
+                    metaEl.classList.add('negative');
+                    metaEl.classList.remove('positive');
+                }
+            }
+            if (cardEl && trend) {
+                cardEl.classList.toggle('hot', trend.hot && i === 1);
+                cardEl.dataset.source = trend.source || 'unknown';
+            }
+        }
+
+        // Update timestamp
+        const socialTimeEl = document.getElementById('socialUpdateTime');
+        if (socialTimeEl) {
+            socialTimeEl.textContent = data.cached ? 'Cached' : 'Live';
+        }
+    }
+
+    // Validate if a token has genuine trading activity (not dead)
+    validateTokenActivity(token) {
+        const volume1h = token.volume1h || 0;
+        const txns1h = token.txns1h || (token.txns24h ? Math.floor(token.txns24h / 24) : 0);
+        const buyRatio = token.buyRatio || 0.5;
+        const priceChange1h = token.priceChange1h || 0;
+
+        const thresholds = CONFIG?.VALIDATION || {
+            DEAD_VOLUME_THRESHOLD: 500,
+            DEAD_TXNS_THRESHOLD: 5,
+            MIN_VOLUME_1H: 1000,
+            MIN_TXNS_1H: 10
+        };
+
+        const result = {
+            isValid: true,
+            isDead: false,
+            isLowActivity: false,
+            warnings: [],
+            adjustedConfidence: token.confidence || 50
+        };
+
+        // Check for dead token (price moving but no volume/activity)
+        if (volume1h < thresholds.DEAD_VOLUME_THRESHOLD || txns1h < thresholds.DEAD_TXNS_THRESHOLD) {
+            result.isDead = true;
+            result.isValid = false;
+            result.warnings.push('NO_ACTIVITY');
+            result.adjustedConfidence = Math.max(10, result.adjustedConfidence - 40);
+        }
+        // Check for low activity
+        else if (volume1h < thresholds.MIN_VOLUME_1H || txns1h < thresholds.MIN_TXNS_1H) {
+            result.isLowActivity = true;
+            result.warnings.push('LOW_ACTIVITY');
+            result.adjustedConfidence = Math.max(20, result.adjustedConfidence - 20);
+        }
+
+        // Cross-validate buy ratio with price direction
+        if (priceChange1h > 20 && buyRatio < 0.4) {
+            result.warnings.push('BUY_PRICE_MISMATCH');
+            result.adjustedConfidence = Math.max(15, result.adjustedConfidence - 25);
+        }
+
+        if (priceChange1h < -20 && buyRatio > 0.7) {
+            result.warnings.push('SELL_PRICE_MISMATCH');
+            result.adjustedConfidence = Math.max(15, result.adjustedConfidence - 25);
+        }
+
+        return result;
+    }
+
+    // Detect potential honeypot/scam tokens
+    detectScamIndicators(token) {
+        const thresholds = CONFIG?.VALIDATION || {
+            MCAP_LIQ_WARNING: 50,
+            MCAP_LIQ_CRITICAL: 100,
+            HONEYPOT_BUY_RATIO: 0.95,
+            SCAM_SCORE_FILTER: 70,
+            SCAM_SCORE_HIGH_RISK: 40
+        };
+
+        const result = {
+            isScam: false,
+            isPotentialHoneypot: false,
+            isHighRisk: false,
+            scamScore: 0,
+            warnings: [],
+            shouldFilter: false
+        };
+
+        const mcap = token.marketCap || 0;
+        const liquidity = token.liquidity || 0;
+        const volume24h = token.volume24h || 0;
+        const volume1h = token.volume1h || 0;
+        const buyRatio = token.buyRatio || 0.5;
+        const txns24h = token.txns24h || 0;
+        const priceChange1h = token.priceChange1h || 0;
+        const ageHours = token.ageHours || (token.createdAt ? (Date.now() - token.createdAt) / 3600000 : 999);
+
+        // 1. EXTREME MCAP/LIQUIDITY RATIO (potential rug)
+        if (mcap > 0 && liquidity > 0) {
+            const mcapLiqRatio = mcap / liquidity;
+
+            if (mcapLiqRatio > thresholds.MCAP_LIQ_CRITICAL) {
+                result.warnings.push({
+                    type: 'EXTREME_MCAP_LIQ',
+                    severity: 'critical',
+                    message: `MC/Liq ${mcapLiqRatio.toFixed(0)}x - EXIT IMPOSSIBLE`
+                });
+                result.scamScore += 40;
+                result.isHighRisk = true;
+            } else if (mcapLiqRatio > thresholds.MCAP_LIQ_WARNING) {
+                result.warnings.push({
+                    type: 'HIGH_MCAP_LIQ',
+                    severity: 'warning',
+                    message: `MC/Liq ${mcapLiqRatio.toFixed(0)}x - thin liquidity`
+                });
+                result.scamScore += 20;
+            }
+        }
+
+        // 2. HONEYPOT PATTERN: High buys but no price movement
+        if (buyRatio > thresholds.HONEYPOT_BUY_RATIO && Math.abs(priceChange1h) < 2 && txns24h > 100) {
+            result.warnings.push({
+                type: 'HONEYPOT_PATTERN',
+                severity: 'critical',
+                message: `${Math.round(buyRatio * 100)}% buys but price flat - HONEYPOT`
+            });
+            result.scamScore += 50;
+            result.isPotentialHoneypot = true;
+        }
+
+        // 3. ZERO RECENT TRANSACTIONS
+        const txns1h = token.txns1h || Math.floor(txns24h / 24);
+        if (txns1h === 0 && volume1h === 0 && mcap > 10000) {
+            result.warnings.push({
+                type: 'ZERO_ACTIVITY',
+                severity: 'warning',
+                message: 'No transactions in last hour'
+            });
+            result.scamScore += 15;
+        }
+
+        // 4. EXTREME BUY/SELL IMBALANCE with volume
+        if (buyRatio > 0.98 && volume24h > 10000) {
+            result.warnings.push({
+                type: 'SELL_BLOCKED',
+                severity: 'critical',
+                message: '99%+ buys - sells blocked'
+            });
+            result.scamScore += 35;
+            result.isPotentialHoneypot = true;
+        }
+
+        // 5. MICRO LIQUIDITY with high mcap claims
+        if (liquidity < 1000 && mcap > 100000) {
+            result.warnings.push({
+                type: 'FAKE_MCAP',
+                severity: 'critical',
+                message: `$${this.formatCompact(mcap)} MC but $${this.formatCompact(liquidity)} liq`
+            });
+            result.scamScore += 45;
+            result.isHighRisk = true;
+        }
+
+        // 6. INSTANT PUMP PATTERN (coordinated launch scam)
+        if (ageHours < 0.5 && priceChange1h > 500 && buyRatio > 0.9) {
+            result.warnings.push({
+                type: 'COORDINATED_PUMP',
+                severity: 'warning',
+                message: 'Coordinated launch pump'
+            });
+            result.scamScore += 25;
+        }
+
+        // Determine overall status
+        if (result.scamScore >= thresholds.SCAM_SCORE_FILTER) {
+            result.isScam = true;
+            result.shouldFilter = true;
+        } else if (result.scamScore >= thresholds.SCAM_SCORE_HIGH_RISK) {
+            result.isHighRisk = true;
+        }
+
+        return result;
+    }
+
     // Generate specific, actionable signal description based on data patterns
     generateSignalEdge(token) {
         const { priceChange5m, priceChange1h, priceChange24h, volume24h, volume1h, liquidity, buyRatio, txns24h, marketCap } = token;
@@ -1367,12 +1680,41 @@ class LiveDataService {
         const ageHours = token.createdAt ? (Date.now() - token.createdAt) / (1000 * 60 * 60) : 999;
         const volumeVelocity = liquidity > 0 ? volume24h / liquidity : 0;
         const avgTxSize = txns24h > 0 ? volume24h / txns24h : 0;
+        const txns1h = token.txns1h || Math.floor(txns24h / 24);
+
+        // Validate token activity first
+        const validation = this.validateTokenActivity(token);
+
+        // DEAD TOKEN CHECK - Override any positive signal
+        if (validation.isDead) {
+            if (Math.abs(priceChange1h) > 10) {
+                return {
+                    edge: `Price ${priceChange1h > 0 ? '+' : ''}${priceChange1h.toFixed(0)}% but NO volume ($${this.formatCompact(volume1h || 0)} 1h) - dead or manipulated`,
+                    tag: 'DEAD',
+                    confidence: validation.adjustedConfidence
+                };
+            }
+            return {
+                edge: `No activity: $${this.formatCompact(volume1h || 0)} vol, ${txns1h} txns last hour`,
+                tag: 'DEAD',
+                confidence: validation.adjustedConfidence
+            };
+        }
+
+        // LOW ACTIVITY CHECK
+        if (validation.isLowActivity && Math.abs(priceChange1h) < 20) {
+            return {
+                edge: `Low activity: $${this.formatCompact(volume1h || 0)} vol, ${txns1h} txns/h - trade with caution`,
+                tag: 'LOW ACTIVITY',
+                confidence: validation.adjustedConfidence
+            };
+        }
 
         // Priority-ordered pattern detection - return first match
 
         // LAUNCH SIGNALS
         if (ageHours < 1) {
-            if (priceChange5m > 20) return { edge: `Just launched & pumping ${priceChange5m.toFixed(0)}% in 5m`, tag: 'NEW LAUNCH' };
+            if (priceChange5m > 20 && (volume1h || 0) > 1000) return { edge: `Just launched & pumping ${priceChange5m.toFixed(0)}% in 5m`, tag: 'NEW LAUNCH' };
             if (liquidity > 50000) return { edge: `Fresh launch with $${this.formatCompact(liquidity)} liquidity`, tag: 'NEW LAUNCH' };
             return { edge: `Launched ${Math.round(ageHours * 60)}m ago - early discovery`, tag: 'NEW LAUNCH' };
         }
@@ -1381,13 +1723,24 @@ class LiveDataService {
             return { edge: `Young token breaking out +${priceChange1h.toFixed(0)}% 1h`, tag: 'EARLY MOVER' };
         }
 
-        // MOMENTUM SIGNALS
+        // MOMENTUM SIGNALS - require volume validation
         if (priceChange5m > 15 && priceChange1h > 20) {
-            return { edge: `Accelerating NOW: +${priceChange5m.toFixed(0)}% 5m, +${priceChange1h.toFixed(0)}% 1h`, tag: 'PUMPING' };
+            // Validate with volume before PUMPING tag
+            if ((volume1h || 0) > 5000 && txns1h > 20 && buyRatio > 0.45) {
+                return { edge: `Accelerating NOW: +${priceChange5m.toFixed(0)}% 5m, +${priceChange1h.toFixed(0)}% 1h | $${this.formatCompact(volume1h || 0)} vol`, tag: 'PUMPING' };
+            } else {
+                // Price spiking without volume = suspicious
+                return { edge: `Price +${priceChange1h.toFixed(0)}% but weak vol ($${this.formatCompact(volume1h || 0)}) - verify before aping`, tag: 'VERIFY' };
+            }
         }
 
         if (priceChange1h > 50) {
-            return { edge: `Parabolic move +${priceChange1h.toFixed(0)}% in 1 hour`, tag: 'MOONING' };
+            // Validate mooning with volume
+            if ((volume1h || 0) > 10000 && txns1h > 30) {
+                return { edge: `Parabolic move +${priceChange1h.toFixed(0)}% 1h | $${this.formatCompact(volume1h || 0)} vol`, tag: 'MOONING' };
+            } else {
+                return { edge: `+${priceChange1h.toFixed(0)}% spike but low vol ($${this.formatCompact(volume1h || 0)}) - verify`, tag: 'VERIFY' };
+            }
         }
 
         if (priceChange24h > 100 && priceChange1h > 5) {
@@ -1491,12 +1844,32 @@ class LiveDataService {
             }
         }
 
-        // Determine tag color based on signal type
-        const tagClass = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER', 'NEW PUMP', 'FRESH', 'NEW MOVER'].includes(tag)
-            ? 'positive'
-            : ['DISTRIBUTION', 'SELLING', 'DUMPING'].includes(tag)
-                ? 'negative'
-                : '';
+        // Run scam detection if not already done
+        const scamCheck = token.scamCheck || this.detectScamIndicators(token);
+        const validation = this.validateTokenActivity(token);
+
+        // Determine tag color based on signal type and validation
+        let tagClass = '';
+        if (tag === 'DEAD' || tag === 'LOW ACTIVITY') {
+            tagClass = 'dead';
+        } else if (tag === 'VERIFY') {
+            tagClass = 'verify';
+        } else if (['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER', 'NEW PUMP', 'FRESH', 'NEW MOVER'].includes(tag)) {
+            tagClass = 'positive';
+        } else if (['DISTRIBUTION', 'SELLING', 'DUMPING'].includes(tag)) {
+            tagClass = 'negative';
+        }
+
+        // Build warning badges HTML
+        let warningBadges = '';
+        if (scamCheck.isPotentialHoneypot) {
+            warningBadges += '<span class="scam-badge honeypot" title="Potential honeypot - sells may be blocked">HONEYPOT?</span>';
+        } else if (scamCheck.isHighRisk) {
+            warningBadges += '<span class="scam-badge high-risk" title="High risk indicators detected">HIGH RISK</span>';
+        }
+        if (validation.isDead) {
+            warningBadges += '<span class="scam-badge dead-badge" title="No trading activity">DEAD</span>';
+        }
 
         // Stats layout - same for all tokens now (showing useful trading data)
         const statsHtml = isPumpFun ? `
@@ -1558,10 +1931,15 @@ class LiveDataService {
         // Calculate age in hours for filtering
         const ageHours = token.createdAt ? (Date.now() - token.createdAt) / (1000 * 60 * 60) : 999;
 
+        // Determine card classes based on risk
+        const riskClass = scamCheck.isPotentialHoneypot ? 'honeypot-warning' : scamCheck.isHighRisk ? 'high-risk' : '';
+        const deadClass = validation.isDead ? 'dead-token' : '';
+
         return `
-            <div class="signal-card ${urgentClass}" data-type="${token.signalType}" data-address="${token.address}" data-source="${sourceSlug}" data-tag="${tag}" data-age="${ageHours.toFixed(1)}" data-volume="${token.volume24h || 0}">
+            <div class="signal-card ${urgentClass} ${riskClass} ${deadClass}" data-type="${token.signalType}" data-address="${token.address}" data-source="${sourceSlug}" data-tag="${tag}" data-age="${ageHours.toFixed(1)}" data-volume="${token.volume24h || 0}" data-scam-score="${scamCheck.scamScore}">
                 <div class="signal-header">
                     <span class="signal-tag ${tagClass}">${tag}</span>
+                    ${warningBadges}
                     <span class="signal-source ${sourceSlug}">${source}</span>
                     <span class="signal-time">${timeAgo}</span>
                 </div>

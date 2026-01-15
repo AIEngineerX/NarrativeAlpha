@@ -3874,3 +3874,172 @@ span.negative,
         height: 350px;
     }
 }
+
+/* ======================================
+   TRADING ACTIVITY METRICS
+   ====================================== */
+
+.top-gainer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 240, 255, 0.05);
+    border-radius: 0.5rem;
+    margin-top: 0.75rem;
+    border: 1px solid rgba(0, 240, 255, 0.1);
+}
+
+.top-gainer-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+
+.top-gainer-token {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent-cyan);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.top-gainer-token:hover {
+    text-shadow: 0 0 10px var(--accent-cyan);
+}
+
+.top-gainer-change {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.metric-value.positive {
+    color: var(--accent-green);
+}
+
+.metric-value.negative {
+    color: var(--accent-red);
+}
+
+.metric-fill.bullish {
+    background: linear-gradient(90deg, var(--accent-green), rgba(34, 197, 94, 0.6));
+}
+
+.metric-fill.bearish {
+    background: linear-gradient(90deg, var(--accent-red), rgba(239, 68, 68, 0.6));
+}
+
+.metric-fill.urgent-fill {
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-red));
+}
+
+.metric-value.urgent-pulse {
+    animation: urgentPulse 1.5s ease-in-out infinite;
+    color: var(--accent-orange);
+}
+
+@keyframes urgentPulse {
+    0%, 100% {
+        color: var(--accent-orange);
+        text-shadow: 0 0 10px rgba(255, 149, 0, 0.5);
+    }
+    50% {
+        color: var(--accent-red);
+        text-shadow: 0 0 15px rgba(255, 51, 102, 0.7);
+    }
+}
+
+/* ======================================
+   SCAM/HONEYPOT WARNING BADGES
+   ====================================== */
+
+.scam-badge {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-left: 0.25rem;
+}
+
+.scam-badge.honeypot {
+    background: rgba(239, 68, 68, 0.3);
+    color: #ff6b6b;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    animation: honeypotPulse 2s ease-in-out infinite;
+}
+
+.scam-badge.high-risk {
+    background: rgba(251, 191, 36, 0.3);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.scam-badge.dead-badge {
+    background: rgba(107, 114, 128, 0.3);
+    color: #9ca3af;
+    border: 1px solid rgba(107, 114, 128, 0.5);
+}
+
+@keyframes honeypotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Signal card risk styling */
+.signal-card.high-risk {
+    border-left: 3px solid var(--accent-orange);
+}
+
+.signal-card.honeypot-warning {
+    border-left: 3px solid var(--accent-red);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.signal-card.dead-token {
+    opacity: 0.6;
+    border-left: 3px solid #6b7280;
+}
+
+.signal-card.dead-token:hover {
+    opacity: 0.8;
+}
+
+/* Dead/Low Activity/Verify tag styling */
+.signal-tag.dead {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+    border: 1px solid rgba(107, 114, 128, 0.4);
+}
+
+.signal-tag.verify {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--accent-yellow);
+    border: 1px dashed rgba(251, 191, 36, 0.5);
+}
+
+/* Source indicator styling */
+.trend-card {
+    position: relative;
+}
+
+.trend-card[data-source="coingecko"]::before {
+    content: '';
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+.source-tag[data-source="coingecko"] {
+    color: #8dc63f;
+}
+
+.source-tag[data-source="dexscreener"] {
+    color: var(--accent-cyan);
+}

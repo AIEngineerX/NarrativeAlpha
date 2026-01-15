@@ -71,47 +71,51 @@
                     </div>
                     <div class="metrics-panel">
                         <div class="metrics-header">
-                            <span class="metrics-title">SYSTEM PERFORMANCE</span>
-                            <span class="metrics-update">Live</span>
+                            <span class="metrics-title">TRADING ACTIVITY</span>
+                            <span class="metrics-update" id="metricsUpdateTime">Live</span>
                         </div>
                         <div class="metrics-grid">
                             <div class="metric-card">
                                 <div class="metric-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                                     </svg>
                                 </div>
                                 <div class="metric-data">
-                                    <div id="statsBullishRate" class="metric-value" data-value="0" data-suffix="%">0%</div>
-                                    <div class="metric-label">Bullish Signals</div>
+                                    <div id="statsTotalVolume" class="metric-value">$0</div>
+                                    <div class="metric-label">Volume (1h)</div>
                                 </div>
-                                <div class="metric-bar"><div id="statsBullishBar" class="metric-fill" style="--fill-width: 0%"></div></div>
+                                <div class="metric-bar"><div id="statsVolumeBar" class="metric-fill" style="--fill-width: 0%"></div></div>
                             </div>
                             <div class="metric-card">
                                 <div class="metric-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10"/>
-                                        <polyline points="12,6 12,12 16,14"/>
+                                        <path d="M7 17l5-5 5 5M7 7l5 5 5-5"/>
                                     </svg>
                                 </div>
                                 <div class="metric-data">
-                                    <div id="statsAvgAge" class="metric-value" data-value="0" data-suffix="h">0h</div>
-                                    <div class="metric-label">Avg Token Age</div>
+                                    <div id="statsBuyPressure" class="metric-value">50%</div>
+                                    <div class="metric-label">Buy Pressure</div>
                                 </div>
-                                <div class="metric-bar"><div id="statsAgeBar" class="metric-fill" style="--fill-width: 0%"></div></div>
+                                <div class="metric-bar"><div id="statsBuyBar" class="metric-fill" style="--fill-width: 50%"></div></div>
                             </div>
-                            <div class="metric-card">
+                            <div class="metric-card urgent-metric">
                                 <div class="metric-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
                                     </svg>
                                 </div>
                                 <div class="metric-data">
-                                    <div id="statsActiveSignals" class="metric-value" data-value="0" data-suffix="">0</div>
-                                    <div class="metric-label">Active Signals</div>
+                                    <div id="statsUrgentCount" class="metric-value">0</div>
+                                    <div class="metric-label">Urgent Signals</div>
                                 </div>
-                                <div class="metric-bar"><div id="statsSignalsBar" class="metric-fill" style="--fill-width: 0%"></div></div>
+                                <div class="metric-bar"><div id="statsUrgentBar" class="metric-fill urgent-fill" style="--fill-width: 0%"></div></div>
                             </div>
+                        </div>
+                        <div class="top-gainer-row">
+                            <span class="top-gainer-label">TOP GAINER</span>
+                            <span class="top-gainer-token" id="statsTopGainer">---</span>
+                            <span class="top-gainer-change positive" id="statsTopGainerChange">+0%</span>
                         </div>
                     </div>
                 </div>

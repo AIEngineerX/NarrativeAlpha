@@ -82,6 +82,20 @@ const CONFIG = {
         MAX_CONFIDENCE: 95
     },
 
+    // Dead Token & Scam Detection Thresholds
+    VALIDATION: {
+        MIN_VOLUME_1H: 1000,          // Min $1k 1h volume for PUMPING tag
+        MIN_TXNS_1H: 10,              // Min transactions in last hour
+        MIN_CONFIDENCE: 40,           // Min confidence for positive tags
+        DEAD_VOLUME_THRESHOLD: 500,   // Below this = DEAD token
+        DEAD_TXNS_THRESHOLD: 5,       // Below this txns/hour = DEAD
+        MCAP_LIQ_WARNING: 50,         // MC/Liq ratio warning threshold
+        MCAP_LIQ_CRITICAL: 100,       // MC/Liq ratio critical threshold
+        HONEYPOT_BUY_RATIO: 0.95,     // Above this with no price move = honeypot
+        SCAM_SCORE_FILTER: 70,        // Score above this = filter from feed
+        SCAM_SCORE_HIGH_RISK: 40      // Score above this = high risk badge
+    },
+
     // Query suggestions
     QUERY_HINTS: [
         {
