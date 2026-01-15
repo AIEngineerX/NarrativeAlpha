@@ -513,17 +513,20 @@ class NavigationController {
 
 class LiveDataService {
     constructor() {
-        this.dexScreenerBaseUrl = 'https://api.dexscreener.com/latest/dex';
+        // Use the correct DEX Screener API endpoints per their docs
+        this.dexScreenerBaseUrl = 'https://api.dexscreener.com';
         this.pumpFunApiUrl = 'https://frontend-api.pump.fun';
-        this.updateInterval = 60000; // 60 seconds (reduced to avoid rate limits)
+        this.updateInterval = 120000; // 2 minutes - be respectful of rate limits
         this.intervalId = null;
         this.currentTokenAddress = null;
         this.cachedTrendingTokens = [];
         this.cachedPumpFunTokens = [];
         this.lastFetchTime = 0;
-        this.minFetchInterval = 30000; // Minimum 30s between fetches
+        this.lastDexFetchTime = 0;
+        this.minFetchInterval = 60000; // Minimum 60s between DEX fetches
         this.retryCount = 0;
-        this.maxRetries = 3;
+        this.maxRetries = 2;
+        this.cacheExpiry = 120000; // Cache valid for 2 minutes
 
         this.elements = {
             signalsFeed: document.getElementById('signalsFeed'),
@@ -540,6 +543,7 @@ class LiveDataService {
 
     init() {
         this.setupEventListeners();
+        // Load from PumpFun first (no rate limit issues), then DEX
         this.fetchAllData();
         this.startAutoRefresh();
     }
@@ -590,15 +594,18 @@ class LiveDataService {
         }
     }
 
-    updateLastUpdateTime() {
+    updateLastUpdateTime(fromCache = false) {
         if (this.elements.lastUpdateTime) {
             const now = new Date();
-            this.elements.lastUpdateTime.textContent = `Updated ${now.toLocaleTimeString('en-US', {
+            const timeStr = now.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false
-            })}`;
+            });
+            this.elements.lastUpdateTime.textContent = fromCache
+                ? `Cached data - Next refresh in ${Math.ceil((this.updateInterval - (Date.now() - this.lastFetchTime)) / 1000)}s`
+                : `Updated ${timeStr}`;
         }
     }
 
@@ -657,25 +664,46 @@ class LiveDataService {
             this.cachedTrendingTokens = uniqueTokens.slice(0, 50);
             this.renderSignalsFeed(this.cachedTrendingTokens);
             this.renderTrendingTokens(this.cachedTrendingTokens.slice(0, 8));
-            this.updateLastUpdateTime();
+            this.updateLastUpdateTime(false);
         } else if (this.cachedTrendingTokens.length > 0) {
             // Use cached data if fetch failed
             this.renderSignalsFeed(this.cachedTrendingTokens);
-            this.updateLastUpdateTime();
+            this.updateLastUpdateTime(true); // Show that we're using cached data
         } else {
             // No data at all
             this.handleFetchError();
         }
     }
 
-    // Fetch from DEX Screener - single API call
+    // Fetch from DEX Screener - using search endpoint (300 req/min limit)
     async fetchDexScreener() {
+        const now = Date.now();
+
+        // Check if we have valid cached data
+        if (this.cachedTrendingTokens.length > 0 && (now - this.lastDexFetchTime) < this.cacheExpiry) {
+            console.log('Using cached DEX data');
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+        }
+
+        // Rate limit check - don't hit API more than once per minute
+        if ((now - this.lastDexFetchTime) < this.minFetchInterval) {
+            console.log('Skipping DEX fetch - rate limit protection');
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
+        }
+
         try {
-            const response = await fetch(`${this.dexScreenerBaseUrl}/pairs/solana`, {
+            // Use search endpoint which has 300 req/min limit
+            // Search for popular Solana memecoins
+            const searchTerms = ['solana', 'sol'];
+            const searchTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
+
+            const response = await fetch(`${this.dexScreenerBaseUrl}/latest/dex/search?q=${searchTerm}`, {
                 headers: { 'Accept': 'application/json' }
             });
 
             if (response.status === 429) {
+                console.warn('DEX Screener rate limited - backing off');
+                this.updateInterval = Math.min(this.updateInterval * 2, 300000); // Back off up to 5 min
                 throw new Error('RATE_LIMITED');
             }
 
@@ -684,14 +712,16 @@ class LiveDataService {
             }
 
             const data = await response.json();
-            return this.processTokenData(data.pairs || []);
+            this.lastDexFetchTime = now;
+
+            // Filter for Solana pairs only
+            const solanaPairs = (data.pairs || []).filter(p => p.chainId === 'solana');
+            return this.processTokenData(solanaPairs);
 
         } catch (error) {
             console.warn('DEX Screener fetch failed:', error.message);
-            if (error.message === 'RATE_LIMITED') {
-                this.updateInterval = Math.min(this.updateInterval * 1.5, 180000); // Back off up to 3 min
-            }
-            return null;
+            // Return cached data on error
+            return this.cachedTrendingTokens.filter(t => !t.isPumpFun);
         }
     }
 
@@ -1225,7 +1255,8 @@ class LiveDataService {
 
     async searchTokenByName(query) {
         try {
-            const response = await fetch(`${this.dexScreenerBaseUrl}/search?q=${encodeURIComponent(query)}`);
+            // Use correct search endpoint per docs
+            const response = await fetch(`${this.dexScreenerBaseUrl}/latest/dex/search?q=${encodeURIComponent(query)}`);
             if (!response.ok) throw new Error('Search failed');
 
             const data = await response.json();
@@ -1247,12 +1278,14 @@ class LiveDataService {
         this.currentTokenAddress = address;
 
         try {
-            // Fetch token data from DEX Screener
-            const response = await fetch(`${this.dexScreenerBaseUrl}/tokens/${address}`);
+            // Fetch token data from DEX Screener using correct endpoint per docs
+            // /tokens/v1/{chainId}/{tokenAddresses} - supports up to 30 addresses
+            const response = await fetch(`${this.dexScreenerBaseUrl}/tokens/v1/solana/${address}`);
             if (!response.ok) throw new Error('Token not found');
 
             const data = await response.json();
-            const pairs = data.pairs || [];
+            // Response is an array of pairs for this token
+            const pairs = Array.isArray(data) ? data : (data.pairs || []);
 
             if (pairs.length === 0) {
                 throw new Error('No trading pairs found for this token');
