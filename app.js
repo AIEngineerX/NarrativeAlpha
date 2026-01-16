@@ -834,15 +834,23 @@ class LiveDataService {
 
         // Process DEX Screener data
         if (dexData.status === 'fulfilled' && dexData.value) {
+            console.log(`[Signals] DEX Screener returned ${dexData.value.length} tokens`);
             allTokens = [...allTokens, ...dexData.value];
             this.retryCount = 0; // Reset retry count on success
+        } else {
+            console.warn('[Signals] DEX Screener fetch failed:', dexData.reason || 'No data');
         }
 
         // Process PumpFun data
         if (pumpFunData.status === 'fulfilled' && pumpFunData.value) {
+            console.log(`[Signals] PumpFun returned ${pumpFunData.value.length} tokens`);
             this.cachedPumpFunTokens = pumpFunData.value;
             allTokens = [...allTokens, ...pumpFunData.value];
+        } else {
+            console.warn('[Signals] PumpFun fetch failed:', pumpFunData.reason || 'No data');
         }
+
+        console.log(`[Signals] Total tokens before dedup: ${allTokens.length}`);
 
         if (allTokens.length > 0) {
             // Deduplicate by address
@@ -1269,25 +1277,17 @@ class LiveDataService {
                 (pair.baseToken?.address || '').endsWith('pump')
             );
 
-            // MC/Liq ratio check - filter out suspiciously high ratios (likely manipulation)
+            // MC/Liq ratio check - filter out extremely high ratios (likely manipulation)
             const mcLiqRatio = liquidity > 0 ? marketCap / liquidity : 0;
-            if (mcLiqRatio > 200) continue; // Skip tokens with MC 200x+ liquidity
+            if (mcLiqRatio > 500) continue; // Skip tokens with MC 500x+ liquidity
 
             // Skip tokens with very low liquidity or no volume
-            // PumpFun tokens get TIERED filtering based on age
+            // PumpFun tokens get lighter filtering to show more signals
             if (isPumpFunToken) {
-                if (ageHours < 1) {
-                    // Very new: require $1k volume + 20 transactions for legitimacy
-                    if (volume1h < 1000 || txns1h < 20) continue;
-                } else if (ageHours < 6) {
-                    // 1-6 hours old: require $2k volume
-                    if (volume24h < 2000) continue;
-                } else {
-                    // Older PumpFun tokens: require $3k volume (should have traction by now)
-                    if (volume24h < 3000) continue;
-                }
+                // Minimal filters for PumpFun - show most tokens
+                if (volume24h < 500 && volume1h < 100) continue;
             } else {
-                if (liquidity < 5000 || volume24h < 1000) continue;
+                if (liquidity < 1000 || volume24h < 500) continue;
             }
 
             // Calculate signal type based on metrics
