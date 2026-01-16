@@ -1253,6 +1253,7 @@ class LiveDataService {
             const liquidity = parseFloat(pair.liquidity?.usd || 0);
             const marketCap = parseFloat(pair.fdv || pair.marketCap || 0);
             const txns24h = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+            const txns1h = (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0);
             const buyRatio = pair.txns?.h24?.buys && pair.txns?.h24?.sells
                 ? pair.txns.h24.buys / (pair.txns.h24.buys + pair.txns.h24.sells)
                 : 0.5;
@@ -1268,10 +1269,23 @@ class LiveDataService {
                 (pair.baseToken?.address || '').endsWith('pump')
             );
 
+            // MC/Liq ratio check - filter out suspiciously high ratios (likely manipulation)
+            const mcLiqRatio = liquidity > 0 ? marketCap / liquidity : 0;
+            if (mcLiqRatio > 200) continue; // Skip tokens with MC 200x+ liquidity
+
             // Skip tokens with very low liquidity or no volume
-            // PumpFun tokens get more lenient filtering (they have low liq in bonding curve)
+            // PumpFun tokens get TIERED filtering based on age
             if (isPumpFunToken) {
-                if (volume24h < 500) continue; // Just need some volume
+                if (ageHours < 1) {
+                    // Very new: require $1k volume + 20 transactions for legitimacy
+                    if (volume1h < 1000 || txns1h < 20) continue;
+                } else if (ageHours < 6) {
+                    // 1-6 hours old: require $2k volume
+                    if (volume24h < 2000) continue;
+                } else {
+                    // Older PumpFun tokens: require $3k volume (should have traction by now)
+                    if (volume24h < 3000) continue;
+                }
             } else {
                 if (liquidity < 5000 || volume24h < 1000) continue;
             }
@@ -1383,9 +1397,15 @@ class LiveDataService {
             tokenData.isHighRisk = scamCheck.isHighRisk;
             tokenData.isPotentialHoneypot = scamCheck.isPotentialHoneypot;
 
-            // Adjust confidence based on scam score
-            if (scamCheck.scamScore > 0) {
-                tokenData.confidence = Math.max(10, tokenData.confidence - Math.floor(scamCheck.scamScore / 2));
+            // Adjust confidence based on scam score - tiered reduction
+            if (scamCheck.scamScore >= 60) {
+                tokenData.confidence = Math.max(10, tokenData.confidence - 50);
+            } else if (scamCheck.scamScore >= 40) {
+                tokenData.confidence = Math.max(10, tokenData.confidence - 35);
+            } else if (scamCheck.scamScore >= 20) {
+                tokenData.confidence = Math.max(10, tokenData.confidence - 20);
+            } else if (scamCheck.scamScore > 0) {
+                tokenData.confidence = Math.max(10, tokenData.confidence - 10);
             }
 
             processed.push(tokenData);
@@ -1638,22 +1658,6 @@ class LiveDataService {
         // Total volume from all platforms (same data source = accurate share)
         const totalVolume = Object.values(platformVolumes).reduce((a, b) => a + b, 0);
 
-        // Update platform cards
-        const updatePlatformCard = (id, volume, total) => {
-            const volEl = document.getElementById(`${id}Volume`);
-            const shareEl = document.getElementById(`${id}Share`);
-            if (volEl) volEl.textContent = `$${this.formatCompact(volume)}`;
-            if (shareEl && total > 0) {
-                shareEl.textContent = `${Math.round((volume / total) * 100)}% share`;
-            } else if (shareEl) {
-                shareEl.textContent = volume > 0 ? 'Active' : '---';
-            }
-        };
-
-        updatePlatformCard('raydium', platformVolumes.raydium, totalVolume);
-        updatePlatformCard('pumpfun', platformVolumes.pumpfun, totalVolume);
-        updatePlatformCard('bonk', platformVolumes.bonk, totalVolume);
-        updatePlatformCard('bags', platformVolumes.bags, totalVolume);
 
         // CT-Native narrative detection - expanded for degen culture
         const narrativeKeywords = {
@@ -1736,46 +1740,230 @@ class LiveDataService {
             avgMcapEl.textContent = `$${this.formatCompact(avgMcap)}`;
         }
 
-        // Update DEX bar visualization - match the share percentages exactly
-        if (totalVolume > 0) {
-            const segments = [
-                { id: 'dexRaydium', vol: platformVolumes.raydium },
-                { id: 'dexPumpfun', vol: platformVolumes.pumpfun },
-                { id: 'dexBonk', vol: platformVolumes.bonk },
-                { id: 'dexBags', vol: platformVolumes.bags },
-                { id: 'dexOther', vol: platformVolumes.other }
-            ];
+        // Calculate extended metrics for each narrative
+        const narrativeMetrics = {};
+        allTokens.forEach(t => {
+            const name = ((t.name || '') + ' ' + (t.symbol || '')).toLowerCase();
+            const vol = timeframe === '5m' ? (t.volume5m || 0) :
+                        timeframe === '1h' ? (t.volume1h || 0) :
+                        (t.volume24h || 0);
+            const priceChange = t.priceChange1h || 0;
+            const buyRatio = t.buyRatio || 0.5;
 
-            // Calculate actual percentages matching the share display
-            const withPct = segments.map(s => ({
-                ...s,
-                pct: Math.round((s.vol / totalVolume) * 100)
-            }));
-
-            // Apply widths directly - percentages already match share display
-            withPct.forEach(s => {
-                const el = document.getElementById(s.id);
-                if (el) {
-                    // Use the same percentage as share display, minimum 2% if has volume for visibility
-                    const displayPct = s.vol > 0 ? Math.max(2, s.pct) : 0;
-                    el.style.width = `${displayPct}%`;
-                    // Hide label if segment too small
-                    const label = el.querySelector('span');
-                    if (label) {
-                        label.style.display = s.pct < 10 ? 'none' : '';
+            for (const [narrative, keywords] of Object.entries(narrativeKeywords)) {
+                if (keywords.some(kw => name.includes(kw))) {
+                    if (!narrativeMetrics[narrative]) {
+                        narrativeMetrics[narrative] = {
+                            tokens: [],
+                            totalVolume: 0,
+                            avgPriceChange: 0,
+                            avgBuyRatio: 0
+                        };
                     }
+                    narrativeMetrics[narrative].tokens.push(t);
+                    narrativeMetrics[narrative].totalVolume += vol;
                 }
-            });
-        } else {
-            // No volume - show equal segments
-            ['dexRaydium', 'dexPumpfun', 'dexBonk', 'dexBags', 'dexOther'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.style.width = '20%';
-            });
+            }
+        });
+
+        // Calculate averages for each narrative
+        for (const narrative of Object.keys(narrativeMetrics)) {
+            const m = narrativeMetrics[narrative];
+            const count = m.tokens.length;
+            if (count > 0) {
+                m.avgPriceChange = m.tokens.reduce((sum, t) => sum + (t.priceChange1h || 0), 0) / count;
+                m.avgBuyRatio = m.tokens.reduce((sum, t) => sum + (t.buyRatio || 0.5), 0) / count;
+            }
+        }
+
+        // Calculate momentum and render
+        const momentum = this.calculateNarrativeMomentum(narrativeCounts, narrativeVolumes, narrativeMetrics);
+        this.renderNarrativeMomentum(momentum, narrativeKeywords);
+
+        // Update top gainer
+        const topGainer = [...allTokens]
+            .filter(t => {
+                if (t.priceChange1h === undefined || t.priceChange1h <= 0) return false;
+                if ((t.volume1h || 0) < 5000) return false;
+                if ((t.liquidity || 0) < 5000) return false;
+                const scamScore = t.scamCheck?.scamScore || 0;
+                if (scamScore >= 50 || t.scamCheck?.isPotentialHoneypot) return false;
+                return true;
+            })
+            .sort((a, b) => b.priceChange1h - a.priceChange1h)[0];
+
+        const topGainerEl = document.getElementById('topGainer');
+        const topGainerChangeEl = document.getElementById('topGainerChange');
+        if (topGainerEl && topGainer) {
+            topGainerEl.textContent = `$${topGainer.symbol}`;
+            if (topGainerChangeEl) {
+                topGainerChangeEl.textContent = `+${topGainer.priceChange1h.toFixed(0)}% 1h`;
+            }
+        } else if (topGainerEl) {
+            topGainerEl.textContent = '--';
+            if (topGainerChangeEl) topGainerChangeEl.textContent = '--';
         }
 
         // Update CT Buzz / Social Trends
         this.updateSocialTrends(sortedNarratives, tokens);
+    }
+
+    // Calculate narrative momentum based on current vs previous data
+    calculateNarrativeMomentum(counts, volumes, metrics) {
+        const previousData = this.previousNarrativeData || {};
+        const momentum = {};
+
+        for (const narrative of Object.keys(counts)) {
+            const currentCount = counts[narrative] || 0;
+            const currentVolume = volumes[narrative] || 0;
+            const prevData = previousData[narrative] || { count: 0, volume: 0 };
+
+            // Calculate momentum score based on multiple factors
+            const countGrowth = prevData.count > 0 ? (currentCount - prevData.count) / prevData.count * 100 : 0;
+            const volumeGrowth = prevData.volume > 0 ? (currentVolume - prevData.volume) / prevData.volume * 100 : 0;
+            const avgPriceChange = metrics[narrative]?.avgPriceChange || 0;
+            const avgBuyRatio = metrics[narrative]?.avgBuyRatio || 0.5;
+            const buyPressure = (avgBuyRatio - 0.5) * 100; // Convert to -50 to +50 scale
+
+            // Composite momentum score
+            const momentumScore = (
+                countGrowth * 0.15 +
+                volumeGrowth * 0.35 +
+                avgPriceChange * 0.35 +
+                buyPressure * 0.15
+            );
+
+            // Determine direction
+            let direction = 'stable';
+            if (momentumScore > 5) direction = 'hot';
+            else if (momentumScore < -5) direction = 'cooling';
+
+            momentum[narrative] = {
+                name: narrative,
+                count: currentCount,
+                volume: currentVolume,
+                avgPriceChange,
+                avgBuyRatio,
+                momentumScore,
+                direction,
+                prevCount: prevData.count,
+                countGrowth,
+                volumeGrowth
+            };
+        }
+
+        // Store current data for next comparison
+        const nextPrevData = {};
+        for (const narrative of Object.keys(counts)) {
+            nextPrevData[narrative] = {
+                count: counts[narrative],
+                volume: volumes[narrative]
+            };
+        }
+        this.previousNarrativeData = nextPrevData;
+
+        // Store for external access
+        this.narrativeMomentumData = momentum;
+
+        return momentum;
+    }
+
+    // Render the narrative momentum bars
+    renderNarrativeMomentum(momentum, keywords) {
+        const container = document.getElementById('narrativeMomentum');
+        if (!container) return;
+
+        // Sort narratives by volume and take top 6
+        const sorted = Object.values(momentum)
+            .sort((a, b) => b.volume - a.volume)
+            .slice(0, 6);
+
+        if (sorted.length === 0) {
+            container.innerHTML = '<div class="momentum-empty">No narrative data available</div>';
+            return;
+        }
+
+        const maxVolume = Math.max(...sorted.map(n => n.volume));
+
+        const html = sorted.map((n, i) => {
+            const barWidth = maxVolume > 0 ? (n.volume / maxVolume * 100) : 0;
+            const directionClass = n.direction;
+            const badge = n.direction === 'hot' ? '<span class="momentum-badge hot">HOT</span>' :
+                         n.direction === 'cooling' ? '<span class="momentum-badge cooling">COOLING</span>' :
+                         '<span class="momentum-badge stable">STABLE</span>';
+
+            const changeClass = n.avgPriceChange >= 0 ? 'positive' : 'negative';
+            const changeSign = n.avgPriceChange >= 0 ? '+' : '';
+
+            return `
+                <div class="narrative-bar-wrapper ${directionClass}" data-narrative="${escapeHtml(n.name)}">
+                    <div class="narrative-bar-header">
+                        <span class="narrative-name">${escapeHtml(n.name)}</span>
+                        ${badge}
+                        <span class="narrative-count">${n.count} tokens</span>
+                    </div>
+                    <div class="narrative-bar-track">
+                        <div class="narrative-bar-fill" style="width: ${barWidth}%"></div>
+                    </div>
+                    <div class="narrative-bar-metrics">
+                        <span class="narrative-metric ${changeClass}">${changeSign}${n.avgPriceChange.toFixed(1)}% avg</span>
+                        <span class="narrative-metric">${Math.round(n.avgBuyRatio * 100)}% buys</span>
+                        <span class="narrative-metric">$${this.formatCompact(n.volume)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+
+        // Add click handlers for filtering
+        container.querySelectorAll('.narrative-bar-wrapper').forEach(el => {
+            el.addEventListener('click', () => {
+                const narrative = el.dataset.narrative;
+                this.filterSignalsByNarrative(narrative, keywords);
+            });
+        });
+    }
+
+    // Filter signal feed by narrative
+    filterSignalsByNarrative(narrative, keywords) {
+        const feed = document.querySelector('.signals-feed');
+        if (!feed) return;
+
+        const narrativeKeywords = keywords[narrative] || [];
+        const cards = feed.querySelectorAll('.signal-card');
+
+        // Toggle filter - if already filtering this narrative, clear it
+        if (this.activeNarrativeFilter === narrative) {
+            cards.forEach(card => card.style.display = '');
+            this.activeNarrativeFilter = null;
+            // Remove active state from all bars
+            document.querySelectorAll('.narrative-bar-wrapper').forEach(el => {
+                el.classList.remove('active');
+            });
+            return;
+        }
+
+        this.activeNarrativeFilter = narrative;
+
+        // Update active state on bars
+        document.querySelectorAll('.narrative-bar-wrapper').forEach(el => {
+            el.classList.toggle('active', el.dataset.narrative === narrative);
+        });
+
+        let matchCount = 0;
+        cards.forEach(card => {
+            const name = (card.querySelector('.signal-name')?.textContent || '').toLowerCase();
+            const symbol = (card.querySelector('.signal-symbol')?.textContent || '').toLowerCase();
+            const combined = name + ' ' + symbol;
+
+            const matches = narrativeKeywords.some(kw => combined.includes(kw));
+            card.style.display = matches ? '' : 'none';
+            if (matches) matchCount++;
+        });
+
+        // Show notification
+        this.showNotification(`Filtering: ${narrative} (${matchCount} signals)`, 'info');
     }
 
     // Update the CT Buzz / Social Trends tab (fallback when social-trends API fails)
@@ -2492,6 +2680,29 @@ class LiveDataService {
             result.scamScore += 25;
         }
 
+        // 7. SLOW-BLEED HONEYPOT: High buys but consistent price decline
+        const priceChange6h = token.priceChange6h || 0;
+        const priceChange24h = token.priceChange24h || 0;
+        if (buyRatio > 0.55 && priceChange1h < -5 && priceChange6h < -10 && priceChange24h < -15) {
+            result.warnings.push({
+                type: 'SLOW_BLEED',
+                severity: 'critical',
+                message: `${Math.round(buyRatio * 100)}% buys but -${Math.abs(priceChange24h).toFixed(0)}% 24h - sell tax likely`
+            });
+            result.scamScore += 25;
+            result.isPotentialHoneypot = true;
+        }
+
+        // 8. SELL-TAX INDICATOR: Very high buys with significant price drop
+        if (buyRatio > 0.75 && priceChange1h < -10 && txns24h > 50) {
+            result.warnings.push({
+                type: 'SELL_TAX',
+                severity: 'warning',
+                message: `${Math.round(buyRatio * 100)}% buys but -${Math.abs(priceChange1h).toFixed(0)}% 1h - potential sell tax`
+            });
+            result.scamScore += 20;
+        }
+
         // Determine overall status
         if (result.scamScore >= thresholds.SCAM_SCORE_FILTER) {
             result.isScam = true;
@@ -2677,6 +2888,18 @@ class LiveDataService {
         // Run scam detection if not already done
         const scamCheck = token.scamCheck || this.detectScamIndicators(token);
         const validation = this.validateTokenActivity(token);
+
+        // Override positive tags when high-risk indicators detected
+        const positiveSignals = ['PUMPING', 'MOONING', 'RUNNER', 'REVERSAL', 'DIP BUY', 'ACCUMULATING', 'VOL SURGE', 'WHALES', 'NEW LAUNCH', 'EARLY MOVER', 'NEW PUMP', 'FRESH', 'NEW MOVER'];
+        if (scamCheck.isPotentialHoneypot && positiveSignals.includes(tag)) {
+            const scamWarning = scamCheck.warnings[0]?.message || 'Honeypot pattern detected';
+            edge = `${scamWarning} | ${edge}`;
+            tag = 'VERIFY';
+        } else if (scamCheck.isHighRisk && positiveSignals.includes(tag)) {
+            const scamWarning = scamCheck.warnings[0]?.message || 'High risk indicators';
+            edge = `${scamWarning} | ${edge}`;
+            tag = 'VERIFY';
+        }
 
         // Determine tag color based on signal type and validation
         let tagClass = '';
