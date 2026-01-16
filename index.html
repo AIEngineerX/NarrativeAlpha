@@ -441,13 +441,13 @@
                                 <span class="trench-stat-value" id="trenchScanned">--</span>
                                 <span class="trench-stat-label">Scanned</span>
                             </div>
-                            <div class="trench-stat">
+                            <div class="trench-stat warning">
                                 <span class="trench-stat-value" id="trenchPassed">--</span>
-                                <span class="trench-stat-label">Passed</span>
+                                <span class="trench-stat-label">Bundles</span>
                             </div>
                             <div class="trench-stat highlight">
                                 <span class="trench-stat-value" id="trenchAvgScore">--</span>
-                                <span class="trench-stat-label">Avg Score</span>
+                                <span class="trench-stat-label">Safety</span>
                             </div>
                         </div>
 
@@ -473,6 +473,18 @@
                             <div class="trench-list" id="trenchWatch">
                                 <div class="trench-item empty">Scanning for opportunities...</div>
                             </div>
+                        </div>
+
+                        <div class="trench-section risky-section">
+                            <div class="trench-section-header risky">
+                                <span class="trench-section-icon">⚠️</span>
+                                <span class="trench-section-title">Flagged / Risky</span>
+                                <span class="trench-section-badge danger" id="riskyCount">0</span>
+                            </div>
+                            <div class="trench-list" id="trenchRisky">
+                                <div class="trench-item empty">No flagged tokens</div>
+                            </div>
+                            <p class="trench-warning-text">Bundle detected or high-risk indicators - trade with extreme caution</p>
                         </div>
 
                         <div class="trench-powered">

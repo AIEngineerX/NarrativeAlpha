@@ -2264,7 +2264,7 @@ class LiveDataService {
     }
 
     displayTrenchResults(data) {
-        // Update stats
+        // Update stats with new format
         const scannedEl = document.getElementById('trenchScanned');
         const passedEl = document.getElementById('trenchPassed');
         const avgScoreEl = document.getElementById('trenchAvgScore');
@@ -2273,31 +2273,37 @@ class LiveDataService {
         const updateTimeEl = document.getElementById('trenchUpdateTime');
 
         if (data.scanStats) {
-            if (scannedEl) scannedEl.textContent = data.scanStats.totalFound || 0;
-            if (passedEl) passedEl.textContent = data.scanStats.passedFilters || 0;
-            if (avgScoreEl) avgScoreEl.textContent = data.scanStats.avgLegitScore || 0;
+            if (scannedEl) scannedEl.textContent = data.scanStats.totalScanned || 0;
+            if (passedEl) passedEl.textContent = data.scanStats.bundlesDetected || 0;
+            if (avgScoreEl) avgScoreEl.textContent = data.scanStats.avgSafetyScore || 0;
+        }
+
+        // Update stat labels to reflect new data
+        const passedLabel = document.querySelector('.trench-stat:nth-child(2) span:last-child');
+        if (passedLabel && passedLabel.textContent === 'Passed') {
+            passedLabel.textContent = 'Bundles';
         }
 
         if (updateTimeEl) {
             updateTimeEl.textContent = data.cached ? 'Cached' : 'Live';
         }
 
-        // Render gems
+        // Render gems (safe tokens, no bundles)
         const gemsEl = document.getElementById('trenchGems');
-        const freshGems = data.freshGems || [];
+        const gems = data.gems || [];
 
-        if (gemsCountEl) gemsCountEl.textContent = freshGems.length;
+        if (gemsCountEl) gemsCountEl.textContent = gems.length;
 
         if (gemsEl) {
-            if (freshGems.length === 0) {
-                gemsEl.innerHTML = '<div class="trench-item empty">No gems found yet - scanning...</div>';
+            if (gems.length === 0) {
+                gemsEl.innerHTML = '<div class="trench-item empty">No safe gems found - most tokens show risk signals</div>';
             } else {
-                gemsEl.innerHTML = freshGems.map(token => this.renderTrenchItem(token, 'gem')).join('');
+                gemsEl.innerHTML = gems.map(token => this.renderTrenchItem(token, 'gem')).join('');
                 this.attachTrenchClickHandlers(gemsEl);
             }
         }
 
-        // Render watchlist
+        // Render watchlist (moderate risk)
         const watchEl = document.getElementById('trenchWatch');
         const watchlist = data.watchlist || [];
 
@@ -2311,27 +2317,66 @@ class LiveDataService {
                 this.attachTrenchClickHandlers(watchEl);
             }
         }
+
+        // Render risky tokens (bundle detected / high risk)
+        const riskyEl = document.getElementById('trenchRisky');
+        const riskyCountEl = document.getElementById('riskyCount');
+        const risky = data.risky || [];
+
+        if (riskyCountEl) riskyCountEl.textContent = risky.length;
+
+        if (riskyEl) {
+            if (risky.length === 0) {
+                riskyEl.innerHTML = '<div class="trench-item empty">No flagged tokens</div>';
+            } else {
+                riskyEl.innerHTML = risky.slice(0, 5).map(token => this.renderTrenchItem(token, 'risky')).join('');
+                this.attachTrenchClickHandlers(riskyEl);
+            }
+        }
     }
 
     renderTrenchItem(token, type) {
         const verdictClass = token.verdict?.toLowerCase() || 'risky';
+        const riskClass = (token.riskLevel || 'LOW').toLowerCase();
         const priceChangeClass = token.priceChange1h >= 0 ? 'positive' : 'negative';
         const priceChange = token.priceChange1h >= 0 ? `+${token.priceChange1h.toFixed(1)}%` : `${token.priceChange1h.toFixed(1)}%`;
 
+        // Build bundle warning if detected
+        const bundleWarning = token.bundleDetected
+            ? `<div class="trench-bundle-warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                BUNDLE DETECTED
+               </div>`
+            : '';
+
+        // Build risk indicators
+        const risks = (token.risks || []).slice(0, 2).map(r => {
+            const severityClass = (r.severity || 'low').toLowerCase();
+            return `<span class="trench-risk ${severityClass}" title="${escapeHtml(r.detail || '')}">${escapeHtml(r.type)}</span>`;
+        }).join('');
+
+        // Build positive signals
         const positives = (token.positives || []).slice(0, 3).map(p =>
             `<span class="trench-positive">${escapeHtml(p)}</span>`
         ).join('');
 
-        const flags = (token.flags || []).slice(0, 2).map(f =>
-            `<span class="trench-flag">${escapeHtml(f)}</span>`
-        ).join('');
+        // Metrics row
+        const metrics = token.metrics || {};
+        const metricsRow = `
+            <div class="trench-metrics-detail">
+                <span title="Buy Ratio">B:${metrics.buyRatio || 0}%</span>
+                <span title="MC/Liquidity Ratio">MC/L:${metrics.mcLiqRatio || 0}x</span>
+                <span title="Total Transactions">Txns:${metrics.totalTxns || 0}</span>
+            </div>
+        `;
 
         return `
-            <div class="trench-item ${type}" data-address="${token.address}" data-dex="${token.dexUrl}">
+            <div class="trench-item ${type} risk-${riskClass} ${token.bundleDetected ? 'bundle-flagged' : ''}" data-address="${token.address}" data-dex="${token.dexUrl}">
+                ${bundleWarning}
                 <div class="trench-item-main">
                     <div class="trench-token-info">
                         <span class="trench-symbol">$${escapeHtml(token.symbol)}</span>
-                        <span class="trench-name">${escapeHtml(token.name?.slice(0, 20) || '')}</span>
+                        <span class="trench-name">${escapeHtml(token.name?.slice(0, 18) || '')}</span>
                         <span class="trench-age">${token.ageHours < 1 ? '<1h' : Math.floor(token.ageHours) + 'h'}</span>
                     </div>
                     <div class="trench-metrics">
@@ -2342,19 +2387,24 @@ class LiveDataService {
                 <div class="trench-item-details">
                     <div class="trench-score-row">
                         <div class="trench-score-bar">
-                            <div class="trench-score-fill ${verdictClass}" style="width: ${token.legitScore}%"></div>
+                            <div class="trench-score-fill ${verdictClass}" style="width: ${token.safetyScore || 0}%"></div>
                         </div>
-                        <span class="trench-score-value">${token.legitScore}</span>
-                        <span class="trench-verdict ${verdictClass}">${token.verdict}</span>
+                        <span class="trench-score-value">${token.safetyScore || 0}</span>
+                        <span class="trench-verdict ${verdictClass}">${token.verdict || 'RISKY'}</span>
+                        <span class="trench-risk-level ${riskClass}">${token.riskLevel || 'LOW'}</span>
                     </div>
+                    ${metricsRow}
                     <div class="trench-signals">
+                        ${risks}
                         ${positives}
-                        ${flags}
                     </div>
                 </div>
                 <div class="trench-actions">
                     <a href="${token.dexUrl}" target="_blank" class="trench-action dex" title="DEX Screener">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>
+                    </a>
+                    <a href="https://pump.fun/${token.address}" target="_blank" class="trench-action pump" title="Pump.fun">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                     </a>
                     <button class="trench-action copy" data-ca="${token.address}" title="Copy CA">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>

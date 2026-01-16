@@ -6020,6 +6020,183 @@ span.negative,
     color: transparent;
 }
 
+/* Bundle Detection & Risk Indicators */
+.trench-bundle-warning {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.3), rgba(249, 115, 22, 0.2));
+    color: #f87171;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 6px 6px 0 0;
+    margin: -0.6rem -0.6rem 0.5rem -0.6rem;
+    animation: bundle-pulse 2s ease-in-out infinite;
+}
+
+@keyframes bundle-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.trench-item.bundle-flagged {
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(0, 0, 0, 0.3));
+}
+
+.trench-item.risky {
+    border-left: 3px solid #f87171;
+}
+
+.trench-risk-level {
+    font-size: 0.55rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.trench-risk-level.critical {
+    background: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    animation: risk-flash 1.5s ease-in-out infinite;
+}
+
+.trench-risk-level.high {
+    background: rgba(249, 115, 22, 0.25);
+    color: var(--accent-orange);
+}
+
+.trench-risk-level.medium {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--accent-yellow);
+}
+
+.trench-risk-level.low {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+@keyframes risk-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Risk indicators */
+.trench-risk {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-weight: 500;
+    cursor: help;
+}
+
+.trench-risk.critical {
+    background: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.trench-risk.high {
+    background: rgba(249, 115, 22, 0.2);
+    color: var(--accent-orange);
+}
+
+.trench-risk.medium {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--accent-yellow);
+}
+
+.trench-risk.low {
+    background: rgba(100, 116, 139, 0.2);
+    color: var(--text-muted);
+}
+
+/* Metrics detail row */
+.trench-metrics-detail {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 0.3rem;
+}
+
+.trench-metrics-detail span {
+    opacity: 0.8;
+}
+
+/* New verdict styles */
+.trench-verdict.gem {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(0, 240, 255, 0.15));
+    color: var(--accent-green);
+    font-weight: 600;
+}
+
+.trench-verdict.promising {
+    background: rgba(0, 240, 255, 0.15);
+    color: var(--accent-cyan);
+}
+
+.trench-verdict.avoid {
+    background: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+    font-weight: 600;
+}
+
+.trench-score-fill.gem {
+    background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+}
+
+.trench-score-fill.promising {
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+}
+
+.trench-score-fill.avoid {
+    background: linear-gradient(90deg, #f87171, var(--accent-orange));
+}
+
+/* Risky section styling */
+.trench-section.risky-section {
+    margin-top: 0.5rem;
+    border-top: 1px solid rgba(239, 68, 68, 0.2);
+    padding-top: 0.5rem;
+}
+
+.trench-section-header.risky {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.15), transparent);
+}
+
+.trench-section-badge.danger {
+    background: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+
+.trench-warning-text {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 0.4rem;
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 4px;
+    margin-top: 0.4rem;
+}
+
+/* Stat warning style */
+.trench-stat.warning .trench-stat-value {
+    color: var(--accent-orange);
+}
+
+/* Pump.fun action button */
+.trench-action.pump:hover {
+    background: rgba(138, 43, 226, 0.15);
+    color: var(--accent-purple);
+}
+
 .wallet-activity-title {
     font-size: 0.75rem;
     font-weight: 600;
