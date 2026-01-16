@@ -8,7 +8,7 @@
 const CONFIG = {
     // Application Info
     APP_NAME: 'NarrativeAlpha',
-    APP_VERSION: '2.2.0',
+    APP_VERSION: '1.0.0',
     APP_TAGLINE: 'Find the pump before it pumps',
 
     // API Settings
