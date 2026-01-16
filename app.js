@@ -3614,18 +3614,7 @@ async function fetchNarrTokenData() {
             // Update price
             const price = parseFloat(pair.priceUsd);
             if (price > 0) {
-                // Format small prices nicely (e.g., $0.000005 shows as $0.000005)
-                if (price < 0.0000001) {
-                    priceEl.textContent = `$${price.toFixed(12)}`;
-                } else if (price < 0.00001) {
-                    priceEl.textContent = `$${price.toFixed(9)}`;
-                } else if (price < 0.001) {
-                    priceEl.textContent = `$${price.toFixed(8)}`;
-                } else if (price < 0.01) {
-                    priceEl.textContent = `$${price.toFixed(6)}`;
-                } else {
-                    priceEl.textContent = `$${price.toFixed(4)}`;
-                }
+                priceEl.innerHTML = formatSmallPrice(price);
             }
 
             // Update price change
@@ -3674,6 +3663,28 @@ function formatMcap(num) {
     if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M MC`;
     if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K MC`;
     return `${num.toFixed(0)} MC`;
+}
+
+// Format small prices with subscript zeros (like DEX Screener)
+// e.g., 0.00000578 becomes $0.0₅78
+function formatSmallPrice(price) {
+    if (price >= 0.01) {
+        return `$${price.toFixed(4)}`;
+    }
+
+    // Convert to string and count leading zeros after decimal
+    const priceStr = price.toFixed(12);
+    const match = priceStr.match(/^0\.(0+)/);
+
+    if (match) {
+        const zeroCount = match[1].length;
+        // Get significant digits after the zeros
+        const significantPart = priceStr.slice(2 + zeroCount, 2 + zeroCount + 4).replace(/0+$/, '');
+        const subscript = String(zeroCount).split('').map(d => '₀₁₂₃₄₅₆₇₈₉'[d]).join('');
+        return `$0.0${subscript}${significantPart}`;
+    }
+
+    return `$${price.toFixed(6)}`;
 }
 
 // Initialize $NA data fetching
