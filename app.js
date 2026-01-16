@@ -1672,12 +1672,16 @@ class LiveDataService {
 
         const narrativeCounts = {};
         const narrativeVolumes = {};
-        tokens.forEach(t => {
+        allTokens.forEach(t => {
             const name = ((t.name || '') + ' ' + (t.symbol || '')).toLowerCase();
+            // Use volume based on selected timeframe
+            const vol = timeframe === '5m' ? (t.volume5m || 0) :
+                        timeframe === '1h' ? (t.volume1h || 0) :
+                        (t.volume24h || 0);
             for (const [narrative, keywords] of Object.entries(narrativeKeywords)) {
                 if (keywords.some(kw => name.includes(kw))) {
                     narrativeCounts[narrative] = (narrativeCounts[narrative] || 0) + 1;
-                    narrativeVolumes[narrative] = (narrativeVolumes[narrative] || 0) + (t.volume24h || 0);
+                    narrativeVolumes[narrative] = (narrativeVolumes[narrative] || 0) + vol;
                 }
             }
         });
@@ -1702,25 +1706,31 @@ class LiveDataService {
             totalVolumeEl.textContent = `$${this.formatCompact(totalVolume)}`;
         }
 
-        // New launches (tokens < 24h old)
-        const newLaunchCount = tokens.filter(t => {
-            // Use ageHours if available (already calculated), else compute from createdAt
+        // New launches based on timeframe (5m/1h/24h)
+        const launchWindowHours = timeframe === '5m' ? (5/60) : timeframe === '1h' ? 1 : 24;
+        const newLaunchCount = allTokens.filter(t => {
+            let ageHours;
             if (t.ageHours !== undefined && t.ageHours !== null) {
-                return t.ageHours < 24;
+                ageHours = t.ageHours;
+            } else if (t.createdAt) {
+                ageHours = (Date.now() - t.createdAt) / (1000 * 60 * 60);
+            } else {
+                return false;
             }
-            if (t.createdAt) {
-                const ageHours = (Date.now() - t.createdAt) / (1000 * 60 * 60);
-                return ageHours < 24;
-            }
-            return false;
+            return ageHours < launchWindowHours;
         }).length;
         const newLaunchesEl = document.getElementById('newLaunches');
         if (newLaunchesEl) {
             newLaunchesEl.textContent = newLaunchCount;
         }
+        // Update the "last X" label
+        const launchMetaEl = newLaunchesEl?.parentElement?.querySelector('.pulse-stat-meta');
+        if (launchMetaEl) {
+            launchMetaEl.textContent = `last ${timeframe}`;
+        }
 
         // Average market cap
-        const avgMcap = tokens.reduce((sum, t) => sum + (t.marketCap || 0), 0) / tokens.length;
+        const avgMcap = allTokens.reduce((sum, t) => sum + (t.marketCap || 0), 0) / allTokens.length;
         const avgMcapEl = document.getElementById('avgMcap');
         if (avgMcapEl) {
             avgMcapEl.textContent = `$${this.formatCompact(avgMcap)}`;
