@@ -5646,6 +5646,380 @@ span.negative,
     color: #ff4500;
 }
 
+/* ============================================
+   TRENCH AGENT STYLES
+   ============================================ */
+
+.trench-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(0, 240, 255, 0.1)) !important;
+    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+.trench-tab:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(0, 240, 255, 0.15)) !important;
+}
+
+.trench-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.trench-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+}
+
+.trench-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.trench-stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+}
+
+.trench-stat-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.trench-stat.highlight .trench-stat-value {
+    color: var(--accent-cyan);
+}
+
+.trench-section {
+    margin-bottom: 1rem;
+}
+
+.trench-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trench-section-icon {
+    font-size: 1rem;
+}
+
+.trench-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.trench-section-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.trench-section-header.gems .trench-section-badge {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+.trench-section-header.watchlist .trench-section-badge {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--accent-yellow);
+}
+
+.trench-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.trench-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trench-item:hover {
+    background: rgba(0, 240, 255, 0.05);
+    border-color: rgba(0, 240, 255, 0.2);
+}
+
+.trench-item.gem {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), transparent);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.trench-item.gem:hover {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12), transparent);
+}
+
+.trench-item.watch {
+    background: linear-gradient(90deg, rgba(251, 191, 36, 0.05), transparent);
+    border-color: rgba(251, 191, 36, 0.15);
+}
+
+.trench-item.empty {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 1rem;
+    cursor: default;
+}
+
+.trench-item.loading {
+    min-height: 60px;
+}
+
+.trench-loading-shimmer {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+.trench-item-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.trench-token-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.trench-symbol {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.trench-name {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trench-age {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    padding: 0.1rem 0.35rem;
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border-radius: 4px;
+}
+
+.trench-metrics {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.trench-mcap {
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+.trench-change {
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.trench-change.positive {
+    color: var(--accent-green);
+}
+
+.trench-change.negative {
+    color: #f87171;
+}
+
+.trench-item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.trench-score-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.trench-score-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.trench-score-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.trench-score-fill.legit {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.trench-score-fill.watch {
+    background: linear-gradient(90deg, #fbbf24, #fcd34d);
+}
+
+.trench-score-fill.caution {
+    background: linear-gradient(90deg, #f97316, #fb923c);
+}
+
+.trench-score-fill.risky {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.trench-score-value {
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 20px;
+}
+
+.trench-verdict {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.trench-verdict.legit {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+.trench-verdict.watch {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--accent-yellow);
+}
+
+.trench-verdict.caution {
+    background: rgba(249, 115, 22, 0.2);
+    color: var(--accent-orange);
+}
+
+.trench-verdict.risky {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.trench-signals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.trench-positive {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.35rem;
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-green);
+    border-radius: 3px;
+}
+
+.trench-flag {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.35rem;
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-radius: 3px;
+}
+
+.trench-actions {
+    display: flex;
+    gap: 0.35rem;
+    margin-left: auto;
+    align-self: flex-start;
+}
+
+.trench-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    border: none;
+}
+
+.trench-action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.trench-action.dex:hover {
+    background: rgba(0, 240, 255, 0.15);
+    color: var(--accent-cyan);
+}
+
+.trench-action.copy:hover {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--accent-yellow);
+}
+
+.trench-action.copy.copied {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+.trench-powered {
+    text-align: center;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.trench-powered span {
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
 .wallet-activity-title {
     font-size: 0.75rem;
     font-weight: 600;

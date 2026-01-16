@@ -710,6 +710,7 @@ class LiveDataService {
         this.fetchAllData();
         this.fetchSocialTrends();
         this.fetchNarrativeRadar(); // Fetch emerging narratives (faster refresh)
+        this.fetchTrenchAgent(); // Fetch fresh PumpFun launches
         this.startAutoRefresh();
     }
 
@@ -769,6 +770,11 @@ class LiveDataService {
         this.narrativeIntervalId = setInterval(() => {
             this.fetchNarrativeRadar();
         }, 120000);
+
+        // Trench Agent refresh every 90 seconds (fast for fresh launches)
+        this.trenchIntervalId = setInterval(() => {
+            this.fetchTrenchAgent();
+        }, 90000);
     }
 
     stopAutoRefresh() {
@@ -776,6 +782,7 @@ class LiveDataService {
         if (this.metricsIntervalId) clearInterval(this.metricsIntervalId);
         if (this.socialTrendsIntervalId) clearInterval(this.socialTrendsIntervalId);
         if (this.narrativeIntervalId) clearInterval(this.narrativeIntervalId);
+        if (this.trenchIntervalId) clearInterval(this.trenchIntervalId);
     }
 
     updateLastUpdateTime(fromCache = false) {
@@ -2228,6 +2235,166 @@ class LiveDataService {
                 alphaTimeEl.classList.remove('sample-data');
             }
         }
+    }
+
+    // ============================================
+    // TRENCH AGENT - Fresh PumpFun Scanner
+    // ============================================
+
+    async fetchTrenchAgent() {
+        try {
+            const response = await fetch('/.netlify/functions/trench-agent');
+
+            if (!response.ok) {
+                throw new Error('Trench agent fetch failed');
+            }
+
+            const data = await response.json();
+            this.displayTrenchResults(data);
+
+            return data;
+        } catch (error) {
+            console.warn('Trench agent error:', error);
+            const gemsEl = document.getElementById('trenchGems');
+            if (gemsEl) {
+                gemsEl.innerHTML = '<div class="trench-item empty">Scanner temporarily unavailable</div>';
+            }
+            return null;
+        }
+    }
+
+    displayTrenchResults(data) {
+        // Update stats
+        const scannedEl = document.getElementById('trenchScanned');
+        const passedEl = document.getElementById('trenchPassed');
+        const avgScoreEl = document.getElementById('trenchAvgScore');
+        const gemsCountEl = document.getElementById('gemsCount');
+        const watchCountEl = document.getElementById('watchCount');
+        const updateTimeEl = document.getElementById('trenchUpdateTime');
+
+        if (data.scanStats) {
+            if (scannedEl) scannedEl.textContent = data.scanStats.totalFound || 0;
+            if (passedEl) passedEl.textContent = data.scanStats.passedFilters || 0;
+            if (avgScoreEl) avgScoreEl.textContent = data.scanStats.avgLegitScore || 0;
+        }
+
+        if (updateTimeEl) {
+            updateTimeEl.textContent = data.cached ? 'Cached' : 'Live';
+        }
+
+        // Render gems
+        const gemsEl = document.getElementById('trenchGems');
+        const freshGems = data.freshGems || [];
+
+        if (gemsCountEl) gemsCountEl.textContent = freshGems.length;
+
+        if (gemsEl) {
+            if (freshGems.length === 0) {
+                gemsEl.innerHTML = '<div class="trench-item empty">No gems found yet - scanning...</div>';
+            } else {
+                gemsEl.innerHTML = freshGems.map(token => this.renderTrenchItem(token, 'gem')).join('');
+                this.attachTrenchClickHandlers(gemsEl);
+            }
+        }
+
+        // Render watchlist
+        const watchEl = document.getElementById('trenchWatch');
+        const watchlist = data.watchlist || [];
+
+        if (watchCountEl) watchCountEl.textContent = watchlist.length;
+
+        if (watchEl) {
+            if (watchlist.length === 0) {
+                watchEl.innerHTML = '<div class="trench-item empty">No watchlist items</div>';
+            } else {
+                watchEl.innerHTML = watchlist.slice(0, 5).map(token => this.renderTrenchItem(token, 'watch')).join('');
+                this.attachTrenchClickHandlers(watchEl);
+            }
+        }
+    }
+
+    renderTrenchItem(token, type) {
+        const verdictClass = token.verdict?.toLowerCase() || 'risky';
+        const priceChangeClass = token.priceChange1h >= 0 ? 'positive' : 'negative';
+        const priceChange = token.priceChange1h >= 0 ? `+${token.priceChange1h.toFixed(1)}%` : `${token.priceChange1h.toFixed(1)}%`;
+
+        const positives = (token.positives || []).slice(0, 3).map(p =>
+            `<span class="trench-positive">${escapeHtml(p)}</span>`
+        ).join('');
+
+        const flags = (token.flags || []).slice(0, 2).map(f =>
+            `<span class="trench-flag">${escapeHtml(f)}</span>`
+        ).join('');
+
+        return `
+            <div class="trench-item ${type}" data-address="${token.address}" data-dex="${token.dexUrl}">
+                <div class="trench-item-main">
+                    <div class="trench-token-info">
+                        <span class="trench-symbol">$${escapeHtml(token.symbol)}</span>
+                        <span class="trench-name">${escapeHtml(token.name?.slice(0, 20) || '')}</span>
+                        <span class="trench-age">${token.ageHours < 1 ? '<1h' : Math.floor(token.ageHours) + 'h'}</span>
+                    </div>
+                    <div class="trench-metrics">
+                        <span class="trench-mcap">${this.formatCompactNumber(token.mcap) || '--'}</span>
+                        <span class="trench-change ${priceChangeClass}">${priceChange}</span>
+                    </div>
+                </div>
+                <div class="trench-item-details">
+                    <div class="trench-score-row">
+                        <div class="trench-score-bar">
+                            <div class="trench-score-fill ${verdictClass}" style="width: ${token.legitScore}%"></div>
+                        </div>
+                        <span class="trench-score-value">${token.legitScore}</span>
+                        <span class="trench-verdict ${verdictClass}">${token.verdict}</span>
+                    </div>
+                    <div class="trench-signals">
+                        ${positives}
+                        ${flags}
+                    </div>
+                </div>
+                <div class="trench-actions">
+                    <a href="${token.dexUrl}" target="_blank" class="trench-action dex" title="DEX Screener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>
+                    </a>
+                    <button class="trench-action copy" data-ca="${token.address}" title="Copy CA">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    attachTrenchClickHandlers(container) {
+        // Click on item opens DEX
+        container.querySelectorAll('.trench-item[data-dex]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.trench-actions')) return;
+                const dexUrl = item.dataset.dex;
+                if (dexUrl) window.open(dexUrl, '_blank');
+            });
+        });
+
+        // Copy CA button
+        container.querySelectorAll('.trench-action.copy').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const ca = btn.dataset.ca;
+                if (ca) {
+                    try {
+                        await navigator.clipboard.writeText(ca);
+                        btn.classList.add('copied');
+                        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20,6 9,17 4,12"/></svg>';
+                        setTimeout(() => {
+                            btn.classList.remove('copied');
+                            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+                        }, 1500);
+                    } catch (err) {
+                        console.error('Copy failed:', err);
+                    }
+                }
+            });
+        });
     }
 
     formatCategory(category) {
