@@ -282,25 +282,41 @@
                         <div class="pulse-header">
                             <h3>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                                    <path d="M3 3v18h18"/>
+                                    <path d="M18 9l-5 5-4-4-3 3"/>
                                 </svg>
-                                Narrative Momentum
+                                Solana Volume
                             </h3>
-                            <span class="pulse-subtitle">Click to filter signals</span>
+                            <div class="chart-legend" id="chartLegend">
+                                <span class="legend-item pumpfun"><span class="legend-dot"></span>PumpFun</span>
+                                <span class="legend-item raydium"><span class="legend-dot"></span>Raydium</span>
+                                <span class="legend-item other"><span class="legend-dot"></span>Other</span>
+                            </div>
                         </div>
-                        <div class="narrative-momentum-container" id="narrativeMomentum">
-                            <!-- Dynamically rendered narrative bars -->
-                            <div class="momentum-loading">
-                                <div class="momentum-skeleton"></div>
-                                <div class="momentum-skeleton"></div>
-                                <div class="momentum-skeleton"></div>
+                        <div class="volume-chart-container">
+                            <canvas id="volumeChart"></canvas>
+                            <div class="chart-overlay" id="chartOverlay">
+                                <div class="chart-tooltip" id="chartTooltip"></div>
+                            </div>
+                            <div class="chart-glow"></div>
+                        </div>
+                        <div class="volume-breakdown" id="volumeBreakdown">
+                            <div class="breakdown-bar">
+                                <div class="breakdown-segment pumpfun" id="breakdownPumpfun" style="width: 50%"></div>
+                                <div class="breakdown-segment raydium" id="breakdownRaydium" style="width: 35%"></div>
+                                <div class="breakdown-segment other" id="breakdownOther" style="width: 15%"></div>
+                            </div>
+                            <div class="breakdown-labels">
+                                <span id="pumpfunPct">50%</span>
+                                <span id="raydiumPct">35%</span>
+                                <span id="otherPct">15%</span>
                             </div>
                         </div>
                         <div class="pulse-stats-row">
                             <div class="pulse-stat">
-                                <span class="pulse-stat-label">TOTAL VOLUME</span>
+                                <span class="pulse-stat-label">24H VOLUME</span>
                                 <span class="pulse-stat-value" id="totalVolume">$--</span>
-                                <span class="pulse-stat-meta" id="volumeTimeframe">24h</span>
+                                <span class="pulse-stat-meta live-indicator">LIVE</span>
                             </div>
                             <div class="pulse-stat">
                                 <span class="pulse-stat-label">NEW LAUNCHES</span>

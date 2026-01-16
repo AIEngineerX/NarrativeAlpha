@@ -1740,45 +1740,8 @@ class LiveDataService {
             avgMcapEl.textContent = `$${this.formatCompact(avgMcap)}`;
         }
 
-        // Calculate extended metrics for each narrative
-        const narrativeMetrics = {};
-        allTokens.forEach(t => {
-            const name = ((t.name || '') + ' ' + (t.symbol || '')).toLowerCase();
-            const vol = timeframe === '5m' ? (t.volume5m || 0) :
-                        timeframe === '1h' ? (t.volume1h || 0) :
-                        (t.volume24h || 0);
-            const priceChange = t.priceChange1h || 0;
-            const buyRatio = t.buyRatio || 0.5;
-
-            for (const [narrative, keywords] of Object.entries(narrativeKeywords)) {
-                if (keywords.some(kw => name.includes(kw))) {
-                    if (!narrativeMetrics[narrative]) {
-                        narrativeMetrics[narrative] = {
-                            tokens: [],
-                            totalVolume: 0,
-                            avgPriceChange: 0,
-                            avgBuyRatio: 0
-                        };
-                    }
-                    narrativeMetrics[narrative].tokens.push(t);
-                    narrativeMetrics[narrative].totalVolume += vol;
-                }
-            }
-        });
-
-        // Calculate averages for each narrative
-        for (const narrative of Object.keys(narrativeMetrics)) {
-            const m = narrativeMetrics[narrative];
-            const count = m.tokens.length;
-            if (count > 0) {
-                m.avgPriceChange = m.tokens.reduce((sum, t) => sum + (t.priceChange1h || 0), 0) / count;
-                m.avgBuyRatio = m.tokens.reduce((sum, t) => sum + (t.buyRatio || 0.5), 0) / count;
-            }
-        }
-
-        // Calculate momentum and render
-        const momentum = this.calculateNarrativeMomentum(narrativeCounts, narrativeVolumes, narrativeMetrics);
-        this.renderNarrativeMomentum(momentum, narrativeKeywords);
+        // Update volume chart with platform breakdown
+        this.updateVolumeChart(platformVolumes, totalVolume);
 
         // Update top gainer
         const topGainer = [...allTokens]
@@ -1808,162 +1771,218 @@ class LiveDataService {
         this.updateSocialTrends(sortedNarratives, tokens);
     }
 
-    // Calculate narrative momentum based on current vs previous data
-    calculateNarrativeMomentum(counts, volumes, metrics) {
-        const previousData = this.previousNarrativeData || {};
-        const momentum = {};
+    // Initialize volume chart
+    initVolumeChart() {
+        const canvas = document.getElementById('volumeChart');
+        if (!canvas) return;
 
-        for (const narrative of Object.keys(counts)) {
-            const currentCount = counts[narrative] || 0;
-            const currentVolume = volumes[narrative] || 0;
-            const prevData = previousData[narrative] || { count: 0, volume: 0 };
+        this.volumeChart = {
+            canvas,
+            ctx: canvas.getContext('2d'),
+            history: [],
+            maxPoints: 30,
+            animationProgress: 0
+        };
 
-            // Calculate momentum score based on multiple factors
-            const countGrowth = prevData.count > 0 ? (currentCount - prevData.count) / prevData.count * 100 : 0;
-            const volumeGrowth = prevData.volume > 0 ? (currentVolume - prevData.volume) / prevData.volume * 100 : 0;
-            const avgPriceChange = metrics[narrative]?.avgPriceChange || 0;
-            const avgBuyRatio = metrics[narrative]?.avgBuyRatio || 0.5;
-            const buyPressure = (avgBuyRatio - 0.5) * 100; // Convert to -50 to +50 scale
+        // Set canvas size
+        this.resizeVolumeChart();
+        window.addEventListener('resize', () => this.resizeVolumeChart());
 
-            // Composite momentum score
-            const momentumScore = (
-                countGrowth * 0.15 +
-                volumeGrowth * 0.35 +
-                avgPriceChange * 0.35 +
-                buyPressure * 0.15
-            );
-
-            // Determine direction
-            let direction = 'stable';
-            if (momentumScore > 5) direction = 'hot';
-            else if (momentumScore < -5) direction = 'cooling';
-
-            momentum[narrative] = {
-                name: narrative,
-                count: currentCount,
-                volume: currentVolume,
-                avgPriceChange,
-                avgBuyRatio,
-                momentumScore,
-                direction,
-                prevCount: prevData.count,
-                countGrowth,
-                volumeGrowth
-            };
-        }
-
-        // Store current data for next comparison
-        const nextPrevData = {};
-        for (const narrative of Object.keys(counts)) {
-            nextPrevData[narrative] = {
-                count: counts[narrative],
-                volume: volumes[narrative]
-            };
-        }
-        this.previousNarrativeData = nextPrevData;
-
-        // Store for external access
-        this.narrativeMomentumData = momentum;
-
-        return momentum;
+        // Start animation loop
+        this.animateVolumeChart();
     }
 
-    // Render the narrative momentum bars
-    renderNarrativeMomentum(momentum, keywords) {
-        const container = document.getElementById('narrativeMomentum');
-        if (!container) return;
+    resizeVolumeChart() {
+        if (!this.volumeChart?.canvas) return;
+        const container = this.volumeChart.canvas.parentElement;
+        const dpr = window.devicePixelRatio || 1;
+        this.volumeChart.canvas.width = container.offsetWidth * dpr;
+        this.volumeChart.canvas.height = 160 * dpr;
+        this.volumeChart.canvas.style.width = container.offsetWidth + 'px';
+        this.volumeChart.canvas.style.height = '160px';
+        this.volumeChart.ctx.scale(dpr, dpr);
+    }
 
-        // Sort narratives by volume and take top 6
-        const sorted = Object.values(momentum)
-            .sort((a, b) => b.volume - a.volume)
-            .slice(0, 6);
+    // Update volume chart with new data
+    updateVolumeChart(platformVolumes, totalVolume) {
+        if (!this.volumeChart) {
+            this.initVolumeChart();
+        }
+        if (!this.volumeChart) return;
 
-        if (sorted.length === 0) {
-            container.innerHTML = '<div class="momentum-empty">No narrative data available</div>';
+        const now = Date.now();
+        const dataPoint = {
+            time: now,
+            pumpfun: platformVolumes.pumpfun || 0,
+            raydium: platformVolumes.raydium || 0,
+            other: (platformVolumes.bonk || 0) + (platformVolumes.bags || 0) + (platformVolumes.other || 0),
+            total: totalVolume
+        };
+
+        this.volumeChart.history.push(dataPoint);
+        if (this.volumeChart.history.length > this.volumeChart.maxPoints) {
+            this.volumeChart.history.shift();
+        }
+
+        // Trigger animation
+        this.volumeChart.animationProgress = 0;
+
+        // Update breakdown bar
+        if (totalVolume > 0) {
+            const pumpfunPct = (platformVolumes.pumpfun / totalVolume * 100).toFixed(0);
+            const raydiumPct = (platformVolumes.raydium / totalVolume * 100).toFixed(0);
+            const otherPct = (100 - pumpfunPct - raydiumPct);
+
+            const pumpfunEl = document.getElementById('breakdownPumpfun');
+            const raydiumEl = document.getElementById('breakdownRaydium');
+            const otherEl = document.getElementById('breakdownOther');
+
+            if (pumpfunEl) pumpfunEl.style.width = `${Math.max(2, pumpfunPct)}%`;
+            if (raydiumEl) raydiumEl.style.width = `${Math.max(2, raydiumPct)}%`;
+            if (otherEl) otherEl.style.width = `${Math.max(2, otherPct)}%`;
+
+            const pumpfunPctEl = document.getElementById('pumpfunPct');
+            const raydiumPctEl = document.getElementById('raydiumPct');
+            const otherPctEl = document.getElementById('otherPct');
+
+            if (pumpfunPctEl) pumpfunPctEl.textContent = `${pumpfunPct}%`;
+            if (raydiumPctEl) raydiumPctEl.textContent = `${raydiumPct}%`;
+            if (otherPctEl) otherPctEl.textContent = `${otherPct}%`;
+        }
+    }
+
+    // Animate the volume chart
+    animateVolumeChart() {
+        if (!this.volumeChart?.ctx) {
+            requestAnimationFrame(() => this.animateVolumeChart());
             return;
         }
 
-        const maxVolume = Math.max(...sorted.map(n => n.volume));
+        const { ctx, canvas, history } = this.volumeChart;
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const height = canvas.height / (window.devicePixelRatio || 1);
 
-        const html = sorted.map((n, i) => {
-            const barWidth = maxVolume > 0 ? (n.volume / maxVolume * 100) : 0;
-            const directionClass = n.direction;
-            const badge = n.direction === 'hot' ? '<span class="momentum-badge hot">HOT</span>' :
-                         n.direction === 'cooling' ? '<span class="momentum-badge cooling">COOLING</span>' :
-                         '<span class="momentum-badge stable">STABLE</span>';
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
 
-            const changeClass = n.avgPriceChange >= 0 ? 'positive' : 'negative';
-            const changeSign = n.avgPriceChange >= 0 ? '+' : '';
-
-            return `
-                <div class="narrative-bar-wrapper ${directionClass}" data-narrative="${escapeHtml(n.name)}">
-                    <div class="narrative-bar-header">
-                        <span class="narrative-name">${escapeHtml(n.name)}</span>
-                        ${badge}
-                        <span class="narrative-count">${n.count} tokens</span>
-                    </div>
-                    <div class="narrative-bar-track">
-                        <div class="narrative-bar-fill" style="width: ${barWidth}%"></div>
-                    </div>
-                    <div class="narrative-bar-metrics">
-                        <span class="narrative-metric ${changeClass}">${changeSign}${n.avgPriceChange.toFixed(1)}% avg</span>
-                        <span class="narrative-metric">${Math.round(n.avgBuyRatio * 100)}% buys</span>
-                        <span class="narrative-metric">$${this.formatCompact(n.volume)}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        container.innerHTML = html;
-
-        // Add click handlers for filtering
-        container.querySelectorAll('.narrative-bar-wrapper').forEach(el => {
-            el.addEventListener('click', () => {
-                const narrative = el.dataset.narrative;
-                this.filterSignalsByNarrative(narrative, keywords);
-            });
-        });
-    }
-
-    // Filter signal feed by narrative
-    filterSignalsByNarrative(narrative, keywords) {
-        const feed = document.querySelector('.signals-feed');
-        if (!feed) return;
-
-        const narrativeKeywords = keywords[narrative] || [];
-        const cards = feed.querySelectorAll('.signal-card');
-
-        // Toggle filter - if already filtering this narrative, clear it
-        if (this.activeNarrativeFilter === narrative) {
-            cards.forEach(card => card.style.display = '');
-            this.activeNarrativeFilter = null;
-            // Remove active state from all bars
-            document.querySelectorAll('.narrative-bar-wrapper').forEach(el => {
-                el.classList.remove('active');
-            });
+        if (history.length < 2) {
+            // Draw placeholder
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.font = '12px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Collecting volume data...', width / 2, height / 2);
+            requestAnimationFrame(() => this.animateVolumeChart());
             return;
         }
 
-        this.activeNarrativeFilter = narrative;
+        // Calculate scale
+        const maxVol = Math.max(...history.map(d => d.total)) * 1.1;
+        const padding = { top: 10, right: 10, bottom: 25, left: 10 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
 
-        // Update active state on bars
-        document.querySelectorAll('.narrative-bar-wrapper').forEach(el => {
-            el.classList.toggle('active', el.dataset.narrative === narrative);
-        });
+        // Smooth animation
+        this.volumeChart.animationProgress = Math.min(1, (this.volumeChart.animationProgress || 0) + 0.05);
+        const progress = this.easeOutCubic(this.volumeChart.animationProgress);
 
-        let matchCount = 0;
-        cards.forEach(card => {
-            const name = (card.querySelector('.signal-name')?.textContent || '').toLowerCase();
-            const symbol = (card.querySelector('.signal-symbol')?.textContent || '').toLowerCase();
-            const combined = name + ' ' + symbol;
+        // Draw grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (chartHeight / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+        }
 
-            const matches = narrativeKeywords.some(kw => combined.includes(kw));
-            card.style.display = matches ? '' : 'none';
-            if (matches) matchCount++;
-        });
+        // Draw stacked areas
+        const drawArea = (getData, color, glowColor) => {
+            ctx.beginPath();
+            ctx.moveTo(padding.left, padding.top + chartHeight);
 
-        // Show notification
-        this.showNotification(`Filtering: ${narrative} (${matchCount} signals)`, 'info');
+            history.forEach((d, i) => {
+                const x = padding.left + (i / (history.length - 1)) * chartWidth;
+                const val = getData(d) * progress;
+                const y = padding.top + chartHeight - (val / maxVol) * chartHeight;
+                if (i === 0) ctx.lineTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+
+            ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+            ctx.closePath();
+
+            // Gradient fill
+            const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Glow line on top
+            ctx.beginPath();
+            history.forEach((d, i) => {
+                const x = padding.left + (i / (history.length - 1)) * chartWidth;
+                const val = getData(d) * progress;
+                const y = padding.top + chartHeight - (val / maxVol) * chartHeight;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        };
+
+        // Draw layers (bottom to top)
+        drawArea(d => d.other, 'rgba(107, 114, 128, 0.3)', 'rgba(156, 163, 175, 0.8)');
+        drawArea(d => d.other + d.raydium, 'rgba(0, 240, 255, 0.25)', 'rgba(0, 240, 255, 0.9)');
+        drawArea(d => d.total, 'rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 1)');
+
+        // Draw time labels
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+
+        const firstTime = history[0]?.time;
+        const lastTime = history[history.length - 1]?.time;
+        if (firstTime && lastTime) {
+            ctx.fillText(this.formatTime(firstTime), padding.left + 20, height - 5);
+            ctx.fillText(this.formatTime(lastTime), width - padding.right - 20, height - 5);
+            ctx.fillText('NOW', width - padding.right - 20, height - 5);
+        }
+
+        // Draw current value indicator
+        const lastPoint = history[history.length - 1];
+        if (lastPoint) {
+            const x = width - padding.right;
+            const y = padding.top + chartHeight - (lastPoint.total / maxVol) * chartHeight * progress;
+
+            // Pulsing dot
+            const pulse = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+            ctx.beginPath();
+            ctx.arc(x, y, 4 + pulse * 2, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(16, 185, 129, ${0.3 + pulse * 0.3})`;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#10b981';
+            ctx.fill();
+        }
+
+        requestAnimationFrame(() => this.animateVolumeChart());
+    }
+
+    easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+
+    formatTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 
     // Update the CT Buzz / Social Trends tab (fallback when social-trends API fails)
