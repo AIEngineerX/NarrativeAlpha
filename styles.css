@@ -3195,6 +3195,15 @@ body {
     stroke: var(--text-secondary);
 }
 
+.narr-copy-btn.copied {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.narr-copy-btn.copied svg {
+    stroke: #10b981;
+}
+
 .narr-socials {
     display: flex;
     gap: 1rem;
@@ -3235,6 +3244,16 @@ body {
 .narr-social-link.telegram:hover {
     border-color: #0088cc;
     color: #0088cc;
+}
+
+.narr-social-link.pumpfun:hover {
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.narr-social-link.dexscreener:hover {
+    border-color: #00f0ff;
+    color: #00f0ff;
 }
 
 /* Chart Section */
