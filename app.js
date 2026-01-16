@@ -1621,12 +1621,10 @@ class LiveDataService {
         const timeframe = this.currentTimeframe || '24h';
 
         // Calculate platform breakdown from token data (all from same source for accurate share)
-        const platformVolumes = { raydium: 0, pumpfun: 0, bonk: 0, bags: 0, other: 0 };
+        const platformVolumes = { raydium: 0, pumpfun: 0, meteora: 0, orca: 0 };
 
         allTokens.forEach(t => {
             const dex = (t.dexId || '').toLowerCase();
-            const url = (t.url || '').toLowerCase();
-            const platform = (t.platform || '').toLowerCase();
 
             // Use appropriate volume based on timeframe
             let vol;
@@ -1638,17 +1636,15 @@ class LiveDataService {
                 vol = t.volume24h || 0;
             }
 
-            // Detect platform from platform flag, dexId and URL
-            if (platform === 'bonk' || dex.includes('bonk') || dex.includes('letsbonk') || url.includes('letsbonk')) {
-                platformVolumes.bonk += vol;
-            } else if (platform === 'bags' || dex.includes('bags') || url.includes('bags.fm')) {
-                platformVolumes.bags += vol;
-            } else if (t.isPumpFunStyle || dex === 'pumpfun' || dex === 'pumpswap') {
+            // Detect platform from dexId
+            if (t.isPumpFunStyle || dex === 'pumpfun' || dex === 'pumpswap') {
                 platformVolumes.pumpfun += vol;
             } else if (dex.includes('raydium')) {
                 platformVolumes.raydium += vol;
-            } else if (dex.includes('orca') || dex.includes('jupiter') || dex.includes('meteora')) {
-                platformVolumes.other += vol;
+            } else if (dex.includes('meteora')) {
+                platformVolumes.meteora += vol;
+            } else if (dex.includes('orca')) {
+                platformVolumes.orca += vol;
             } else {
                 // Default to Raydium for Solana tokens without clear dex
                 platformVolumes.raydium += vol;
@@ -1771,218 +1767,29 @@ class LiveDataService {
         this.updateSocialTrends(sortedNarratives, tokens);
     }
 
-    // Initialize volume chart
-    initVolumeChart() {
-        const canvas = document.getElementById('volumeChart');
-        if (!canvas) return;
-
-        this.volumeChart = {
-            canvas,
-            ctx: canvas.getContext('2d'),
-            history: [],
-            maxPoints: 30,
-            animationProgress: 0
-        };
-
-        // Set canvas size
-        this.resizeVolumeChart();
-        window.addEventListener('resize', () => this.resizeVolumeChart());
-
-        // Start animation loop
-        this.animateVolumeChart();
-    }
-
-    resizeVolumeChart() {
-        if (!this.volumeChart?.canvas) return;
-        const container = this.volumeChart.canvas.parentElement;
-        const dpr = window.devicePixelRatio || 1;
-        this.volumeChart.canvas.width = container.offsetWidth * dpr;
-        this.volumeChart.canvas.height = 160 * dpr;
-        this.volumeChart.canvas.style.width = container.offsetWidth + 'px';
-        this.volumeChart.canvas.style.height = '160px';
-        this.volumeChart.ctx.scale(dpr, dpr);
-    }
-
-    // Update volume chart with new data
+    // Update volume list with platform breakdown
     updateVolumeChart(platformVolumes, totalVolume) {
-        if (!this.volumeChart) {
-            this.initVolumeChart();
-        }
-        if (!this.volumeChart) return;
+        // Update each platform row
+        const updateRow = (id, volume, total) => {
+            const volEl = document.getElementById(`${id}Volume`);
+            const shareEl = document.getElementById(`${id}Share`);
+            const barEl = document.getElementById(`${id}Bar`);
 
-        const now = Date.now();
-        const dataPoint = {
-            time: now,
-            pumpfun: platformVolumes.pumpfun || 0,
-            raydium: platformVolumes.raydium || 0,
-            other: (platformVolumes.bonk || 0) + (platformVolumes.bags || 0) + (platformVolumes.other || 0),
-            total: totalVolume
+            if (volEl) volEl.textContent = `$${this.formatCompact(volume)}`;
+
+            const pct = total > 0 ? Math.round((volume / total) * 100) : 0;
+            if (shareEl) shareEl.textContent = `${pct}%`;
+            if (barEl) barEl.style.width = `${Math.max(2, pct)}%`;
         };
 
-        this.volumeChart.history.push(dataPoint);
-        if (this.volumeChart.history.length > this.volumeChart.maxPoints) {
-            this.volumeChart.history.shift();
-        }
+        // Calculate Meteora and Orca from 'other' bucket
+        const meteora = platformVolumes.meteora || (platformVolumes.other * 0.6) || 0;
+        const orca = platformVolumes.orca || (platformVolumes.other * 0.4) || 0;
 
-        // Trigger animation
-        this.volumeChart.animationProgress = 0;
-
-        // Update breakdown bar
-        if (totalVolume > 0) {
-            const pumpfunPct = (platformVolumes.pumpfun / totalVolume * 100).toFixed(0);
-            const raydiumPct = (platformVolumes.raydium / totalVolume * 100).toFixed(0);
-            const otherPct = (100 - pumpfunPct - raydiumPct);
-
-            const pumpfunEl = document.getElementById('breakdownPumpfun');
-            const raydiumEl = document.getElementById('breakdownRaydium');
-            const otherEl = document.getElementById('breakdownOther');
-
-            if (pumpfunEl) pumpfunEl.style.width = `${Math.max(2, pumpfunPct)}%`;
-            if (raydiumEl) raydiumEl.style.width = `${Math.max(2, raydiumPct)}%`;
-            if (otherEl) otherEl.style.width = `${Math.max(2, otherPct)}%`;
-
-            const pumpfunPctEl = document.getElementById('pumpfunPct');
-            const raydiumPctEl = document.getElementById('raydiumPct');
-            const otherPctEl = document.getElementById('otherPct');
-
-            if (pumpfunPctEl) pumpfunPctEl.textContent = `${pumpfunPct}%`;
-            if (raydiumPctEl) raydiumPctEl.textContent = `${raydiumPct}%`;
-            if (otherPctEl) otherPctEl.textContent = `${otherPct}%`;
-        }
-    }
-
-    // Animate the volume chart
-    animateVolumeChart() {
-        if (!this.volumeChart?.ctx) {
-            requestAnimationFrame(() => this.animateVolumeChart());
-            return;
-        }
-
-        const { ctx, canvas, history } = this.volumeChart;
-        const width = canvas.width / (window.devicePixelRatio || 1);
-        const height = canvas.height / (window.devicePixelRatio || 1);
-
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-
-        if (history.length < 2) {
-            // Draw placeholder
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.font = '12px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Collecting volume data...', width / 2, height / 2);
-            requestAnimationFrame(() => this.animateVolumeChart());
-            return;
-        }
-
-        // Calculate scale
-        const maxVol = Math.max(...history.map(d => d.total)) * 1.1;
-        const padding = { top: 10, right: 10, bottom: 25, left: 10 };
-        const chartWidth = width - padding.left - padding.right;
-        const chartHeight = height - padding.top - padding.bottom;
-
-        // Smooth animation
-        this.volumeChart.animationProgress = Math.min(1, (this.volumeChart.animationProgress || 0) + 0.05);
-        const progress = this.easeOutCubic(this.volumeChart.animationProgress);
-
-        // Draw grid lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-            const y = padding.top + (chartHeight / 4) * i;
-            ctx.beginPath();
-            ctx.moveTo(padding.left, y);
-            ctx.lineTo(width - padding.right, y);
-            ctx.stroke();
-        }
-
-        // Draw stacked areas
-        const drawArea = (getData, color, glowColor) => {
-            ctx.beginPath();
-            ctx.moveTo(padding.left, padding.top + chartHeight);
-
-            history.forEach((d, i) => {
-                const x = padding.left + (i / (history.length - 1)) * chartWidth;
-                const val = getData(d) * progress;
-                const y = padding.top + chartHeight - (val / maxVol) * chartHeight;
-                if (i === 0) ctx.lineTo(x, y);
-                else ctx.lineTo(x, y);
-            });
-
-            ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
-            ctx.closePath();
-
-            // Gradient fill
-            const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-            gradient.addColorStop(0, color);
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = gradient;
-            ctx.fill();
-
-            // Glow line on top
-            ctx.beginPath();
-            history.forEach((d, i) => {
-                const x = padding.left + (i / (history.length - 1)) * chartWidth;
-                const val = getData(d) * progress;
-                const y = padding.top + chartHeight - (val / maxVol) * chartHeight;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            });
-            ctx.strokeStyle = glowColor;
-            ctx.lineWidth = 2;
-            ctx.shadowColor = glowColor;
-            ctx.shadowBlur = 10;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-        };
-
-        // Draw layers (bottom to top)
-        drawArea(d => d.other, 'rgba(107, 114, 128, 0.3)', 'rgba(156, 163, 175, 0.8)');
-        drawArea(d => d.other + d.raydium, 'rgba(0, 240, 255, 0.25)', 'rgba(0, 240, 255, 0.9)');
-        drawArea(d => d.total, 'rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 1)');
-
-        // Draw time labels
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.font = '10px Inter, sans-serif';
-        ctx.textAlign = 'center';
-
-        const firstTime = history[0]?.time;
-        const lastTime = history[history.length - 1]?.time;
-        if (firstTime && lastTime) {
-            ctx.fillText(this.formatTime(firstTime), padding.left + 20, height - 5);
-            ctx.fillText(this.formatTime(lastTime), width - padding.right - 20, height - 5);
-            ctx.fillText('NOW', width - padding.right - 20, height - 5);
-        }
-
-        // Draw current value indicator
-        const lastPoint = history[history.length - 1];
-        if (lastPoint) {
-            const x = width - padding.right;
-            const y = padding.top + chartHeight - (lastPoint.total / maxVol) * chartHeight * progress;
-
-            // Pulsing dot
-            const pulse = 0.5 + Math.sin(Date.now() / 300) * 0.5;
-            ctx.beginPath();
-            ctx.arc(x, y, 4 + pulse * 2, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(16, 185, 129, ${0.3 + pulse * 0.3})`;
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = '#10b981';
-            ctx.fill();
-        }
-
-        requestAnimationFrame(() => this.animateVolumeChart());
-    }
-
-    easeOutCubic(t) {
-        return 1 - Math.pow(1 - t, 3);
-    }
-
-    formatTime(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        updateRow('pumpfun', platformVolumes.pumpfun || 0, totalVolume);
+        updateRow('raydium', platformVolumes.raydium || 0, totalVolume);
+        updateRow('meteora', meteora, totalVolume);
+        updateRow('orca', orca, totalVolume);
     }
 
     // Update the CT Buzz / Social Trends tab (fallback when social-trends API fails)
@@ -3682,4 +3489,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize live data service (globally accessible for retry button)
     window.liveDataService = new LiveDataService();
+
+    // Initialize Phantom wallet connection
+    initWalletConnect();
 });
+
+// Phantom Wallet Connection
+function initWalletConnect() {
+    const connectBtn = document.getElementById('connectWallet');
+    const walletText = document.getElementById('walletText');
+    if (!connectBtn) return;
+
+    // Check if already connected
+    const checkConnection = async () => {
+        const provider = window.phantom?.solana || window.solana;
+        if (provider?.isPhantom && provider.isConnected) {
+            const pubkey = provider.publicKey?.toString();
+            if (pubkey) {
+                updateWalletUI(pubkey);
+            }
+        }
+    };
+
+    // Update UI when connected
+    const updateWalletUI = (pubkey) => {
+        const short = pubkey.slice(0, 4) + '...' + pubkey.slice(-4);
+        walletText.textContent = short;
+        connectBtn.classList.add('connected');
+        window.connectedWallet = pubkey;
+    };
+
+    // Connect handler
+    connectBtn.addEventListener('click', async () => {
+        const provider = window.phantom?.solana || window.solana;
+
+        if (!provider?.isPhantom) {
+            window.open('https://phantom.app/', '_blank');
+            return;
+        }
+
+        try {
+            if (provider.isConnected) {
+                // Disconnect
+                await provider.disconnect();
+                walletText.textContent = 'Connect';
+                connectBtn.classList.remove('connected');
+                window.connectedWallet = null;
+            } else {
+                // Connect
+                const resp = await provider.connect();
+                updateWalletUI(resp.publicKey.toString());
+            }
+        } catch (err) {
+            console.error('Wallet connection error:', err);
+        }
+    });
+
+    // Listen for account changes
+    const provider = window.phantom?.solana || window.solana;
+    if (provider) {
+        provider.on('accountChanged', (publicKey) => {
+            if (publicKey) {
+                updateWalletUI(publicKey.toString());
+            } else {
+                walletText.textContent = 'Connect';
+                connectBtn.classList.remove('connected');
+            }
+        });
+    }
+
+    // Check initial state
+    checkConnection();
+}

@@ -23,7 +23,12 @@
       "WebFetch(domain:kolscan.io)",
       "WebFetch(domain:api.kolscan.io)",
       "Bash(taskkill:*)",
-      "Bash(npx netlify-cli:*)"
+      "Bash(npx netlify-cli:*)",
+      "WebFetch(domain:app.axiom.trade)",
+      "WebFetch(domain:docs.bitquery.io)",
+      "WebFetch(domain:letsbonk.fun)",
+      "WebFetch(domain:dune.com)",
+      "WebFetch(domain:solana.com)"
     ]
   }
 }

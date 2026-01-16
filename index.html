@@ -32,7 +32,7 @@
                     </svg>
                 </div>
                 <div class="logo-text-group">
-                    <span class="logo-text">NARRATIVE<span class="logo-alpha">ALPHA</span></span>
+                    <span class="logo-text">NARRATIVE<span class="logo-alpha">ALPHA</span><span class="version-tag">V1</span></span>
                     <span class="logo-tagline">Find the pump before it pumps</span>
                 </div>
             </div>
@@ -48,6 +48,13 @@
                     <span class="status-dot"></span>
                     <span class="status-text">SCANNING</span>
                 </div>
+                <button class="wallet-btn" id="connectWallet">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
+                        <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>
+                    </svg>
+                    <span id="walletText">Connect</span>
+                </button>
             </div>
         </header>
 
@@ -281,57 +288,69 @@
                     <div class="pulse-content active" id="pulseMarket">
                         <div class="pulse-header">
                             <h3>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                    <path d="M3 3v18h18"/>
-                                    <path d="M18 9l-5 5-4-4-3 3"/>
-                                </svg>
-                                Solana Volume
+                                <span class="live-dot"></span>
+                                Solana DEX Volume
                             </h3>
-                            <div class="chart-legend" id="chartLegend">
-                                <span class="legend-item pumpfun"><span class="legend-dot"></span>PumpFun</span>
-                                <span class="legend-item raydium"><span class="legend-dot"></span>Raydium</span>
-                                <span class="legend-item other"><span class="legend-dot"></span>Other</span>
+                            <span class="pulse-total" id="totalVolume">$--</span>
+                        </div>
+                        <div class="volume-list">
+                            <div class="volume-row" data-platform="pumpfun">
+                                <div class="volume-row-left">
+                                    <span class="platform-icon pumpfun"></span>
+                                    <span class="platform-name">PumpFun</span>
+                                </div>
+                                <div class="volume-row-right">
+                                    <span class="platform-volume" id="pumpfunVolume">$--</span>
+                                    <span class="platform-share" id="pumpfunShare">--%</span>
+                                    <div class="volume-bar-mini"><div class="volume-bar-fill pumpfun" id="pumpfunBar"></div></div>
+                                </div>
+                            </div>
+                            <div class="volume-row" data-platform="raydium">
+                                <div class="volume-row-left">
+                                    <span class="platform-icon raydium"></span>
+                                    <span class="platform-name">Raydium</span>
+                                </div>
+                                <div class="volume-row-right">
+                                    <span class="platform-volume" id="raydiumVolume">$--</span>
+                                    <span class="platform-share" id="raydiumShare">--%</span>
+                                    <div class="volume-bar-mini"><div class="volume-bar-fill raydium" id="raydiumBar"></div></div>
+                                </div>
+                            </div>
+                            <div class="volume-row" data-platform="meteora">
+                                <div class="volume-row-left">
+                                    <span class="platform-icon meteora"></span>
+                                    <span class="platform-name">Meteora</span>
+                                </div>
+                                <div class="volume-row-right">
+                                    <span class="platform-volume" id="meteoraVolume">$--</span>
+                                    <span class="platform-share" id="meteoraShare">--%</span>
+                                    <div class="volume-bar-mini"><div class="volume-bar-fill meteora" id="meteoraBar"></div></div>
+                                </div>
+                            </div>
+                            <div class="volume-row" data-platform="orca">
+                                <div class="volume-row-left">
+                                    <span class="platform-icon orca"></span>
+                                    <span class="platform-name">Orca</span>
+                                </div>
+                                <div class="volume-row-right">
+                                    <span class="platform-volume" id="orcaVolume">$--</span>
+                                    <span class="platform-share" id="orcaShare">--%</span>
+                                    <div class="volume-bar-mini"><div class="volume-bar-fill orca" id="orcaBar"></div></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="volume-chart-container">
-                            <canvas id="volumeChart"></canvas>
-                            <div class="chart-overlay" id="chartOverlay">
-                                <div class="chart-tooltip" id="chartTooltip"></div>
+                        <div class="pulse-metrics">
+                            <div class="metric-item">
+                                <span class="metric-value" id="newLaunches">--</span>
+                                <span class="metric-label">New Tokens</span>
                             </div>
-                            <div class="chart-glow"></div>
-                        </div>
-                        <div class="volume-breakdown" id="volumeBreakdown">
-                            <div class="breakdown-bar">
-                                <div class="breakdown-segment pumpfun" id="breakdownPumpfun" style="width: 50%"></div>
-                                <div class="breakdown-segment raydium" id="breakdownRaydium" style="width: 35%"></div>
-                                <div class="breakdown-segment other" id="breakdownOther" style="width: 15%"></div>
+                            <div class="metric-item">
+                                <span class="metric-value" id="avgMcap">$--</span>
+                                <span class="metric-label">Avg MCap</span>
                             </div>
-                            <div class="breakdown-labels">
-                                <span id="pumpfunPct">50%</span>
-                                <span id="raydiumPct">35%</span>
-                                <span id="otherPct">15%</span>
-                            </div>
-                        </div>
-                        <div class="pulse-stats-row">
-                            <div class="pulse-stat">
-                                <span class="pulse-stat-label">24H VOLUME</span>
-                                <span class="pulse-stat-value" id="totalVolume">$--</span>
-                                <span class="pulse-stat-meta live-indicator">LIVE</span>
-                            </div>
-                            <div class="pulse-stat">
-                                <span class="pulse-stat-label">NEW LAUNCHES</span>
-                                <span class="pulse-stat-value" id="newLaunches">--</span>
-                                <span class="pulse-stat-meta">last 24h</span>
-                            </div>
-                            <div class="pulse-stat">
-                                <span class="pulse-stat-label">AVG MCAP</span>
-                                <span class="pulse-stat-value" id="avgMcap">$--</span>
-                                <span class="pulse-stat-meta">tracked tokens</span>
-                            </div>
-                            <div class="pulse-stat">
-                                <span class="pulse-stat-label">TOP GAINER</span>
-                                <span class="pulse-stat-value" id="topGainer">--</span>
-                                <span class="pulse-stat-meta" id="topGainerChange">--</span>
+                            <div class="metric-item highlight">
+                                <span class="metric-value" id="topGainer">--</span>
+                                <span class="metric-label" id="topGainerChange">Top Gainer</span>
                             </div>
                         </div>
                     </div>
@@ -824,15 +843,23 @@
 
                     <div class="docs-content">
                         <div class="doc-section active" id="doc-getting-started">
-                            <h2>Getting Started</h2>
-                            <p>NarrativeAlpha is an AI-powered narrative intelligence platform that helps you identify emerging Solana memecoin narratives with built-in scam protection.</p>
+                            <h2>Getting Started - V1</h2>
+                            <p>NarrativeAlpha V1 is an AI-powered narrative intelligence platform for Solana memecoins with advanced scam protection, wallet connectivity, and real-time DEX volume tracking.</p>
+
+                            <h3>What's New in V1</h3>
+                            <ul>
+                                <li><strong>Phantom Wallet Connect</strong> - Connect your Phantom wallet directly from the header</li>
+                                <li><strong>Live DEX Volume</strong> - Real-time volume breakdown across PumpFun, Raydium, Meteora, Orca</li>
+                                <li><strong>Enhanced Scam Detection</strong> - Slow-bleed honeypot detection, tiered PumpFun filtering</li>
+                                <li><strong>VERIFY Tags</strong> - Animated warning badges for unverified price movements</li>
+                            </ul>
 
                             <h3>Quick Start</h3>
                             <ol>
-                                <li><strong>Monitor Signals</strong> - Check real-time token signals with scam filtering enabled</li>
-                                <li><strong>Check Market Pulse</strong> - View ecosystem breakdown (PumpFun, Raydium, Bonk, Bags)</li>
-                                <li><strong>Enter a Query</strong> - Ask about narratives, hot movers, or specific tokens</li>
-                                <li><strong>Execute Analysis</strong> - Get AI-powered insights with live data context</li>
+                                <li><strong>Connect Wallet</strong> - Click "Connect" to link your Phantom wallet</li>
+                                <li><strong>Monitor Signals</strong> - Check real-time token signals with scam filtering</li>
+                                <li><strong>Check Market Pulse</strong> - View live volume breakdown by DEX platform</li>
+                                <li><strong>Execute Analysis</strong> - Ask AI about narratives, hot movers, or specific tokens</li>
                             </ol>
 
                             <h3>Query Examples</h3>
@@ -841,41 +868,34 @@
                                 <li>"Analyze AI x Crypto convergence plays and emerging tokens"</li>
                                 <li>"What memecoins are showing strong momentum right now?"</li>
                             </ul>
-
-                            <h3>Key Features</h3>
-                            <ul>
-                                <li><strong>Scam Detection</strong> - Automatic honeypot and rug pull filtering</li>
-                                <li><strong>Dead Token Detection</strong> - Filters out tokens with no real activity</li>
-                                <li><strong>Live Data Analysis</strong> - AI uses real-time DEX data in responses</li>
-                                <li><strong>Ecosystem Tracking</strong> - Monitor PumpFun, Bonk, Bags, and Raydium</li>
-                            </ul>
                         </div>
 
                         <div class="doc-section" id="doc-methodology">
                             <h2>Methodology</h2>
-                            <p>NarrativeAlpha aggregates real-time data from multiple sources:</p>
+                            <p>NarrativeAlpha V1 aggregates real-time data with enhanced scam detection:</p>
 
                             <h3>Data Sources</h3>
                             <ul>
-                                <li><strong>DEX Screener</strong> - Real-time Solana token prices, volume, liquidity</li>
-                                <li><strong>CoinGecko</strong> - Trending tokens, ecosystem categories (Bonk, Bags)</li>
-                                <li><strong>PumpFun</strong> - New token launches and memecoin activity</li>
-                                <li><strong>On-Chain Data</strong> - Transaction counts, buy/sell ratios, whale activity</li>
+                                <li><strong>DEX Screener API</strong> - Real-time Solana token prices, volume, liquidity, transactions</li>
+                                <li><strong>Live Volume Tracking</strong> - Platform breakdown across PumpFun, Raydium, Meteora, Orca</li>
+                                <li><strong>On-Chain Metrics</strong> - Transaction counts, buy/sell ratios, token age</li>
                             </ul>
 
-                            <h3>Scam Detection</h3>
+                            <h3>Enhanced Scam Detection (V1)</h3>
                             <ul>
-                                <li><strong>Honeypot Detection</strong> - High buy ratio with no price movement</li>
-                                <li><strong>MC/Liquidity Ratio</strong> - Flags tokens with suspicious ratios (>50x warning, >100x critical)</li>
-                                <li><strong>Activity Validation</strong> - Requires minimum volume and transactions</li>
-                                <li><strong>Dead Token Filter</strong> - Excludes tokens with no recent trading</li>
+                                <li><strong>Honeypot Detection</strong> - High buy ratio with no price movement (+50 scam score)</li>
+                                <li><strong>Slow-Bleed Pattern</strong> - High buys but consistent price decline = hidden sell tax (+25 scam score)</li>
+                                <li><strong>Sell-Tax Indicator</strong> - 75%+ buys with 10%+ price drop (+20 scam score)</li>
+                                <li><strong>MC/Liquidity Ratio</strong> - >200x ratio auto-filtered, >100x critical warning</li>
+                                <li><strong>Tiered PumpFun Filtering</strong> - Age-based volume thresholds ($1k-$3k by age)</li>
                             </ul>
 
-                            <h3>AI Analysis</h3>
+                            <h3>Confidence Scoring</h3>
                             <ul>
-                                <li><strong>Live Context</strong> - Claude receives top 10 movers (scam-filtered) with each query</li>
-                                <li><strong>Narrative Detection</strong> - Identifies themes across token names/symbols</li>
-                                <li><strong>Token Intelligence</strong> - Deep analysis of individual tokens on request</li>
+                                <li><strong>Scam Score 60+</strong> - Confidence reduced by 50 points</li>
+                                <li><strong>Scam Score 40+</strong> - Confidence reduced by 35 points</li>
+                                <li><strong>Scam Score 20+</strong> - Confidence reduced by 20 points</li>
+                                <li><strong>High Risk Override</strong> - Positive signals become VERIFY when risk detected</li>
                             </ul>
                         </div>
 
@@ -884,34 +904,37 @@
 
                             <h3>Signal Tags</h3>
                             <ul>
-                                <li><strong class="text-green">PUMPING</strong> - Token showing strong upward momentum with volume confirmation</li>
+                                <li><strong class="text-green">PUMPING</strong> - Strong upward momentum with volume confirmation</li>
                                 <li><strong class="text-green">FRESH</strong> - New launch under 6 hours old</li>
-                                <li><strong class="text-orange">VERIFY</strong> - Price movement without volume confirmation</li>
+                                <li><strong class="text-green">NEW PUMP</strong> - Fresh launch with immediate price action</li>
+                                <li><strong class="text-orange">VERIFY</strong> - Price movement needs verification (animated warning)</li>
                                 <li><strong class="text-red">DEAD</strong> - No trading activity detected</li>
                                 <li><strong class="text-red">DUMPING</strong> - Significant downward price movement</li>
                             </ul>
 
                             <h3>Warning Badges</h3>
                             <ul>
-                                <li><strong style="color: #ef4444;">HONEYPOT?</strong> - Potential honeypot detected (sells may be blocked)</li>
+                                <li><strong style="color: #ef4444;">HONEYPOT?</strong> - Potential honeypot (sells may be blocked)</li>
+                                <li><strong style="color: #ef4444;">SLOW BLEED</strong> - Hidden sell tax detected</li>
                                 <li><strong style="color: #f97316;">HIGH RISK</strong> - Multiple risk indicators present</li>
+                                <li><strong style="color: #f97316;">SELL TAX</strong> - Suspected sell tax from buy/price mismatch</li>
                                 <li><strong style="color: #6b7280;">DEAD</strong> - No trading activity in recent period</li>
                             </ul>
 
-                            <h3>Market Pulse Ecosystems</h3>
+                            <h3>DEX Volume Breakdown</h3>
                             <ul>
-                                <li><strong>PumpFun</strong> - Tokens launched via pump.fun</li>
-                                <li><strong>Raydium</strong> - Tokens trading on Raydium DEX</li>
-                                <li><strong>Bonk</strong> - LetsBonk.fun ecosystem (via CoinGecko)</li>
-                                <li><strong>Bags</strong> - Bags.fm ecosystem (via CoinGecko)</li>
+                                <li><strong style="color: #10b981;">PumpFun</strong> - Pump.fun and PumpSwap volume</li>
+                                <li><strong style="color: #00f0ff;">Raydium</strong> - Raydium DEX volume</li>
+                                <li><strong style="color: #8b5cf6;">Meteora</strong> - Meteora DEX volume</li>
+                                <li><strong style="color: #f59e0b;">Orca</strong> - Orca DEX volume</li>
                             </ul>
 
-                            <h3>Trading Activity Metrics</h3>
+                            <h3>Key Metrics</h3>
                             <ul>
-                                <li><strong>Volume (1h)</strong> - Aggregate hourly volume across tracked tokens</li>
-                                <li><strong>Buy Pressure</strong> - Percentage of buy vs sell transactions</li>
-                                <li><strong>Urgent Signals</strong> - Count of high-momentum tokens</li>
-                                <li><strong>Top Gainer</strong> - Best performing token (click to view on DEX Screener)</li>
+                                <li><strong>24H Volume</strong> - Total tracked volume with live indicator</li>
+                                <li><strong>New Tokens</strong> - Tokens launched in last 24 hours</li>
+                                <li><strong>Avg MCap</strong> - Average market cap of tracked tokens</li>
+                                <li><strong>Top Gainer</strong> - Best performing token by 1h change</li>
                             </ul>
                         </div>
 
