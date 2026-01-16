@@ -2089,48 +2089,43 @@ class LiveDataService {
             // For X search, use symbol with $ prefix
             const xSymbolSearch = symbol ? `$${symbol}` : narrative.text?.slice(0, 30) || '';
 
-            // Primary link based on source
-            let primaryUrl, primaryTitle, primaryIcon;
             const mainSource = narrative.source || sources[0];
 
-            if (mainSource === 'pumpfun') {
-                // Link to DEX Screener for the token, or PumpFun board
-                primaryUrl = narrative.dexUrl || (narrative.address
-                    ? `https://dexscreener.com/solana/${narrative.address}`
-                    : `https://pump.fun/board`);
-                primaryTitle = 'View on DEX';
-                primaryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>';
-            } else if (mainSource === 'twitter') {
-                // Link to X search with the symbol (better results than full text)
-                primaryUrl = narrative.twitterUrl || `https://x.com/search?q=${encodeURIComponent(xSymbolSearch)}&src=typed_query&f=live`;
-                primaryTitle = 'Search on X';
-                primaryIcon = '<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
-            } else {
-                // DEX Screener
-                primaryUrl = narrative.address
-                    ? `https://dexscreener.com/solana/${narrative.address}`
-                    : `https://dexscreener.com/solana?q=${encodeURIComponent(symbol)}`;
-                primaryTitle = 'View on DEX';
-                primaryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
+            // Build URLs
+            const dexUrl = narrative.address
+                ? `https://dexscreener.com/solana/${narrative.address}`
+                : (narrative.dexUrl || `https://dexscreener.com/solana?q=${encodeURIComponent(symbol)}`);
+            const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(xSymbolSearch)}&src=typed_query&f=live`;
+            const pumpFunUrl = narrative.address
+                ? `https://pump.fun/coin/${narrative.address}`
+                : 'https://pump.fun/board';
+
+            // Token metrics display
+            let metricsHtml = '';
+            if (narrative.tokenExists && (narrative.marketCap || narrative.volume24h || narrative.priceChange1h !== undefined)) {
+                const mcap = narrative.marketCap ? this.formatCompactNumber(narrative.marketCap) : null;
+                const vol = narrative.volume24h ? this.formatCompactNumber(narrative.volume24h) : null;
+                const change = narrative.priceChange1h !== undefined ? narrative.priceChange1h : null;
+
+                metricsHtml = '<div class="narrative-metrics">';
+                if (mcap) metricsHtml += `<span class="metric-pill mcap">${mcap} MC</span>`;
+                if (vol) metricsHtml += `<span class="metric-pill vol">${vol} vol</span>`;
+                if (change !== null) {
+                    const changeClass = change >= 0 ? 'positive' : 'negative';
+                    metricsHtml += `<span class="metric-pill change ${changeClass}">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</span>`;
+                }
+                metricsHtml += '</div>';
             }
 
-            // Secondary X search link - always search for the symbol
-            const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(xSymbolSearch)}&src=typed_query&f=live`;
-
             // Token status
-            const tokenStatus = narrative.tokenExists ?
-                '<span class="token-status exists">Token live</span>' :
-                '<span class="token-status early">Pre-token</span>';
+            const tokenStatus = narrative.tokenExists && narrative.address
+                ? `<span class="token-status exists">CA: ${narrative.address.slice(0, 4)}...${narrative.address.slice(-4)}</span>`
+                : '<span class="token-status early">Pre-token</span>';
 
             // Age badge for fresh tokens
             const ageBadge = narrative.ageHours !== undefined && narrative.ageHours < 24
                 ? `<span class="age-badge fresh">${narrative.ageHours < 1 ? '<1h' : Math.floor(narrative.ageHours) + 'h'} old</span>`
                 : '';
-
-            // Build DEX URL for click action
-            const dexUrl = narrative.address
-                ? `https://dexscreener.com/solana/${narrative.address}`
-                : (narrative.dexUrl || '');
 
             return `
                 <div class="narrative-item ${engagementClass} ${narrative.address ? 'clickable' : ''}"
@@ -2148,21 +2143,25 @@ class LiveDataService {
                             ${tokenStatus}
                             <span class="narrative-sources">${sourceIcons}</span>
                         </div>
-                        ${narrative.suggestion ? `<div class="narrative-suggestion">${escapeHtml(narrative.suggestion)}</div>` : ''}
-                    </div>
-                    <div class="narrative-score">
-                        <div class="score-bar">
-                            <div class="score-fill" style="width: ${narrative.relevanceScore || 50}%"></div>
-                        </div>
-                        <span class="score-value">${narrative.relevanceScore || 50}</span>
+                        ${metricsHtml}
                     </div>
                     <div class="narrative-actions">
-                        <a href="${primaryUrl}" target="_blank" rel="noopener" class="narrative-link primary" title="${primaryTitle}">
-                            ${primaryIcon}
+                        <a href="${dexUrl}" target="_blank" rel="noopener" class="narrative-link dex" title="View on DEX Screener">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>
                         </a>
-                        <a href="${xSearchUrl}" target="_blank" rel="noopener" class="narrative-link x" title="Search $${escapeHtml(symbol)} on X">
+                        ${narrative.address ? `
+                        <a href="${pumpFunUrl}" target="_blank" rel="noopener" class="narrative-link pump" title="View on Pump.fun">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><circle cx="12" cy="12" r="10"/><path fill="rgba(0,0,0,0.3)" d="M12 6v12M6 12h12"/></svg>
+                        </a>
+                        ` : ''}
+                        <a href="${xSearchUrl}" target="_blank" rel="noopener" class="narrative-link x" title="Search on X">
                             <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                         </a>
+                        ${narrative.address ? `
+                        <button class="narrative-link copy" data-ca="${narrative.address}" title="Copy CA">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -2193,6 +2192,28 @@ class LiveDataService {
             });
         });
 
+        // Add click handlers for copy CA buttons
+        listEl.querySelectorAll('.narrative-link.copy').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const ca = btn.dataset.ca;
+                if (ca) {
+                    try {
+                        await navigator.clipboard.writeText(ca);
+                        btn.classList.add('copied');
+                        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20,6 9,17 4,12"/></svg>';
+                        setTimeout(() => {
+                            btn.classList.remove('copied');
+                            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+                        }, 1500);
+                    } catch (err) {
+                        console.error('Copy failed:', err);
+                    }
+                }
+            });
+        });
+
         // Update timestamp
         const alphaTimeEl = document.getElementById('alphaUpdateTime');
         if (alphaTimeEl) {
@@ -2212,16 +2233,33 @@ class LiveDataService {
     formatCategory(category) {
         const labels = {
             'AI_TECH': 'AI/Tech',
+            'AI_AGENTS': 'AI Agent',
             'POLITICAL': 'Political',
             'CELEBRITY': 'Celebrity',
             'MEME_CULTURE': 'Meme',
             'ANIMAL': 'Animal',
+            'ANIMAL_DOG': 'Dog',
+            'ANIMAL_CAT': 'Cat',
+            'ANIMAL_FROG': 'Frog',
+            'ANIMAL_OTHER': 'Animal',
             'GAMING': 'Gaming',
             'NEWS_EVENT': 'News',
             'EMERGING': 'Emerging',
-            'CRYPTO': 'Crypto'
+            'CRYPTO': 'Crypto',
+            'SOLANA_META': 'SOL',
+            'ALPHA_CALL': 'Alpha',
+            'FOOD_OBJECT': 'Object',
+            'DEFI': 'DeFi'
         };
         return labels[category] || category || 'Trend';
+    }
+
+    formatCompactNumber(num) {
+        if (!num || num === 0) return null;
+        if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+        if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+        if (num >= 1e3) return `$${(num / 1e3).toFixed(0)}K`;
+        return `$${num.toFixed(0)}`;
     }
 
     // ============================================

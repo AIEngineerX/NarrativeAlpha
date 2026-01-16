@@ -5551,6 +5551,61 @@ span.negative,
     color: var(--accent-cyan);
 }
 
+.narrative-link.pump:hover {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-green);
+}
+
+.narrative-link.copy {
+    border: none;
+}
+
+.narrative-link.copy:hover {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--accent-yellow);
+}
+
+.narrative-link.copy.copied {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+/* Narrative Metrics */
+.narrative-metrics {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.metric-pill {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+}
+
+.metric-pill.mcap {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+}
+
+.metric-pill.vol {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.metric-pill.change.positive {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-green);
+}
+
+.metric-pill.change.negative {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
 .narrative-item.empty {
     justify-content: center;
     color: var(--text-muted);
