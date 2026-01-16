@@ -3634,7 +3634,7 @@ async function fetchNarrTokenData() {
             // Update market cap (use fdv for PumpFun tokens)
             const mcap = pair.marketCap || pair.fdv;
             if (mcap) {
-                mcapEl.textContent = formatNarrNumber(mcap);
+                mcapEl.textContent = formatMcap(mcap);
             }
 
             // Update 24h volume
@@ -3661,6 +3661,14 @@ function formatNarrNumber(num) {
     if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
     if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
     return `$${num.toFixed(0)}`;
+}
+
+function formatMcap(num) {
+    if (!num) return 'TBA';
+    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B MC`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M MC`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K MC`;
+    return `${num.toFixed(0)} MC`;
 }
 
 // Initialize $NA data fetching
