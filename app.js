@@ -2127,8 +2127,18 @@ class LiveDataService {
                 ? `<span class="age-badge fresh">${narrative.ageHours < 1 ? '<1h' : Math.floor(narrative.ageHours) + 'h'} old</span>`
                 : '';
 
+            // Build DEX URL for click action
+            const dexUrl = narrative.address
+                ? `https://dexscreener.com/solana/${narrative.address}`
+                : (narrative.dexUrl || '');
+
             return `
-                <div class="narrative-item ${engagementClass}" data-category="${categoryClass}" data-source="${mainSource}">
+                <div class="narrative-item ${engagementClass} ${narrative.address ? 'clickable' : ''}"
+                     data-category="${categoryClass}"
+                     data-source="${mainSource}"
+                     data-address="${narrative.address || ''}"
+                     data-dex-url="${dexUrl}"
+                     title="${narrative.address ? 'Click to open DEX Screener' : ''}">
                     <div class="narrative-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
                     <div class="narrative-content">
                         <div class="narrative-text">${escapeHtml(narrative.text || '')}</div>
@@ -2159,6 +2169,29 @@ class LiveDataService {
         }).join('');
 
         listEl.innerHTML = html;
+
+        // Add click handlers for narrative items with addresses
+        listEl.querySelectorAll('.narrative-item.clickable').forEach(item => {
+            item.addEventListener('click', (e) => {
+                // Don't trigger if clicking on action buttons
+                if (e.target.closest('.narrative-actions')) return;
+
+                const dexUrl = item.dataset.dexUrl;
+                const address = item.dataset.address;
+
+                if (dexUrl) {
+                    // Open DEX Screener in new tab
+                    window.open(dexUrl, '_blank');
+                } else if (address) {
+                    // Copy CA to clipboard
+                    navigator.clipboard.writeText(address).then(() => {
+                        // Show brief feedback
+                        item.classList.add('copied');
+                        setTimeout(() => item.classList.remove('copied'), 1500);
+                    });
+                }
+            });
+        });
 
         // Update timestamp
         const alphaTimeEl = document.getElementById('alphaUpdateTime');

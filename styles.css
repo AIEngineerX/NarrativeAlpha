@@ -5290,11 +5290,43 @@ span.negative,
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.05);
     transition: all 0.2s ease;
+    position: relative;
 }
 
 .narrative-item:hover {
     background: rgba(0, 240, 255, 0.05);
     border-color: rgba(0, 240, 255, 0.2);
+}
+
+.narrative-item.clickable {
+    cursor: pointer;
+}
+
+.narrative-item.clickable:hover {
+    background: rgba(0, 240, 255, 0.08);
+    border-color: rgba(0, 240, 255, 0.3);
+    transform: translateX(2px);
+}
+
+.narrative-item.clickable:active {
+    transform: scale(0.99);
+}
+
+.narrative-item.copied {
+    background: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.narrative-item.copied::after {
+    content: 'Opened DEX ↗';
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    color: #10b981;
+    font-weight: 600;
+    animation: fadeIn 0.2s ease;
 }
 
 .narrative-item.viral {
