@@ -3586,3 +3586,95 @@ function initWalletConnect() {
     // Check initial state
     checkConnection();
 }
+
+// $NA Token Data Fetcher
+const NA_TOKEN_ADDRESS = '7cYBLLMCjuLAj4DKWZ9Vsf1zqMs9q5ofiWD3Yiigpump';
+
+async function fetchNarrTokenData() {
+    const priceEl = document.getElementById('narrPrice');
+    const changeEl = document.getElementById('narrPriceChange');
+    const mcapEl = document.getElementById('narrMcap');
+    const volumeEl = document.getElementById('narrVolume');
+    const txnsEl = document.getElementById('narrTxns');
+
+    if (!priceEl) return; // Not on $NA page
+
+    try {
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${NA_TOKEN_ADDRESS}`);
+        if (!response.ok) throw new Error('API error');
+
+        const data = await response.json();
+        console.log('$NA Token Data:', data); // Debug log
+
+        if (data.pairs && data.pairs.length > 0) {
+            // Use the first pair (PumpFun)
+            const pair = data.pairs[0];
+            console.log('Using pair:', pair); // Debug log
+
+            // Update price
+            const price = parseFloat(pair.priceUsd);
+            if (price > 0) {
+                if (price < 0.00001) {
+                    priceEl.textContent = `$${price.toExponential(2)}`;
+                } else if (price < 0.01) {
+                    priceEl.textContent = `$${price.toFixed(8)}`;
+                } else {
+                    priceEl.textContent = `$${price.toFixed(4)}`;
+                }
+            }
+
+            // Update price change
+            const priceChange = pair.priceChange?.h24;
+            if (priceChange !== undefined && priceChange !== null) {
+                const isPositive = priceChange >= 0;
+                changeEl.textContent = `${isPositive ? '+' : ''}${priceChange.toFixed(2)}%`;
+                changeEl.className = `narr-price-change ${isPositive ? 'positive' : 'negative'}`;
+            }
+
+            // Update market cap (use fdv for PumpFun tokens)
+            const mcap = pair.marketCap || pair.fdv;
+            if (mcap) {
+                mcapEl.textContent = formatNarrNumber(mcap);
+            }
+
+            // Update 24h volume
+            const volume = pair.volume?.h24;
+            if (volume) {
+                volumeEl.textContent = formatNarrNumber(volume);
+            }
+
+            // Update 24h transactions
+            if (pair.txns?.h24) {
+                const buys = pair.txns.h24.buys || 0;
+                const sells = pair.txns.h24.sells || 0;
+                txnsEl.textContent = `${(buys + sells).toLocaleString()}`;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching $NA token data:', error);
+    }
+}
+
+function formatNarrNumber(num) {
+    if (!num) return 'TBA';
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
+    return `$${num.toFixed(0)}`;
+}
+
+// Initialize $NA data fetching
+function initNarrTokenData() {
+    // Fetch immediately
+    fetchNarrTokenData();
+
+    // Refresh every 30 seconds
+    setInterval(fetchNarrTokenData, 30000);
+}
+
+// Call init when DOM is ready (add to existing DOMContentLoaded or call separately)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNarrTokenData);
+} else {
+    initNarrTokenData();
+}

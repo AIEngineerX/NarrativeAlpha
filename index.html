@@ -649,12 +649,12 @@
                                 <span class="narr-metric-value">1,000,000,000</span>
                             </div>
                             <div class="narr-metric">
-                                <span class="narr-metric-label">LIQUIDITY</span>
-                                <span class="narr-metric-value" id="narrLiquidity">TBA</span>
+                                <span class="narr-metric-label">24H VOLUME</span>
+                                <span class="narr-metric-value" id="narrVolume">TBA</span>
                             </div>
                             <div class="narr-metric">
-                                <span class="narr-metric-label">HOLDERS</span>
-                                <span class="narr-metric-value" id="narrHolders">TBA</span>
+                                <span class="narr-metric-label">24H TXNS</span>
+                                <span class="narr-metric-value" id="narrTxns">TBA</span>
                             </div>
                         </div>
 
@@ -689,21 +689,27 @@
                         </div>
                     </div>
 
-                    <!-- Chart Placeholder -->
+                    <!-- Live Chart -->
                     <div class="narr-chart-section">
                         <div class="narr-chart-header">
                             <h3>Live Chart</h3>
-                            <span class="chart-coming-soon">Chart available at launch</span>
-                        </div>
-                        <div class="narr-chart-placeholder">
-                            <div class="chart-placeholder-content">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="60" height="60">
-                                    <path d="M3 3v18h18"/>
-                                    <path d="M18 9l-5 5-4-4-4 4"/>
+                            <a href="https://dexscreener.com/solana/7cYBLLMCjuLAj4DKWZ9Vsf1zqMs9q5ofiWD3Yiigpump" target="_blank" class="chart-fullscreen-link">
+                                Open Full Chart
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
                                 </svg>
-                                <p>$NA Chart Coming Soon</p>
-                                <span>Live price action will appear here after token launch</span>
-                            </div>
+                            </a>
+                        </div>
+                        <div class="narr-chart-embed">
+                            <iframe
+                                src="https://dexscreener.com/solana/7v8S6TdGaa38H1ubjF47bKZbhvqvE6Ed9JzG2zEPRMXw?embed=1&theme=dark&trades=0&info=0"
+                                title="$NA Chart"
+                                frameborder="0"
+                                allow="clipboard-write"
+                                allowfullscreen
+                            ></iframe>
                         </div>
                     </div>
 
