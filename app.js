@@ -3614,10 +3614,15 @@ async function fetchNarrTokenData() {
             // Update price
             const price = parseFloat(pair.priceUsd);
             if (price > 0) {
-                if (price < 0.00001) {
-                    priceEl.textContent = `$${price.toExponential(2)}`;
-                } else if (price < 0.01) {
+                // Format small prices nicely (e.g., $0.000005 shows as $0.000005)
+                if (price < 0.0000001) {
+                    priceEl.textContent = `$${price.toFixed(12)}`;
+                } else if (price < 0.00001) {
+                    priceEl.textContent = `$${price.toFixed(9)}`;
+                } else if (price < 0.001) {
                     priceEl.textContent = `$${price.toFixed(8)}`;
+                } else if (price < 0.01) {
+                    priceEl.textContent = `$${price.toFixed(6)}`;
                 } else {
                     priceEl.textContent = `$${price.toFixed(4)}`;
                 }
